@@ -1,0 +1,8 @@
+<resources>
+    <string name="app_name">집중 영수증</string>
+
+    <!-- Notification -->
+    <string name="timer_channel_name">집중 타이머</string>
+    <string name="timer_channel_desc">집중 세션이 진행 중일 때 표시됩니다.</string>
+    <string name="timer_notification_title">집중 중</string>
+</resources>

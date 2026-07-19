@@ -1,0 +1,88 @@
+package com.timereci.focus.ui.publish
+
+import android.net.Uri
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.timereci.focus.data.FocusRepository
+import com.timereci.focus.data.PhotoRef
+import com.timereci.focus.data.ReceiptEntity
+import com.timereci.focus.timer.FocusTimerController
+import com.timereci.focus.ui.util.Formatters
+import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
+import javax.inject.Inject
+
+data class PublishUiState(
+    val stamp: String = "",
+    val task: String = "",
+    val focus: String = "",
+    val comment: String = "",
+    val photos: List<PhotoRef> = emptyList(),
+    val saving: Boolean = false,
+)
+
+@HiltViewModel
+class PublishViewModel @Inject constructor(
+    private val controller: FocusTimerController,
+    private val repository: FocusRepository,
+) : ViewModel() {
+
+    // Captured once: the completed session powering this publish screen.
+    private val completed = controller.state.value
+    private val issuedAt = System.currentTimeMillis()
+
+    private val _ui = MutableStateFlow(
+        PublishUiState(
+            stamp = Formatters.stamp(issuedAt),
+            task = completed.taskLabel,
+            focus = Formatters.focus(completed.focusedMs),
+            comment = completed.draftComment,
+            photos = completed.backdropFileName
+                ?.let { listOf(PhotoRef(fileName = it)) }
+                ?: emptyList(),
+        ),
+    )
+    val ui: StateFlow<PublishUiState> = _ui.asStateFlow()
+
+    fun addPhoto(uri: Uri) {
+        viewModelScope.launch {
+            val tone = _ui.value.photos.size % com.timereci.focus.ui.theme.PhotoTones.count
+            repository.photoStorageRef.import(uri, tone)?.let { added ->
+                _ui.value = _ui.value.copy(photos = _ui.value.photos + added)
+            }
+        }
+    }
+
+    fun setComment(text: String) {
+        _ui.value = _ui.value.copy(comment = text)
+    }
+
+    /** Commit to the feed, then clear the session. */
+    fun store(onDone: () -> Unit) {
+        if (_ui.value.saving) return
+        _ui.value = _ui.value.copy(saving = true)
+        viewModelScope.launch {
+            repository.publish(
+                ReceiptEntity(
+                    issuedAtEpoch = issuedAt,
+                    focusedMs = completed.focusedMs,
+                    plannedMs = completed.plannedMs,
+                    taskLabel = completed.taskLabel,
+                    comment = _ui.value.comment.ifBlank { null },
+                    photos = _ui.value.photos,
+                ),
+            )
+            controller.reset()
+            onDone()
+        }
+    }
+
+    /** Drop the session without publishing (leaves no trace, like an abandon). */
+    fun discard(onDone: () -> Unit) {
+        controller.reset()
+        onDone()
+    }
+}

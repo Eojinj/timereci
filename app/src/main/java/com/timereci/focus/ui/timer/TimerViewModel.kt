@@ -54,6 +54,12 @@ class TimerViewModel @Inject constructor(
     }
 
     fun setDuration(ms: Long) { _durationMs.value = ms }
+
+    /** Fine adjustment beyond the presets (±1분 short tap / ±5분 long-press from the UI). */
+    fun adjustDuration(deltaMs: Long) {
+        _durationMs.value = (_durationMs.value + deltaMs).coerceIn(MIN_DURATION_MS, MAX_DURATION_MS)
+    }
+
     fun setTask(text: String) { _taskLabel.value = text }
 
     fun importBackdrop(uri: Uri) {
@@ -80,4 +86,9 @@ class TimerViewModel @Inject constructor(
     fun openComment() { _commentSheetOpen.value = true }
     fun closeComment() { _commentSheetOpen.value = false }
     fun updateComment(text: String) = controller.updateComment(text)
+
+    private companion object {
+        const val MIN_DURATION_MS = 60_000L        // 1 minute
+        const val MAX_DURATION_MS = 180 * 60_000L  // 3 hours
+    }
 }

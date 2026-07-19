@@ -1,6 +1,7 @@
 package com.timereci.focus.ui.timer
 
 import android.content.pm.ActivityInfo
+import android.content.res.Configuration
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
@@ -10,8 +11,11 @@ import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -23,9 +27,11 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
@@ -43,6 +49,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -75,14 +82,17 @@ fun TimerScreen(
     val commentOpen by viewModel.commentSheetOpen.collectAsStateWithLifecycle()
 
     val context = LocalContext.current
+    val isLandscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
 
-    // Lock landscape for the timer; restore on exit.
+    // The rest of the app is portrait-locked (see AndroidManifest); unlock rotation only
+    // while this screen is shown, so landscape kicks in when the user actually turns the
+    // phone rather than being forced on entry. Restored to the app default on exit.
     DisposableEffect(Unit) {
         val activity = context.findActivity()
         val previous = activity?.requestedOrientation
-        activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
+        activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_USER
         onDispose {
-            activity?.requestedOrientation = previous ?: ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+            activity?.requestedOrientation = previous ?: ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
         }
     }
 
@@ -178,18 +188,22 @@ fun TimerScreen(
                 color = Color(0xFF22364A),
                 style = TextStyle(
                     fontFamily = MonoFamily,
-                    fontSize = 92.sp,
+                    fontSize = if (isLandscape) 92.sp else 56.sp,
                     fontWeight = FontWeight.Medium,
-                    letterSpacing = 4.sp,
+                    letterSpacing = if (isLandscape) 4.sp else 2.sp,
                 ),
             )
 
             Spacer(Modifier.height(20.dp))
 
             if (isPreStart) {
-                DurationPresets(selectedMs = duration, onSelect = viewModel::setDuration)
+                DurationAdjuster(
+                    selectedMs = duration,
+                    onSelect = viewModel::setDuration,
+                    onStep = viewModel::adjustDuration,
+                )
             } else {
-                ProgressLine(progress = state.progress)
+                ProgressLine(progress = state.progress, isLandscape = isLandscape)
             }
         }
 
@@ -259,33 +273,66 @@ private fun TaskField(value: String, onValueChange: (String) -> Unit) {
     }
 }
 
+/**
+ * Preset chips for quick pick, flanked by ±1분 step buttons (long-press = ±5분) for fine
+ * adjustment beyond the presets. Presets scroll horizontally so they never overflow in
+ * portrait's narrower width.
+ */
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun DurationPresets(selectedMs: Long, onSelect: (Long) -> Unit) {
-    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        DURATION_PRESETS.forEach { min ->
-            val ms = min * 60_000L
-            val active = ms == selectedMs
-            Box(
-                Modifier
-                    .clip(RoundedCornerShape(10.dp))
-                    .background(if (active) FocusColors.AccentDeep else Color(0xB3FFFFFF))
-                    .clickable { onSelect(ms) }
-                    .padding(horizontal = 14.dp, vertical = 8.dp),
-            ) {
-                Text(
-                    "${min}m",
-                    color = if (active) FocusColors.Paper else FocusColors.Ink2,
-                    fontFamily = MonoFamily,
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.Medium,
-                )
+private fun DurationAdjuster(selectedMs: Long, onSelect: (Long) -> Unit, onStep: (Long) -> Unit) {
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        StepButton(symbol = "−", onStep = onStep, direction = -1L)
+        Row(
+            modifier = Modifier
+                .widthIn(max = 260.dp)
+                .horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            DURATION_PRESETS.forEach { min ->
+                val ms = min * 60_000L
+                val active = ms == selectedMs
+                Box(
+                    Modifier
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(if (active) FocusColors.AccentDeep else Color(0xB3FFFFFF))
+                        .clickable { onSelect(ms) }
+                        .padding(horizontal = 14.dp, vertical = 8.dp),
+                ) {
+                    Text(
+                        "${min}m",
+                        color = if (active) FocusColors.Paper else FocusColors.Ink2,
+                        fontFamily = MonoFamily,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Medium,
+                    )
+                }
             }
         }
+        StepButton(symbol = "+", onStep = onStep, direction = 1L)
+    }
+}
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun StepButton(symbol: String, onStep: (Long) -> Unit, direction: Long) {
+    Box(
+        Modifier
+            .size(34.dp)
+            .clip(CircleShape)
+            .background(Color(0xB3FFFFFF))
+            .combinedClickable(
+                onClick = { onStep(direction * 60_000L) },
+                onLongClick = { onStep(direction * 5 * 60_000L) },
+            ),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(symbol, color = FocusColors.Ink2, fontSize = 18.sp, fontWeight = FontWeight.Bold)
     }
 }
 
 @Composable
-private fun ProgressLine(progress: Float) {
+private fun ProgressLine(progress: Float, isLandscape: Boolean) {
     val transition = rememberInfiniteTransition(label = "breathe")
     val pulse by transition.animateFloat(
         initialValue = 0.45f,
@@ -295,7 +342,7 @@ private fun ProgressLine(progress: Float) {
     )
     Box(
         Modifier
-            .width(400.dp)
+            .then(if (isLandscape) Modifier.width(400.dp) else Modifier.fillMaxWidth(0.85f))
             .height(20.dp),
         contentAlignment = Alignment.CenterStart,
     ) {

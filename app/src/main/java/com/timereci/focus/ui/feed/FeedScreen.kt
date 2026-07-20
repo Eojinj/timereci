@@ -30,6 +30,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -41,6 +42,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
+import com.timereci.focus.data.PhotoAspect
 import com.timereci.focus.data.PhotoStorage
 import com.timereci.focus.ui.components.PrimaryButton
 import com.timereci.focus.ui.model.FeedDay
@@ -59,11 +61,16 @@ fun FeedScreen(
     viewModel: FeedViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val aspect by viewModel.photoAspect.collectAsStateWithLifecycle()
 
     Box(
         Modifier
             .fillMaxSize()
-            .background(FocusColors.Paper),
+            .background(
+                Brush.verticalGradient(
+                    listOf(FocusColors.PageTop, FocusColors.PageMid, FocusColors.PageBottom),
+                ),
+            ),
     ) {
         Column(Modifier.fillMaxSize()) {
             FeedHeader(
@@ -79,13 +86,13 @@ fun FeedScreen(
                     contentPadding = PaddingValues(bottom = 120.dp),
                 ) {
                     items(s.days, key = { it.epochDay }) { day ->
-                        DayBlock(day = day, onClick = { onOpenDay(day.epochDay) })
+                        DayBlock(day = day, aspect = aspect, onClick = { onOpenDay(day.epochDay) })
                     }
                 }
             }
         }
 
-        // Sticky "집중 시작" action with a fade scrim.
+        // Sticky "집중 시작" action.
         Box(
             Modifier
                 .align(Alignment.BottomCenter)
@@ -105,17 +112,17 @@ private fun FeedHeader(subtitle: String, onOpenSettings: () -> Unit) {
         modifier = Modifier
             .fillMaxWidth()
             .windowInsetsPadding(WindowInsets.systemBars)
-            .padding(start = 20.dp, end = 8.dp, top = 12.dp, bottom = 12.dp),
+            .padding(start = 20.dp, end = 8.dp, top = 16.dp, bottom = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Column(Modifier.weight(1f)) {
-            Text("집중", color = FocusColors.Ink, fontSize = 26.sp, fontWeight = FontWeight.Bold)
+            Text("집중", color = FocusColors.Ink, fontSize = 34.sp, fontWeight = FontWeight.Bold, letterSpacing = (-0.5).sp)
             Text(
                 subtitle,
                 color = FocusColors.Muted,
                 fontFamily = MonoFamily,
                 fontSize = 11.5.sp,
-                modifier = Modifier.padding(top = 3.dp),
+                modifier = Modifier.padding(top = 4.dp),
             )
         }
         IconButton(onClick = onOpenSettings) {
@@ -152,25 +159,25 @@ private fun EmptyFeed() {
 }
 
 @Composable
-private fun DayBlock(day: FeedDay, onClick: () -> Unit) {
+private fun DayBlock(day: FeedDay, aspect: PhotoAspect, onClick: () -> Unit) {
     Column(
         Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick)
-            .padding(horizontal = 16.dp)
-            .padding(bottom = 26.dp),
+            .padding(bottom = 22.dp),
     ) {
+        // Day heading keeps a small inset for readability; the grid below is edge-to-edge.
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(4.dp),
+                .padding(horizontal = 20.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(
                 day.dayLabel,
                 color = FocusColors.Ink,
                 fontFamily = MonoFamily,
-                fontSize = 21.sp,
+                fontSize = 22.sp,
                 fontWeight = FontWeight.Medium,
             )
             Spacer(Modifier.width(10.dp))
@@ -184,29 +191,26 @@ private fun DayBlock(day: FeedDay, onClick: () -> Unit) {
             )
             Text(day.summary, color = FocusColors.Muted2, fontFamily = MonoFamily, fontSize = 11.sp)
         }
-        Spacer(Modifier.height(8.dp))
-        PhotoGrid(day.tiles)
+        Spacer(Modifier.height(6.dp))
+        PhotoGrid(day.tiles, aspect)
     }
 }
 
-/** 3-column grid clipped to a single rounded panel, matching the prototype. */
+/** 3-column edge-to-edge grid with 2dp seams, tiles cropped to the chosen aspect ratio. */
 @Composable
-private fun PhotoGrid(tiles: List<FeedTile>) {
+private fun PhotoGrid(tiles: List<FeedTile>, aspect: PhotoAspect) {
     Column(
-        Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(14.dp)),
-        verticalArrangement = Arrangement.spacedBy(3.dp),
+        Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(2.dp),
     ) {
         tiles.chunked(3).forEach { row ->
             Row(
                 Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(3.dp),
+                horizontalArrangement = Arrangement.spacedBy(2.dp),
             ) {
                 row.forEach { tile ->
-                    PhotoTile(tile, Modifier.weight(1f))
+                    PhotoTile(tile, aspect, Modifier.weight(1f))
                 }
-                // Pad short rows so the last row's tiles keep 1/3 width.
                 repeat(3 - row.size) { Spacer(Modifier.weight(1f)) }
             }
         }
@@ -214,11 +218,11 @@ private fun PhotoGrid(tiles: List<FeedTile>) {
 }
 
 @Composable
-private fun PhotoTile(tile: FeedTile, modifier: Modifier) {
+private fun PhotoTile(tile: FeedTile, aspect: PhotoAspect, modifier: Modifier) {
     val context = LocalContext.current
     Box(
         modifier
-            .aspectRatio(1f)
+            .aspectRatio(aspect.ratio)
             .background(PhotoTones.brush(tile.photo.toneIndex)),
     ) {
         tile.photo.fileName?.let { name ->

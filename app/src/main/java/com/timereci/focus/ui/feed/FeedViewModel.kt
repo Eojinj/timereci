@@ -3,6 +3,8 @@ package com.timereci.focus.ui.feed
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.timereci.focus.data.FocusRepository
+import com.timereci.focus.data.PhotoAspect
+import com.timereci.focus.data.SettingsRepository
 import com.timereci.focus.ui.model.FeedBuilder
 import com.timereci.focus.ui.model.FeedDay
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -21,6 +23,7 @@ sealed interface FeedUiState {
 @HiltViewModel
 class FeedViewModel @Inject constructor(
     repository: FocusRepository,
+    settingsRepository: SettingsRepository,
 ) : ViewModel() {
 
     val uiState: StateFlow<FeedUiState> = repository.observeReceipts()
@@ -34,4 +37,8 @@ class FeedViewModel @Inject constructor(
             }
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), FeedUiState.Loading)
+
+    val photoAspect: StateFlow<PhotoAspect> = settingsRepository.settings
+        .map { it.photoAspect }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), PhotoAspect.PORTRAIT)
 }

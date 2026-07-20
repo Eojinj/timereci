@@ -4,6 +4,8 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.timereci.focus.data.FocusRepository
+import com.timereci.focus.data.PhotoAspect
+import com.timereci.focus.data.SettingsRepository
 import com.timereci.focus.ui.Routes
 import com.timereci.focus.ui.model.SessionCard
 import com.timereci.focus.ui.util.Formatters
@@ -24,11 +26,16 @@ data class DayUiState(
 @HiltViewModel
 class DayViewModel @Inject constructor(
     repository: FocusRepository,
+    settingsRepository: SettingsRepository,
     savedStateHandle: SavedStateHandle,
 ) : ViewModel() {
 
     private val epochDay: Long = savedStateHandle.get<Long>(Routes.ARG_EPOCH_DAY) ?: 0L
     private val date: LocalDate = LocalDate.ofEpochDay(epochDay)
+
+    val photoAspect: StateFlow<PhotoAspect> = settingsRepository.settings
+        .map { it.photoAspect }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), PhotoAspect.PORTRAIT)
 
     val uiState: StateFlow<DayUiState> = repository.observeReceipts()
         .map { receipts ->

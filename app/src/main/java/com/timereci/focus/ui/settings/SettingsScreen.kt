@@ -33,6 +33,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.timereci.focus.data.PhotoAspect
 import com.timereci.focus.ui.theme.FocusColors
 import com.timereci.focus.ui.theme.MonoFamily
 import com.timereci.focus.ui.timer.DURATION_PRESETS
@@ -87,6 +88,37 @@ fun SettingsScreen(
                             color = if (active) FocusColors.Paper else FocusColors.Ink2,
                             fontFamily = MonoFamily,
                             fontSize = 13.sp,
+                        )
+                    }
+                }
+            }
+        }
+
+        Section("사진 비율") {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                PhotoAspect.entries.forEach { aspect ->
+                    val active = aspect == settings.photoAspect
+                    Row(
+                        Modifier
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(if (active) FocusColors.AccentDeep else FocusColors.Mist)
+                            .clickable { viewModel.setPhotoAspect(aspect) }
+                            .padding(horizontal = 16.dp, vertical = 10.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        Box(
+                            Modifier
+                                .size(width = 18.dp * aspect.ratio, height = 18.dp)
+                                .clip(RoundedCornerShape(3.dp))
+                                .background(if (active) FocusColors.Paper else FocusColors.LineStrong),
+                        )
+                        Text(
+                            aspect.label,
+                            color = if (active) FocusColors.Paper else FocusColors.Ink2,
+                            fontFamily = MonoFamily,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Medium,
                         )
                     }
                 }

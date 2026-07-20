@@ -28,7 +28,7 @@ fun FocusApp(root: RootViewModel = hiltViewModel()) {
     LaunchedEffect(resume) {
         when (resume) {
             ResumeTarget.TIMER -> {
-                navController.navigate(Routes.TIMER) { launchSingleTop = true }
+                navController.navigate(Routes.timer()) { launchSingleTop = true }
                 root.consumeResume()
             }
             ResumeTarget.PUBLISH -> {
@@ -49,13 +49,23 @@ fun FocusApp(root: RootViewModel = hiltViewModel()) {
     ) {
         composable(Routes.FEED) {
             FeedScreen(
-                onStartFocus = { navController.navigate(Routes.TIMER) },
+                onStartFocus = { navController.navigate(Routes.timer()) },
+                onStartPlanned = { label, minutes ->
+                    navController.navigate(Routes.timer(label, minutes))
+                },
                 onOpenDay = { epochDay -> navController.navigate(Routes.day(epochDay)) },
+                onOpenReceipt = { id -> navController.navigate(Routes.detail(id)) },
                 onOpenSettings = { navController.navigate(Routes.SETTINGS) },
             )
         }
 
-        composable(Routes.TIMER) {
+        composable(
+            route = Routes.TIMER,
+            arguments = listOf(
+                navArgument(Routes.ARG_TASK) { type = NavType.StringType; defaultValue = "" },
+                navArgument(Routes.ARG_MINUTES) { type = NavType.IntType; defaultValue = 0 },
+            ),
+        ) {
             TimerScreen(
                 onCompleted = {
                     navController.navigate(Routes.PUBLISH) {

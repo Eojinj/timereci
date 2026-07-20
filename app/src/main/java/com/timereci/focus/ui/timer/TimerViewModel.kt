@@ -1,6 +1,7 @@
 package com.timereci.focus.ui.timer
 
 import android.net.Uri
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.timereci.focus.data.FocusRepository
@@ -8,6 +9,7 @@ import com.timereci.focus.data.PhotoRef
 import com.timereci.focus.data.SettingsRepository
 import com.timereci.focus.timer.FocusTimerController
 import com.timereci.focus.timer.TimerState
+import com.timereci.focus.ui.Routes
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -26,6 +28,7 @@ class TimerViewModel @Inject constructor(
     private val controller: FocusTimerController,
     private val repository: FocusRepository,
     settingsRepository: SettingsRepository,
+    savedStateHandle: SavedStateHandle,
 ) : ViewModel() {
 
     val timerState: StateFlow<TimerState> = controller.state
@@ -48,8 +51,16 @@ class TimerViewModel @Inject constructor(
     val commentSheetOpen: StateFlow<Boolean> = _commentSheetOpen
 
     init {
-        viewModelScope.launch {
-            _durationMs.value = settingsRepository.settings.first().defaultDurationMs
+        // Prefill from a planned focus, if we arrived here by tapping one.
+        val argTask = savedStateHandle.get<String>(Routes.ARG_TASK).orEmpty()
+        val argMinutes = savedStateHandle.get<Int>(Routes.ARG_MINUTES) ?: 0
+        if (argTask.isNotBlank()) _taskLabel.value = argTask
+        if (argMinutes > 0) {
+            _durationMs.value = argMinutes * 60_000L
+        } else {
+            viewModelScope.launch {
+                _durationMs.value = settingsRepository.settings.first().defaultDurationMs
+            }
         }
     }
 

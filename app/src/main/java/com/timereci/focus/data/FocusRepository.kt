@@ -12,6 +12,7 @@ import javax.inject.Singleton
 class FocusRepository @Inject constructor(
     private val receiptDao: ReceiptDao,
     private val activeSessionDao: ActiveSessionDao,
+    private val plannedFocusDao: PlannedFocusDao,
     private val photoStorage: PhotoStorage,
 ) {
     // ---- Receipts ----
@@ -40,6 +41,22 @@ class FocusRepository @Inject constructor(
     suspend fun saveActiveSession(session: ActiveSessionEntity) = activeSessionDao.upsert(session)
 
     suspend fun clearActiveSession() = activeSessionDao.clear()
+
+    // ---- Planned focus (오늘 할 집중) ----
+
+    fun observePlannedFocus(): Flow<List<PlannedFocusEntity>> = plannedFocusDao.observeAll()
+
+    suspend fun addPlannedFocus(label: String, plannedMs: Long) {
+        plannedFocusDao.insert(
+            PlannedFocusEntity(
+                label = label,
+                plannedMs = plannedMs,
+                createdAtEpoch = System.currentTimeMillis(),
+            ),
+        )
+    }
+
+    suspend fun deletePlannedFocus(id: Long) = plannedFocusDao.deleteById(id)
 
     // ---- Photos ----
 

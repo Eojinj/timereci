@@ -15,6 +15,16 @@ data class SessionCard(
     val comment: String? = null,
 )
 
+/** Shared mapping from a stored receipt to its display card. */
+fun ReceiptEntity.toSessionCard() = SessionCard(
+    id = id,
+    stamp = Formatters.stamp(issuedAtEpoch),
+    task = taskLabel,
+    focus = Formatters.focus(focusedMs),
+    photos = photos,
+    comment = comment,
+)
+
 /** One tile in a feed day's photo grid. */
 data class FeedTile(
     val photo: PhotoRef,
@@ -47,16 +57,7 @@ object FeedBuilder {
             .toSortedMap(compareByDescending { it })
             .map { (date, dayReceipts) ->
                 val sorted = dayReceipts.sortedByDescending { it.issuedAtEpoch }
-                val sessions = sorted.map { r ->
-                    SessionCard(
-                        id = r.id,
-                        stamp = Formatters.stamp(r.issuedAtEpoch),
-                        task = r.taskLabel,
-                        focus = Formatters.focus(r.focusedMs),
-                        photos = r.photos,
-                        comment = r.comment,
-                    )
-                }
+                val sessions = sorted.map { it.toSessionCard() }
                 // Flatten to (session, photo) so each tile knows which session it belongs to.
                 val flat = sorted.flatMap { r ->
                     r.photos.ifEmpty { listOf(PhotoRef()) }.map { p -> Triple(r.id, r.taskLabel, p) }

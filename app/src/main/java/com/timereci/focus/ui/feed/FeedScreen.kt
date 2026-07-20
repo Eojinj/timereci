@@ -5,30 +5,40 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Add
+import androidx.compose.material.icons.outlined.Close
+import androidx.compose.material.icons.outlined.GridView
+import androidx.compose.material.icons.outlined.Settings
+import androidx.compose.material.icons.outlined.ViewDay
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -39,8 +49,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -52,27 +64,36 @@ import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.timereci.focus.data.PhotoAspect
 import com.timereci.focus.data.PhotoStorage
+import com.timereci.focus.data.PlannedFocusEntity
 import com.timereci.focus.ui.components.PrimaryButton
+import com.timereci.focus.ui.components.SessionOverlayCard
 import com.timereci.focus.ui.model.FeedDay
 import com.timereci.focus.ui.model.FeedTile
 import com.timereci.focus.ui.theme.FocusColors
 import com.timereci.focus.ui.theme.GothicFamily
 import com.timereci.focus.ui.theme.MonoFamily
 import com.timereci.focus.ui.theme.PhotoTones
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.systemBars
+import com.timereci.focus.ui.timer.DURATION_PRESETS
+
+private data class PendingDelete(val id: Long, val label: String)
 
 @Composable
 fun FeedScreen(
     onStartFocus: () -> Unit,
+    onStartPlanned: (String, Int) -> Unit,
     onOpenDay: (Long) -> Unit,
+    onOpenReceipt: (Long) -> Unit,
     onOpenSettings: () -> Unit,
     viewModel: FeedViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val aspect by viewModel.photoAspect.collectAsStateWithLifecycle()
+    val planned by viewModel.planned.collectAsStateWithLifecycle()
+    val rollSessions by viewModel.rollSessions.collectAsStateWithLifecycle()
 
-    var pendingDelete by remember { mutableStateOf<FeedTile?>(null) }
+    var mode by remember { mutableStateOf(FeedViewMode.GRID) }
+    var pendingDelete by remember { mutableStateOf<PendingDelete?>(null) }
+    var showAddPlanned by remember { mutableStateOf(false) }
 
     Box(
         Modifier
@@ -86,25 +107,50 @@ fun FeedScreen(
         Column(Modifier.fillMaxSize()) {
             FeedHeader(
                 subtitle = (state as? FeedUiState.Content)?.subtitle ?: "0장",
+                mode = mode,
+                onToggleMode = { mode = if (mode == FeedViewMode.GRID) FeedViewMode.ROLL else FeedViewMode.GRID },
                 onOpenSettings = onOpenSettings,
             )
 
-            when (val s = state) {
-                FeedUiState.Loading -> Spacer(Modifier.fillMaxSize())
-                FeedUiState.Empty -> EmptyFeed()
-                is FeedUiState.Content -> LazyColumn(
+            PlannedStrip(
+                planned = planned,
+                onStart = { p -> onStartPlanned(p.label, (p.plannedMs / 60_000L).toInt().coerceAtLeast(1)) },
+                onDelete = { viewModel.deletePlanned(it) },
+                onAdd = { showAddPlanned = true },
+            )
+
+            when {
+                state is FeedUiState.Empty -> EmptyFeed()
+                mode == FeedViewMode.ROLL -> LazyColumn(
                     modifier = Modifier.fillMaxSize(),
                     contentPadding = PaddingValues(bottom = 120.dp),
                 ) {
-                    items(s.days, key = { it.epochDay }) { day ->
+                    items(rollSessions, key = { it.id }) { session ->
+                        SessionOverlayCard(
+                            session = session,
+                            aspect = aspect,
+                            modifier = Modifier.fillMaxWidth(),
+                            taskSize = 30.sp,
+                            commentSize = 20.sp,
+                            onClick = { onOpenReceipt(session.id) },
+                            onLongClick = { pendingDelete = PendingDelete(session.id, session.task) },
+                        )
+                    }
+                }
+                state is FeedUiState.Content -> LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(bottom = 120.dp),
+                ) {
+                    items((state as FeedUiState.Content).days, key = { it.epochDay }) { day ->
                         DayBlock(
                             day = day,
                             aspect = aspect,
                             onOpenDay = { onOpenDay(day.epochDay) },
-                            onLongPressTile = { tile -> pendingDelete = tile },
+                            onLongPressTile = { tile -> pendingDelete = PendingDelete(tile.sessionId, tile.task) },
                         )
                     }
                 }
+                else -> Spacer(Modifier.fillMaxSize())
             }
         }
 
@@ -121,14 +167,14 @@ fun FeedScreen(
         }
     }
 
-    pendingDelete?.let { tile ->
+    pendingDelete?.let { target ->
         AlertDialog(
             onDismissRequest = { pendingDelete = null },
             title = { Text("이 집중을 삭제할까요?", fontWeight = FontWeight.Bold) },
-            text = { Text(tile.task.ifBlank { "제목 없는 집중" }) },
+            text = { Text(target.label.ifBlank { "제목 없는 집중" }) },
             confirmButton = {
                 TextButton(onClick = {
-                    viewModel.delete(tile.sessionId)
+                    viewModel.delete(target.id)
                     pendingDelete = null
                 }) { Text("삭제", color = FocusColors.AccentBlue, fontWeight = FontWeight.Bold) }
             },
@@ -137,32 +183,165 @@ fun FeedScreen(
             },
         )
     }
+
+    if (showAddPlanned) {
+        AddPlannedDialog(
+            onDismiss = { showAddPlanned = false },
+            onConfirm = { label, minutes ->
+                viewModel.addPlanned(label, minutes)
+                showAddPlanned = false
+            },
+        )
+    }
 }
 
 @Composable
-private fun FeedHeader(subtitle: String, onOpenSettings: () -> Unit) {
-    // Compact single-line header so the feed gets the vertical space.
+private fun FeedHeader(
+    subtitle: String,
+    mode: FeedViewMode,
+    onToggleMode: () -> Unit,
+    onOpenSettings: () -> Unit,
+) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .windowInsetsPadding(WindowInsets.systemBars)
-            .padding(start = 20.dp, end = 8.dp, top = 6.dp, bottom = 6.dp),
+            .padding(start = 20.dp, end = 6.dp, top = 6.dp, bottom = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text("집중", color = FocusColors.Ink, fontSize = 24.sp, fontWeight = FontWeight.Bold, letterSpacing = (-0.4).sp)
         Spacer(Modifier.width(10.dp))
-        Text(
-            subtitle,
-            color = FocusColors.Muted,
-            fontFamily = MonoFamily,
-            fontSize = 11.5.sp,
-            modifier = Modifier.padding(bottom = 1.dp),
-        )
+        Text(subtitle, color = FocusColors.Muted, fontFamily = MonoFamily, fontSize = 11.5.sp)
         Spacer(Modifier.weight(1f))
+        IconButton(onClick = onToggleMode) {
+            Icon(
+                if (mode == FeedViewMode.GRID) Icons.Outlined.ViewDay else Icons.Outlined.GridView,
+                contentDescription = "보기 전환",
+                tint = FocusColors.Ink2,
+            )
+        }
         IconButton(onClick = onOpenSettings) {
             Icon(Icons.Outlined.Settings, contentDescription = "설정", tint = FocusColors.Muted)
         }
     }
+}
+
+/** Slim horizontal strip of today's planned focus intentions. */
+@Composable
+private fun PlannedStrip(
+    planned: List<PlannedFocusEntity>,
+    onStart: (PlannedFocusEntity) -> Unit,
+    onDelete: (Long) -> Unit,
+    onAdd: () -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .horizontalScroll(rememberScrollState())
+            .padding(horizontal = 16.dp, vertical = 6.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        planned.forEach { p ->
+            Row(
+                Modifier
+                    .clip(RoundedCornerShape(20.dp))
+                    .background(Color.White)
+                    .border(1.dp, FocusColors.LineStrong, RoundedCornerShape(20.dp))
+                    .clickable { onStart(p) }
+                    .padding(start = 13.dp, end = 6.dp, top = 7.dp, bottom = 7.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                Text(p.label.ifBlank { "집중" }, color = FocusColors.Ink, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                Text("${(p.plannedMs / 60_000L).toInt()}분", color = FocusColors.Muted, fontFamily = MonoFamily, fontSize = 11.sp)
+                Box(
+                    Modifier
+                        .size(18.dp)
+                        .clip(CircleShape)
+                        .clickable { onDelete(p.id) },
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(Icons.Outlined.Close, contentDescription = "삭제", tint = FocusColors.Muted2, modifier = Modifier.size(13.dp))
+                }
+            }
+        }
+        // Add chip.
+        Row(
+            Modifier
+                .clip(RoundedCornerShape(20.dp))
+                .background(FocusColors.Mist)
+                .clickable(onClick = onAdd)
+                .padding(horizontal = 13.dp, vertical = 7.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            Icon(Icons.Outlined.Add, contentDescription = null, tint = FocusColors.AccentBlue, modifier = Modifier.size(15.dp))
+            Text("오늘 할 집중", color = FocusColors.AccentBlue, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+        }
+    }
+}
+
+@Composable
+private fun AddPlannedDialog(onDismiss: () -> Unit, onConfirm: (String, Int) -> Unit) {
+    var label by remember { mutableStateOf("") }
+    var minutes by remember { mutableStateOf(25) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("오늘 할 집중", fontWeight = FontWeight.Bold) },
+        text = {
+            Column {
+                Box(
+                    Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(FocusColors.Mist)
+                        .padding(horizontal = 12.dp, vertical = 12.dp),
+                ) {
+                    BasicTextField(
+                        value = label,
+                        onValueChange = { label = it },
+                        singleLine = true,
+                        cursorBrush = SolidColor(FocusColors.AccentBlue),
+                        textStyle = TextStyle(color = FocusColors.Ink, fontSize = 15.sp),
+                        decorationBox = { inner ->
+                            if (label.isEmpty()) Text("무엇에 집중할까요?", color = FocusColors.Muted2, fontSize = 15.sp)
+                            inner()
+                        },
+                    )
+                }
+                Spacer(Modifier.height(14.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    DURATION_PRESETS.forEach { m ->
+                        val active = m == minutes
+                        Box(
+                            Modifier
+                                .clip(RoundedCornerShape(10.dp))
+                                .background(if (active) FocusColors.AccentDeep else FocusColors.Mist)
+                                .clickable { minutes = m }
+                                .padding(horizontal = 12.dp, vertical = 7.dp),
+                        ) {
+                            Text(
+                                "${m}분",
+                                color = if (active) FocusColors.Paper else FocusColors.Ink2,
+                                fontFamily = MonoFamily,
+                                fontSize = 12.sp,
+                            )
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = { onConfirm(label.ifBlank { "집중" }, minutes) },
+            ) { Text("추가", color = FocusColors.AccentBlue, fontWeight = FontWeight.Bold) }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("취소", color = FocusColors.Muted) }
+        },
+    )
 }
 
 @Composable
@@ -204,7 +383,6 @@ private fun DayBlock(
             .fillMaxWidth()
             .padding(bottom = 22.dp),
     ) {
-        // Day heading keeps a small inset for readability; the grid below is edge-to-edge.
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -212,24 +390,11 @@ private fun DayBlock(
                 .padding(horizontal = 20.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text(
-                day.dayLabel,
-                color = FocusColors.Ink,
-                fontFamily = MonoFamily,
-                fontSize = 22.sp,
-                fontWeight = FontWeight.Medium,
-            )
+            Text(day.dayLabel, color = FocusColors.Ink, fontFamily = MonoFamily, fontSize = 22.sp, fontWeight = FontWeight.Medium)
             Spacer(Modifier.width(9.dp))
             Text(day.weekday, color = FocusColors.InkSoft, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, fontFamily = GothicFamily)
             Spacer(Modifier.width(9.dp))
-            // Total focused time, sitting right next to the date.
-            Text(
-                day.focusText,
-                color = FocusColors.AccentBlue,
-                fontFamily = MonoFamily,
-                fontSize = 13.sp,
-                fontWeight = FontWeight.Medium,
-            )
+            Text(day.focusText, color = FocusColors.AccentBlue, fontFamily = MonoFamily, fontSize = 13.sp, fontWeight = FontWeight.Medium)
             Spacer(
                 Modifier
                     .weight(1f)
@@ -244,7 +409,6 @@ private fun DayBlock(
     }
 }
 
-/** 3-column edge-to-edge grid with 2dp seams, tiles cropped to the chosen aspect ratio. */
 @Composable
 private fun PhotoGrid(
     tiles: List<FeedTile>,
@@ -295,7 +459,6 @@ private fun PhotoTile(
                 modifier = Modifier.fillMaxSize(),
             )
         }
-        // Task label overlaid at the bottom of the tile.
         if (tile.task.isNotBlank()) {
             Box(
                 Modifier

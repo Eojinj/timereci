@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.room.Room
 import com.timereci.focus.data.ActiveSessionDao
 import com.timereci.focus.data.FocusDatabase
+import com.timereci.focus.data.PlannedFocusDao
 import com.timereci.focus.data.ReceiptDao
 import dagger.Module
 import dagger.Provides
@@ -20,6 +21,7 @@ object DataModule {
     @Singleton
     fun provideDatabase(@ApplicationContext context: Context): FocusDatabase =
         Room.databaseBuilder(context, FocusDatabase::class.java, FocusDatabase.NAME)
+            .addMigrations(FocusDatabase.MIGRATION_1_2)
             .fallbackToDestructiveMigration()
             .build()
 
@@ -28,4 +30,7 @@ object DataModule {
 
     @Provides
     fun provideActiveSessionDao(db: FocusDatabase): ActiveSessionDao = db.activeSessionDao()
+
+    @Provides
+    fun providePlannedFocusDao(db: FocusDatabase): PlannedFocusDao = db.plannedFocusDao()
 }

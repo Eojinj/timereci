@@ -255,7 +255,7 @@ private fun DaySessionPage(
                         .padding(horizontal = 11.dp, vertical = 5.dp),
                 ) {
                     Text(
-                        "집중 ${session.focus}",
+                        session.focus,
                         color = Color(0xFF1F3247),
                         fontFamily = MonoFamily,
                         fontSize = 11.5.sp,

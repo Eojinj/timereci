@@ -2,27 +2,47 @@ package com.timereci.focus.ui.theme
 
 import androidx.compose.material3.Typography
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
+import com.timereci.focus.R
 
 /**
- * The prototype pairs Pretendard (Korean body) with IBM Plex Mono (numbers, stamps).
- * To stay asset-free and buildable out of the box we approximate: system default for
- * body text, [FontFamily.Monospace] for the "mono" tabular numerals. Dropping the real
- * font files into res/font and pointing [MonoFamily]/[Typography] at them is a drop-in
- * upgrade later.
+ * Pretendard — the gothic (sans-serif) family the design was drawn in, bundled as OTF in
+ * res/font so it renders identically on every device (no Play Services / network needed).
+ * This is the app's default text family; [MonoFamily] is used only for the "receipt" style
+ * tabular numerals (timer digits, stamps).
  */
+val GothicFamily: FontFamily = FontFamily(
+    Font(R.font.pretendard_regular, FontWeight.Normal),
+    Font(R.font.pretendard_medium, FontWeight.Medium),
+    Font(R.font.pretendard_semibold, FontWeight.SemiBold),
+    Font(R.font.pretendard_bold, FontWeight.Bold),
+)
+
 val MonoFamily: FontFamily = FontFamily.Monospace
 
-/**
- * Locked gothic (sans-serif) family for headline/body text — task labels, comments, feed.
- * On Korean devices this resolves to the system gothic (본고딕/Noto Sans KR), giving a
- * clean upright gothic look regardless of any per-widget default.
- */
-val GothicFamily: FontFamily = FontFamily.SansSerif
+private val base = Typography()
 
-val AppTypography = Typography()
+/** Material typography with every style locked to the gothic family. */
+val AppTypography = Typography(
+    displayLarge = base.displayLarge.copy(fontFamily = GothicFamily),
+    displayMedium = base.displayMedium.copy(fontFamily = GothicFamily),
+    displaySmall = base.displaySmall.copy(fontFamily = GothicFamily),
+    headlineLarge = base.headlineLarge.copy(fontFamily = GothicFamily),
+    headlineMedium = base.headlineMedium.copy(fontFamily = GothicFamily),
+    headlineSmall = base.headlineSmall.copy(fontFamily = GothicFamily),
+    titleLarge = base.titleLarge.copy(fontFamily = GothicFamily),
+    titleMedium = base.titleMedium.copy(fontFamily = GothicFamily),
+    titleSmall = base.titleSmall.copy(fontFamily = GothicFamily),
+    bodyLarge = base.bodyLarge.copy(fontFamily = GothicFamily),
+    bodyMedium = base.bodyMedium.copy(fontFamily = GothicFamily),
+    bodySmall = base.bodySmall.copy(fontFamily = GothicFamily),
+    labelLarge = base.labelLarge.copy(fontFamily = GothicFamily),
+    labelMedium = base.labelMedium.copy(fontFamily = GothicFamily),
+    labelSmall = base.labelSmall.copy(fontFamily = GothicFamily),
+)
 
 /** Extra text styles used across screens for the monospaced "receipt" feel. */
 object FocusText {

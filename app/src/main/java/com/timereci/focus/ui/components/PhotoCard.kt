@@ -134,7 +134,7 @@ fun PhotoCard(
                     .padding(horizontal = 9.dp, vertical = 4.dp),
             ) {
                 Text(
-                    text = "집중 $focus",
+                    text = focus,
                     color = Color(0xFF1F3247),
                     fontFamily = MonoFamily,
                     fontSize = 11.sp,

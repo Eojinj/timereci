@@ -12,6 +12,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 sealed interface FeedUiState {
@@ -22,7 +23,7 @@ sealed interface FeedUiState {
 
 @HiltViewModel
 class FeedViewModel @Inject constructor(
-    repository: FocusRepository,
+    private val repository: FocusRepository,
     settingsRepository: SettingsRepository,
 ) : ViewModel() {
 
@@ -41,4 +42,10 @@ class FeedViewModel @Inject constructor(
     val photoAspect: StateFlow<PhotoAspect> = settingsRepository.settings
         .map { it.photoAspect }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), PhotoAspect.PORTRAIT)
+
+    fun delete(receiptId: Long) {
+        viewModelScope.launch {
+            repository.getReceipt(receiptId)?.let { repository.deleteReceipt(it) }
+        }
+    }
 }

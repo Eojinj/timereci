@@ -18,6 +18,8 @@ data class SessionCard(
 /** One tile in a feed day's photo grid. */
 data class FeedTile(
     val photo: PhotoRef,
+    val sessionId: Long,
+    val task: String,
     /** "+3" overlay when this is the last visible tile and more exist; else null. */
     val moreLabel: String?,
 )
@@ -55,11 +57,19 @@ object FeedBuilder {
                         comment = r.comment,
                     )
                 }
-                val allPhotos = sorted.flatMap { it.photos.ifEmpty { listOf(PhotoRef()) } }
-                val shown = allPhotos.take(MAX_TILES)
-                val tiles = shown.mapIndexed { i, p ->
-                    val isLast = i == MAX_TILES - 1 && allPhotos.size > MAX_TILES
-                    FeedTile(p, if (isLast) "+${allPhotos.size - MAX_TILES}" else null)
+                // Flatten to (session, photo) so each tile knows which session it belongs to.
+                val flat = sorted.flatMap { r ->
+                    r.photos.ifEmpty { listOf(PhotoRef()) }.map { p -> Triple(r.id, r.taskLabel, p) }
+                }
+                val shown = flat.take(MAX_TILES)
+                val tiles = shown.mapIndexed { i, (id, task, p) ->
+                    val isLast = i == MAX_TILES - 1 && flat.size > MAX_TILES
+                    FeedTile(
+                        photo = p,
+                        sessionId = id,
+                        task = task,
+                        moreLabel = if (isLast) "+${flat.size - MAX_TILES}" else null,
+                    )
                 }
                 val totalFocus = sorted.sumOf { it.focusedMs }
                 FeedDay(

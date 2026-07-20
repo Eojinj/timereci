@@ -4,14 +4,19 @@ import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.timereci.focus.data.FocusRepository
+import com.timereci.focus.data.PhotoAspect
 import com.timereci.focus.data.PhotoRef
 import com.timereci.focus.data.ReceiptEntity
+import com.timereci.focus.data.SettingsRepository
 import com.timereci.focus.timer.FocusTimerController
 import com.timereci.focus.ui.util.Formatters
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -28,11 +33,16 @@ data class PublishUiState(
 class PublishViewModel @Inject constructor(
     private val controller: FocusTimerController,
     private val repository: FocusRepository,
+    settingsRepository: SettingsRepository,
 ) : ViewModel() {
 
     // Captured once: the completed session powering this publish screen.
     private val completed = controller.state.value
     private val issuedAt = System.currentTimeMillis()
+
+    val photoAspect: StateFlow<PhotoAspect> = settingsRepository.settings
+        .map { it.photoAspect }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), PhotoAspect.PORTRAIT)
 
     private val _ui = MutableStateFlow(
         PublishUiState(

@@ -18,8 +18,11 @@ object Formatters {
         return "%02d:%02d".format(total / 60, total % 60)
     }
 
-    /** Focused-duration badge, same MM:SS shape as the prototype ("90:00"). */
-    fun focus(ms: Long): String = clock(ms)
+    /** Focused-duration badge — simple minutes, e.g. "25분" (rounded, min 1). */
+    fun focus(ms: Long): String {
+        val minutes = ((ms + 30_000) / 60_000).toInt().coerceAtLeast(1)
+        return "${minutes}분"
+    }
 
     fun localDate(epochMs: Long): LocalDate =
         Instant.ofEpochMilli(epochMs).atZone(zone).toLocalDate()

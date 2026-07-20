@@ -1,8 +1,10 @@
 package com.timereci.focus.ui.feed
 
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -20,13 +22,18 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -36,6 +43,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -64,6 +72,8 @@ fun FeedScreen(
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val aspect by viewModel.photoAspect.collectAsStateWithLifecycle()
 
+    var pendingDelete by remember { mutableStateOf<FeedTile?>(null) }
+
     Box(
         Modifier
             .fillMaxSize()
@@ -87,7 +97,12 @@ fun FeedScreen(
                     contentPadding = PaddingValues(bottom = 120.dp),
                 ) {
                     items(s.days, key = { it.epochDay }) { day ->
-                        DayBlock(day = day, aspect = aspect, onClick = { onOpenDay(day.epochDay) })
+                        DayBlock(
+                            day = day,
+                            aspect = aspect,
+                            onOpenDay = { onOpenDay(day.epochDay) },
+                            onLongPressTile = { tile -> pendingDelete = tile },
+                        )
                     }
                 }
             }
@@ -104,6 +119,23 @@ fun FeedScreen(
         ) {
             PrimaryButton(text = "집중 시작", onClick = onStartFocus, modifier = Modifier.fillMaxWidth())
         }
+    }
+
+    pendingDelete?.let { tile ->
+        AlertDialog(
+            onDismissRequest = { pendingDelete = null },
+            title = { Text("이 집중을 삭제할까요?", fontWeight = FontWeight.Bold) },
+            text = { Text(tile.task.ifBlank { "제목 없는 집중" }) },
+            confirmButton = {
+                TextButton(onClick = {
+                    viewModel.delete(tile.sessionId)
+                    pendingDelete = null
+                }) { Text("삭제", color = FocusColors.AccentBlue, fontWeight = FontWeight.Bold) }
+            },
+            dismissButton = {
+                TextButton(onClick = { pendingDelete = null }) { Text("취소", color = FocusColors.Muted) }
+            },
+        )
     }
 }
 
@@ -161,17 +193,22 @@ private fun EmptyFeed() {
 }
 
 @Composable
-private fun DayBlock(day: FeedDay, aspect: PhotoAspect, onClick: () -> Unit) {
+private fun DayBlock(
+    day: FeedDay,
+    aspect: PhotoAspect,
+    onOpenDay: () -> Unit,
+    onLongPressTile: (FeedTile) -> Unit,
+) {
     Column(
         Modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick)
             .padding(bottom = 22.dp),
     ) {
         // Day heading keeps a small inset for readability; the grid below is edge-to-edge.
         Row(
             modifier = Modifier
                 .fillMaxWidth()
+                .clickable(onClick = onOpenDay)
                 .padding(horizontal = 20.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
@@ -203,13 +240,18 @@ private fun DayBlock(day: FeedDay, aspect: PhotoAspect, onClick: () -> Unit) {
             Text(day.sessionText, color = FocusColors.Muted2, fontFamily = MonoFamily, fontSize = 11.sp)
         }
         Spacer(Modifier.height(6.dp))
-        PhotoGrid(day.tiles, aspect)
+        PhotoGrid(day.tiles, aspect, onOpenDay, onLongPressTile)
     }
 }
 
 /** 3-column edge-to-edge grid with 2dp seams, tiles cropped to the chosen aspect ratio. */
 @Composable
-private fun PhotoGrid(tiles: List<FeedTile>, aspect: PhotoAspect) {
+private fun PhotoGrid(
+    tiles: List<FeedTile>,
+    aspect: PhotoAspect,
+    onOpenDay: () -> Unit,
+    onLongPressTile: (FeedTile) -> Unit,
+) {
     Column(
         Modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(2.dp),
@@ -220,7 +262,7 @@ private fun PhotoGrid(tiles: List<FeedTile>, aspect: PhotoAspect) {
                 horizontalArrangement = Arrangement.spacedBy(2.dp),
             ) {
                 row.forEach { tile ->
-                    PhotoTile(tile, aspect, Modifier.weight(1f))
+                    PhotoTile(tile, aspect, Modifier.weight(1f), onOpenDay, { onLongPressTile(tile) })
                 }
                 repeat(3 - row.size) { Spacer(Modifier.weight(1f)) }
             }
@@ -228,13 +270,21 @@ private fun PhotoGrid(tiles: List<FeedTile>, aspect: PhotoAspect) {
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun PhotoTile(tile: FeedTile, aspect: PhotoAspect, modifier: Modifier) {
+private fun PhotoTile(
+    tile: FeedTile,
+    aspect: PhotoAspect,
+    modifier: Modifier,
+    onClick: () -> Unit,
+    onLongClick: () -> Unit,
+) {
     val context = LocalContext.current
     Box(
         modifier
             .aspectRatio(aspect.ratio)
-            .background(PhotoTones.brush(tile.photo.toneIndex)),
+            .background(PhotoTones.brush(tile.photo.toneIndex))
+            .combinedClickable(onClick = onClick, onLongClick = onLongClick),
     ) {
         tile.photo.fileName?.let { name ->
             AsyncImage(
@@ -244,6 +294,26 @@ private fun PhotoTile(tile: FeedTile, aspect: PhotoAspect, modifier: Modifier) {
                 contentScale = ContentScale.Crop,
                 modifier = Modifier.fillMaxSize(),
             )
+        }
+        // Task label overlaid at the bottom of the tile.
+        if (tile.task.isNotBlank()) {
+            Box(
+                Modifier
+                    .align(Alignment.BottomStart)
+                    .fillMaxWidth()
+                    .background(Brush.verticalGradient(listOf(Color(0x00182630), Color(0xB3182630))))
+                    .padding(horizontal = 7.dp, vertical = 6.dp),
+            ) {
+                Text(
+                    tile.task,
+                    color = Color.White,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    lineHeight = 13.sp,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
         }
         tile.moreLabel?.let { label ->
             Box(

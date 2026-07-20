@@ -22,10 +22,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -146,22 +143,25 @@ private fun DaySessionPage(session: SessionCard, aspect: PhotoAspect, onClick: (
     val current = photos[photoIndex.coerceIn(0, photos.lastIndex)]
     val context = LocalContext.current
 
-    Column(
+    // The photo fills the page and is cropped to the chosen aspect ratio; all text is
+    // layered on top of it (bottom scrim), and you swipe left/right between sessions.
+    Box(
         Modifier
             .fillMaxSize()
-            .background(FocusColors.Night),
+            .background(FocusColors.Night)
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                onClick = onClick,
+            ),
+        contentAlignment = Alignment.Center,
     ) {
-        // ── Photo, cropped to the chosen aspect ratio, edge to edge ──
         Box(
             Modifier
                 .fillMaxWidth()
                 .aspectRatio(aspect.ratio)
-                .background(PhotoTones.brush(current.toneIndex))
-                .clickable(
-                    interactionSource = remember { MutableInteractionSource() },
-                    indication = null,
-                    onClick = onClick,
-                ),
+                .align(Alignment.Center)
+                .background(PhotoTones.brush(current.toneIndex)),
         ) {
             current.fileName?.let { name ->
                 AsyncImage(
@@ -172,116 +172,121 @@ private fun DaySessionPage(session: SessionCard, aspect: PhotoAspect, onClick: (
                     modifier = Modifier.fillMaxSize(),
                 )
             }
+        }
 
-            // Top scrim so the screen header stays legible over the photo.
+        // Top scrim (keeps the screen header legible) + big bottom scrim for the overlaid text.
+        Box(
+            Modifier
+                .fillMaxWidth()
+                .fillMaxHeight(0.2f)
+                .align(Alignment.TopCenter)
+                .background(Brush.verticalGradient(listOf(Color(0x7318262F), Color(0x0018262F)))),
+        )
+        Box(
+            Modifier
+                .fillMaxWidth()
+                .fillMaxHeight(0.6f)
+                .align(Alignment.BottomCenter)
+                .background(
+                    Brush.verticalGradient(listOf(Color(0x0018262F), Color(0x40182630), Color(0xE6111C26))),
+                ),
+        )
+
+        // Stamp + focus badge (top of the photo, below the screen header).
+        Row(
+            Modifier
+                .align(Alignment.TopCenter)
+                .fillMaxWidth()
+                .windowInsetsPadding(WindowInsets.systemBars)
+                .padding(start = 20.dp, end = 20.dp, top = 62.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(session.stamp, color = Color.White.copy(alpha = 0.9f), fontFamily = MonoFamily, fontSize = 12.5.sp)
             Box(
                 Modifier
-                    .fillMaxWidth()
-                    .fillMaxHeight(0.28f)
-                    .align(Alignment.TopCenter)
-                    .background(Brush.verticalGradient(listOf(Color(0x8018262F), Color(0x0018262F)))),
-            )
-            // Bottom scrim + stamp/focus badge.
-            Box(
-                Modifier
-                    .fillMaxWidth()
-                    .fillMaxHeight(0.32f)
-                    .align(Alignment.BottomCenter)
-                    .background(Brush.verticalGradient(listOf(Color(0x0018262F), Color(0x9918262F)))),
-            )
-            Row(
-                Modifier
-                    .align(Alignment.BottomCenter)
-                    .fillMaxWidth()
-                    .padding(horizontal = 18.dp, vertical = 14.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
+                    .clip(CircleShape)
+                    .background(Color.White.copy(alpha = 0.9f))
+                    .padding(horizontal = 11.dp, vertical = 5.dp),
             ) {
-                Text(session.stamp, color = Color.White.copy(alpha = 0.92f), fontFamily = MonoFamily, fontSize = 12.5.sp)
-                Box(
-                    Modifier
-                        .clip(CircleShape)
-                        .background(Color.White.copy(alpha = 0.9f))
-                        .padding(horizontal = 11.dp, vertical = 5.dp),
-                ) {
-                    Text(
-                        "집중 ${session.focus}",
-                        color = Color(0xFF1F3247),
-                        fontFamily = MonoFamily,
-                        fontSize = 11.5.sp,
-                        fontWeight = FontWeight.Medium,
-                    )
-                }
-            }
-
-            // Multi-photo: dots (top) + left/right tap zones (kept narrow so the pager keeps the swipe).
-            if (photos.size > 1) {
-                Row(
-                    Modifier
-                        .align(Alignment.TopCenter)
-                        .padding(top = 70.dp),
-                    horizontalArrangement = Arrangement.spacedBy(5.dp),
-                ) {
-                    photos.indices.forEach { i ->
-                        val active = i == photoIndex
-                        Box(
-                            Modifier
-                                .size(if (active) 7.dp else 6.dp)
-                                .clip(CircleShape)
-                                .background(Color.White.copy(alpha = if (active) 0.95f else 0.5f)),
-                        )
-                    }
-                }
-                Box(
-                    Modifier
-                        .align(Alignment.CenterStart)
-                        .fillMaxHeight()
-                        .width(44.dp)
-                        .clickable(
-                            interactionSource = remember { MutableInteractionSource() },
-                            indication = null,
-                        ) { photoIndex = (photoIndex - 1 + photos.size) % photos.size },
-                )
-                Box(
-                    Modifier
-                        .align(Alignment.CenterEnd)
-                        .fillMaxHeight()
-                        .width(44.dp)
-                        .clickable(
-                            interactionSource = remember { MutableInteractionSource() },
-                            indication = null,
-                        ) { photoIndex = (photoIndex + 1) % photos.size },
+                Text(
+                    "집중 ${session.focus}",
+                    color = Color(0xFF1F3247),
+                    fontFamily = MonoFamily,
+                    fontSize = 11.5.sp,
+                    fontWeight = FontWeight.Medium,
                 )
             }
         }
 
-        // ── Caption: task + big comment, like an Instagram post caption ──
+        // Task + big comment, layered over the bottom of the photo.
         Column(
             Modifier
+                .align(Alignment.BottomStart)
                 .fillMaxWidth()
-                .weight(1f)
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 24.dp, vertical = 22.dp),
+                .windowInsetsPadding(WindowInsets.systemBars)
+                .padding(start = 24.dp, end = 24.dp, bottom = 40.dp),
         ) {
             if (session.task.isNotBlank()) {
                 Text(
                     session.task,
                     color = Color.White,
-                    fontSize = 24.sp,
+                    fontSize = 26.sp,
                     fontWeight = FontWeight.Bold,
-                    lineHeight = 31.sp,
+                    lineHeight = 33.sp,
                 )
                 Spacer(Modifier.height(12.dp))
             }
             session.comment?.takeIf { it.isNotBlank() }?.let { comment ->
                 Text(
                     comment,
-                    color = Color.White.copy(alpha = 0.9f),
+                    color = Color.White.copy(alpha = 0.95f),
                     fontSize = 22.sp,
                     fontStyle = FontStyle.Italic,
                     lineHeight = 33.sp,
                 )
             }
+        }
+
+        // Multi-photo within one session: dot indicator + narrow edge tap zones.
+        if (photos.size > 1) {
+            Row(
+                Modifier
+                    .align(Alignment.TopCenter)
+                    .windowInsetsPadding(WindowInsets.systemBars)
+                    .padding(top = 96.dp),
+                horizontalArrangement = Arrangement.spacedBy(5.dp),
+            ) {
+                photos.indices.forEach { i ->
+                    val active = i == photoIndex
+                    Box(
+                        Modifier
+                            .size(if (active) 7.dp else 6.dp)
+                            .clip(CircleShape)
+                            .background(Color.White.copy(alpha = if (active) 0.95f else 0.5f)),
+                    )
+                }
+            }
+            Box(
+                Modifier
+                    .align(Alignment.CenterStart)
+                    .fillMaxHeight()
+                    .width(44.dp)
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null,
+                    ) { photoIndex = (photoIndex - 1 + photos.size) % photos.size },
+            )
+            Box(
+                Modifier
+                    .align(Alignment.CenterEnd)
+                    .fillMaxHeight()
+                    .width(44.dp)
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null,
+                    ) { photoIndex = (photoIndex + 1) % photos.size },
+            )
         }
     }
 }

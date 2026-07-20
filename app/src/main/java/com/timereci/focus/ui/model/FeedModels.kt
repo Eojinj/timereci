@@ -12,6 +12,7 @@ data class SessionCard(
     val task: String,
     val focus: String,
     val photos: List<PhotoRef>,
+    val comment: String? = null,
 )
 
 /** One tile in a feed day's photo grid. */
@@ -50,6 +51,7 @@ object FeedBuilder {
                         task = r.taskLabel,
                         focus = Formatters.focus(r.focusedMs),
                         photos = r.photos,
+                        comment = r.comment,
                     )
                 }
                 val allPhotos = sorted.flatMap { it.photos.ifEmpty { listOf(PhotoRef()) } }

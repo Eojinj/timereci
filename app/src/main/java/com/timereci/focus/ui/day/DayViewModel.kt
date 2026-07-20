@@ -45,6 +45,7 @@ class DayViewModel @Inject constructor(
                         task = r.taskLabel,
                         focus = Formatters.focus(r.focusedMs),
                         photos = r.photos,
+                        comment = r.comment,
                     )
                 },
             )

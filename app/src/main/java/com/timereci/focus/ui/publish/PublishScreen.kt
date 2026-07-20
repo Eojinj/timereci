@@ -46,6 +46,7 @@ import com.timereci.focus.data.PhotoRef
 import com.timereci.focus.data.PhotoStorage
 import com.timereci.focus.ui.components.PrimaryButton
 import com.timereci.focus.ui.components.SecondaryButton
+import com.timereci.focus.ui.components.grain
 import com.timereci.focus.ui.theme.FocusColors
 import com.timereci.focus.ui.theme.MonoFamily
 
@@ -71,6 +72,7 @@ fun PublishScreen(
         Modifier
             .fillMaxSize()
             .background(FocusColors.Night)
+            .grain(0.05f)
             .windowInsetsPadding(WindowInsets.safeDrawing)
             .imePadding()
             .verticalScroll(rememberScrollState())
@@ -94,7 +96,10 @@ fun PublishScreen(
                 .fillMaxWidth()
                 .aspectRatio(aspect.ratio)
                 .clip(RoundedCornerShape(20.dp))
-                .background(com.timereci.focus.ui.theme.PhotoTones.brush(current.toneIndex)),
+                .background(
+                    if (current.fileName == null) com.timereci.focus.ui.theme.PhotoTones.EmptyDark
+                    else com.timereci.focus.ui.theme.PhotoTones.brush(current.toneIndex),
+                ),
         ) {
             current.fileName?.let { name ->
                 AsyncImage(

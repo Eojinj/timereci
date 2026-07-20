@@ -34,6 +34,7 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.timereci.focus.data.PhotoAspect
+import com.timereci.focus.ui.components.grainyBackground
 import com.timereci.focus.ui.theme.FocusColors
 import com.timereci.focus.ui.theme.MonoFamily
 import com.timereci.focus.ui.timer.DURATION_PRESETS
@@ -48,7 +49,10 @@ fun SettingsScreen(
     Column(
         Modifier
             .fillMaxSize()
-            .background(FocusColors.Paper)
+            .grainyBackground(
+                base = FocusColors.BaseLight,
+                blob = FocusColors.AccentDeep.copy(alpha = 0.10f),
+            )
             .windowInsetsPadding(WindowInsets.safeDrawing)
             .verticalScroll(rememberScrollState()),
     ) {

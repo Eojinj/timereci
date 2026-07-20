@@ -43,6 +43,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.timereci.focus.ui.components.PhotoCard
 import com.timereci.focus.ui.components.PrimaryButton
+import com.timereci.focus.ui.components.grainyBackground
 import com.timereci.focus.ui.theme.FocusColors
 import com.timereci.focus.ui.theme.MonoFamily
 import kotlinx.coroutines.launch
@@ -61,7 +62,10 @@ fun DetailScreen(
     Column(
         Modifier
             .fillMaxSize()
-            .background(FocusColors.ExportBg)
+            .grainyBackground(
+                base = FocusColors.BaseLight,
+                blob = FocusColors.AccentDeep.copy(alpha = 0.10f),
+            )
             .windowInsetsPadding(WindowInsets.safeDrawing),
     ) {
         // Header

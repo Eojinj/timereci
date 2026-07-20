@@ -37,6 +37,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.timereci.focus.data.PhotoAspect
 import com.timereci.focus.ui.components.SessionOverlayCard
+import com.timereci.focus.ui.components.grain
 import com.timereci.focus.ui.model.SessionCard
 import com.timereci.focus.ui.theme.FocusColors
 import com.timereci.focus.ui.theme.GothicFamily
@@ -170,7 +171,8 @@ private fun DaySessionPage(
     Box(
         Modifier
             .fillMaxSize()
-            .background(FocusColors.Night),
+            .background(FocusColors.Night)
+            .grain(0.05f),
         contentAlignment = Alignment.Center,
     ) {
         SessionOverlayCard(

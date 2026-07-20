@@ -75,6 +75,7 @@ import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.timereci.focus.data.PhotoStorage
 import com.timereci.focus.timer.TimerPhase
+import com.timereci.focus.ui.components.grain
 import com.timereci.focus.ui.theme.FocusColors
 import com.timereci.focus.ui.theme.GothicFamily
 import com.timereci.focus.ui.theme.MonoFamily
@@ -145,9 +146,10 @@ fun TimerScreen(
     Box(
         Modifier
             .fillMaxSize()
-            .background(FocusColors.Mist),
+            .background(FocusColors.BaseLight)
+            .grain(0.07f),
     ) {
-        // Backdrop: chosen photo, else the calm striped placeholder.
+        // Backdrop: chosen photo, else a neutral ground (no plastic blue).
         backdrop?.fileName?.let { name ->
             AsyncImage(
                 model = ImageRequest.Builder(context)
@@ -159,15 +161,15 @@ fun TimerScreen(
         } ?: Box(
             Modifier
                 .fillMaxSize()
-                .background(PhotoTones.brush(0)),
+                .background(PhotoTones.EmptyLight),
         )
-        // Wash so the digits stay readable over any photo.
+        // Wash so the digits stay readable over any photo (neutral, not blue).
         Box(
             Modifier
                 .fillMaxSize()
                 .background(
                     Brush.radialGradient(
-                        colors = listOf(Color(0xD1F7FBFE), Color(0x9ED6E7F4), Color(0x809EBFDB)),
+                        colors = listOf(Color(0xE6F6F7F9), Color(0xB8E6E9ED), Color(0x8FD4D8DE)),
                     ),
                 ),
         )
@@ -326,17 +328,19 @@ private fun MinutesField(
     numberSize: TextUnit,
     suffixSize: TextUnit,
 ) {
-    Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+    Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         BasicTextField(
             value = text,
             onValueChange = { raw -> onTextChange(raw.filter(Char::isDigit).take(3)) },
             singleLine = true,
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Done),
             textStyle = TextStyle(
-                fontFamily = MonoFamily,
+                fontFamily = GothicFamily,
                 fontSize = numberSize,
-                fontWeight = FontWeight.Medium,
-                color = Color(0xFF22364A),
+                fontWeight = FontWeight.Bold,
+                letterSpacing = (-2).sp,
+                fontFeatureSettings = "tnum",
+                color = FocusColors.Ink,
                 textAlign = TextAlign.Center,
             ),
             cursorBrush = SolidColor(FocusColors.AccentBlue),
@@ -344,10 +348,11 @@ private fun MinutesField(
         )
         Text(
             "분",
-            color = Color(0xFF22364A),
+            color = FocusColors.Muted,
+            fontFamily = GothicFamily,
             fontSize = suffixSize,
-            fontWeight = FontWeight.Medium,
-            modifier = Modifier.padding(bottom = 10.dp),
+            fontWeight = FontWeight.Normal,
+            modifier = Modifier.padding(bottom = 12.dp),
         )
     }
 }
@@ -432,20 +437,23 @@ private fun RunningContent(task: String, displayMs: Long, progress: Float, isLan
     ) {
         Text(
             "지금 · ${task.ifBlank { "집중" }}",
-            color = FocusColors.InkSoft,
-            fontFamily = MonoFamily,
+            color = FocusColors.Muted,
+            fontFamily = GothicFamily,
             fontSize = 13.sp,
+            fontWeight = FontWeight.Normal,
+            letterSpacing = 1.5.sp,
         )
         Spacer(Modifier.height(8.dp))
 
         Text(
             Formatters.clock(displayMs),
-            color = Color(0xFF22364A),
+            color = FocusColors.Ink,
             style = TextStyle(
-                fontFamily = MonoFamily,
-                fontSize = if (isLandscape) 128.sp else 56.sp,
-                fontWeight = FontWeight.Medium,
-                letterSpacing = if (isLandscape) 5.sp else 2.sp,
+                fontFamily = GothicFamily,
+                fontSize = if (isLandscape) 132.sp else 62.sp,
+                fontWeight = FontWeight.Bold,
+                letterSpacing = if (isLandscape) (-2).sp else (-1).sp,
+                fontFeatureSettings = "tnum",
             ),
         )
 

@@ -75,7 +75,8 @@ fun SessionOverlayCard(
             .fillMaxWidth()
             .aspectRatio(aspect.ratio)
             .clip(RoundedCornerShape(cornerRadius))
-            .background(PhotoTones.brush(current.toneIndex))
+            // Empty sessions get a neutral dark fill rather than a plastic blue gradient.
+            .background(if (current.fileName == null) PhotoTones.EmptyDark else PhotoTones.brush(current.toneIndex))
             .combinedClickable(onClick = onClick, onLongClick = onLongClick),
     ) {
         current.fileName?.let { name ->

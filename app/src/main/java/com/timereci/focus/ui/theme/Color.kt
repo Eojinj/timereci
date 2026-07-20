@@ -16,6 +16,14 @@ object FocusColors {
     val Mist = Color(0xFFE9F3FB)
     val ExportBg = Color(0xFFEEF6FC)
 
+    // Value-anchored base: near-neutral off-white ground for a monochrome canvas.
+    val BaseLight = Color(0xFFF5F6F8)
+    // Neutral placeholders for empty photo slots (so only real photos carry colour).
+    val TileEmptyTop = Color(0xFFECEEF1)
+    val TileEmptyBottom = Color(0xFFDCE0E5)
+    val TileEmptyDarkTop = Color(0xFF24333F)
+    val TileEmptyDarkBottom = Color(0xFF17242E)
+
     // Ink
     val Ink = Color(0xFF2E4257)
     val Ink2 = Color(0xFF3A5068)

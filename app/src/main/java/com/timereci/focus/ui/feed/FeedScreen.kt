@@ -67,6 +67,7 @@ import com.timereci.focus.data.PhotoStorage
 import com.timereci.focus.data.PlannedFocusEntity
 import com.timereci.focus.ui.components.PrimaryButton
 import com.timereci.focus.ui.components.SessionOverlayCard
+import com.timereci.focus.ui.components.grainyBackground
 import com.timereci.focus.ui.model.FeedDay
 import com.timereci.focus.ui.model.FeedTile
 import com.timereci.focus.ui.theme.FocusColors
@@ -98,10 +99,9 @@ fun FeedScreen(
     Box(
         Modifier
             .fillMaxSize()
-            .background(
-                Brush.verticalGradient(
-                    listOf(FocusColors.PageTop, FocusColors.PageMid, FocusColors.PageBottom),
-                ),
+            .grainyBackground(
+                base = FocusColors.BaseLight,
+                blob = FocusColors.AccentDeep.copy(alpha = 0.14f),
             ),
     ) {
         Column(Modifier.fillMaxSize()) {
@@ -447,7 +447,8 @@ private fun PhotoTile(
     Box(
         modifier
             .aspectRatio(aspect.ratio)
-            .background(PhotoTones.brush(tile.photo.toneIndex))
+            // Empty slots are neutral grey so only real photos carry colour.
+            .background(if (tile.photo.fileName == null) PhotoTones.EmptyLight else PhotoTones.brush(tile.photo.toneIndex))
             .combinedClickable(onClick = onClick, onLongClick = onLongClick),
     ) {
         tile.photo.fileName?.let { name ->

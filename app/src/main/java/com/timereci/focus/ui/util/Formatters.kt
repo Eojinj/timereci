@@ -47,12 +47,15 @@ object Formatters {
         return "%02d:%02d".format(t.hour, t.minute)
     }
 
-    /** Day summary line, e.g. "2 세션 · 1h 15m". */
-    fun daySummary(sessionCount: Int, totalFocusMs: Long): String {
+    /** Total focused duration, e.g. "1h 15m" or "25m". */
+    fun focusDuration(totalFocusMs: Long): String {
         val totalMin = (totalFocusMs / 60000).toInt()
         val h = totalMin / 60
         val m = totalMin % 60
-        val duration = if (h > 0) "${h}h ${m}m" else "${m}m"
-        return "$sessionCount 세션 · $duration"
+        return if (h > 0) "${h}h ${m}m" else "${m}m"
     }
+
+    /** Day summary line, e.g. "2 세션 · 1h 15m". */
+    fun daySummary(sessionCount: Int, totalFocusMs: Long): String =
+        "$sessionCount 세션 · ${focusDuration(totalFocusMs)}"
 }

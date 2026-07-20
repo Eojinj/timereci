@@ -1,8 +1,10 @@
 package com.timereci.focus.ui.day
 
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -23,10 +25,14 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -37,8 +43,8 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -50,6 +56,7 @@ import com.timereci.focus.data.PhotoRef
 import com.timereci.focus.data.PhotoStorage
 import com.timereci.focus.ui.model.SessionCard
 import com.timereci.focus.ui.theme.FocusColors
+import com.timereci.focus.ui.theme.GothicFamily
 import com.timereci.focus.ui.theme.MonoFamily
 import com.timereci.focus.ui.theme.PhotoTones
 
@@ -68,6 +75,15 @@ fun DayScreen(
     val aspect by viewModel.photoAspect.collectAsStateWithLifecycle()
     val pagerState = rememberPagerState(pageCount = { state.sessions.size.coerceAtLeast(1) })
 
+    var pendingDelete by remember { mutableStateOf<SessionCard?>(null) }
+
+    // If every session in this day gets deleted, leave the (now empty) day view.
+    var hadContent by rememberSaveable { mutableStateOf(false) }
+    LaunchedEffect(state.sessions.size) {
+        if (state.sessions.isNotEmpty()) hadContent = true
+        else if (hadContent) onBack()
+    }
+
     Box(
         Modifier
             .fillMaxSize()
@@ -82,6 +98,7 @@ fun DayScreen(
                     session = state.sessions[page],
                     aspect = aspect,
                     onClick = { onOpenReceipt(state.sessions[page].id) },
+                    onLongClick = { pendingDelete = state.sessions[page] },
                 )
             }
         }
@@ -134,10 +151,40 @@ fun DayScreen(
             }
         }
     }
+
+    pendingDelete?.let { target ->
+        AlertDialog(
+            onDismissRequest = { pendingDelete = null },
+            title = { Text("이 집중을 삭제할까요?", fontFamily = GothicFamily, fontWeight = FontWeight.Bold) },
+            text = {
+                Text(
+                    target.task.ifBlank { "제목 없는 집중" } + " · " + target.stamp,
+                    fontFamily = GothicFamily,
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    viewModel.delete(target.id)
+                    pendingDelete = null
+                }) { Text("삭제", color = FocusColors.AccentBlue, fontWeight = FontWeight.Bold) }
+            },
+            dismissButton = {
+                TextButton(onClick = { pendingDelete = null }) {
+                    Text("취소", color = FocusColors.Muted)
+                }
+            },
+        )
+    }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun DaySessionPage(session: SessionCard, aspect: PhotoAspect, onClick: () -> Unit) {
+private fun DaySessionPage(
+    session: SessionCard,
+    aspect: PhotoAspect,
+    onClick: () -> Unit,
+    onLongClick: () -> Unit,
+) {
     var photoIndex by rememberSaveable(session.id) { mutableIntStateOf(0) }
     val photos = session.photos.ifEmpty { listOf(PhotoRef()) }
     val current = photos[photoIndex.coerceIn(0, photos.lastIndex)]
@@ -156,10 +203,11 @@ private fun DaySessionPage(session: SessionCard, aspect: PhotoAspect, onClick: (
                 .fillMaxWidth()
                 .aspectRatio(aspect.ratio)
                 .background(PhotoTones.brush(current.toneIndex))
-                .clickable(
+                .combinedClickable(
                     interactionSource = remember { MutableInteractionSource() },
                     indication = null,
                     onClick = onClick,
+                    onLongClick = onLongClick,
                 ),
         ) {
             current.fileName?.let { name ->
@@ -216,30 +264,37 @@ private fun DaySessionPage(session: SessionCard, aspect: PhotoAspect, onClick: (
                 }
             }
 
-            // Task + big comment — layered over the bottom of the photo.
+            // Task + big comment — layered over the bottom of the photo, large & gothic.
             Column(
                 Modifier
                     .align(Alignment.BottomStart)
                     .fillMaxWidth()
-                    .padding(start = 20.dp, end = 20.dp, bottom = 22.dp),
+                    .padding(start = 22.dp, end = 22.dp, bottom = 26.dp),
             ) {
                 if (session.task.isNotBlank()) {
                     Text(
                         session.task,
                         color = Color.White,
-                        fontSize = 26.sp,
+                        fontFamily = GothicFamily,
+                        fontSize = 44.sp,
                         fontWeight = FontWeight.Bold,
-                        lineHeight = 33.sp,
+                        lineHeight = 50.sp,
+                        letterSpacing = (-0.5).sp,
+                        maxLines = 3,
+                        overflow = TextOverflow.Ellipsis,
                     )
-                    Spacer(Modifier.height(10.dp))
+                    Spacer(Modifier.height(14.dp))
                 }
                 session.comment?.takeIf { it.isNotBlank() }?.let { comment ->
                     Text(
                         comment,
                         color = Color.White.copy(alpha = 0.95f),
-                        fontSize = 22.sp,
-                        fontStyle = FontStyle.Italic,
-                        lineHeight = 32.sp,
+                        fontFamily = GothicFamily,
+                        fontSize = 30.sp,
+                        fontWeight = FontWeight.Medium,
+                        lineHeight = 40.sp,
+                        maxLines = 4,
+                        overflow = TextOverflow.Ellipsis,
                     )
                 }
             }

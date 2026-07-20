@@ -14,6 +14,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
 import java.time.LocalDate
 import javax.inject.Inject
 
@@ -25,7 +26,7 @@ data class DayUiState(
 
 @HiltViewModel
 class DayViewModel @Inject constructor(
-    repository: FocusRepository,
+    private val repository: FocusRepository,
     settingsRepository: SettingsRepository,
     savedStateHandle: SavedStateHandle,
 ) : ViewModel() {
@@ -58,4 +59,10 @@ class DayViewModel @Inject constructor(
             )
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), DayUiState())
+
+    fun delete(receiptId: Long) {
+        viewModelScope.launch {
+            repository.getReceipt(receiptId)?.let { repository.deleteReceipt(it) }
+        }
+    }
 }

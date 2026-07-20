@@ -15,6 +15,13 @@ import androidx.compose.ui.unit.sp
  */
 val MonoFamily: FontFamily = FontFamily.Monospace
 
+/**
+ * Locked gothic (sans-serif) family for headline/body text — task labels, comments, feed.
+ * On Korean devices this resolves to the system gothic (본고딕/Noto Sans KR), giving a
+ * clean upright gothic look regardless of any per-widget default.
+ */
+val GothicFamily: FontFamily = FontFamily.SansSerif
+
 val AppTypography = Typography()
 
 /** Extra text styles used across screens for the monospaced "receipt" feel. */

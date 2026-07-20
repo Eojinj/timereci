@@ -27,7 +27,8 @@ data class FeedDay(
     val epochDay: Long,
     val dayLabel: String,   // "07.19"
     val weekday: String,    // "토요일"
-    val summary: String,    // "2 세션 · 1h 15m"
+    val focusText: String,  // total focused time, "1h 15m"
+    val sessionText: String, // "3 세션"
     val tiles: List<FeedTile>,
     val sessions: List<SessionCard>,
 ) {
@@ -65,7 +66,8 @@ object FeedBuilder {
                     epochDay = date.toEpochDay(),
                     dayLabel = Formatters.dayLabel(date),
                     weekday = Formatters.weekday(date),
-                    summary = Formatters.daySummary(sorted.size, totalFocus),
+                    focusText = Formatters.focusDuration(totalFocus),
+                    sessionText = "${sorted.size} 세션",
                     tiles = tiles,
                     sessions = sessions,
                 )

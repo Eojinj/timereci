@@ -76,6 +76,7 @@ import coil.request.ImageRequest
 import com.timereci.focus.data.PhotoStorage
 import com.timereci.focus.timer.TimerPhase
 import com.timereci.focus.ui.theme.FocusColors
+import com.timereci.focus.ui.theme.GothicFamily
 import com.timereci.focus.ui.theme.MonoFamily
 import com.timereci.focus.ui.theme.PhotoTones
 import com.timereci.focus.ui.util.Formatters
@@ -171,37 +172,18 @@ fun TimerScreen(
                 ),
         )
 
-        // Top corner controls: backdrop photo (pre-start only) + manual landscape toggle (always).
-        Row(
+        // Manual landscape toggle, top-right (always available).
+        IconGlassButton(
+            icon = Icons.Outlined.ScreenRotation,
+            contentDescription = "가로 모드 전환",
+            onClick = { forcedLandscape = !forcedLandscape },
+            size = 48.dp,
+            accent = forcedLandscape,
             modifier = Modifier
-                .align(Alignment.TopCenter)
-                .fillMaxWidth()
+                .align(Alignment.TopEnd)
                 .windowInsetsPadding(WindowInsets.safeDrawing)
                 .padding(16.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-        ) {
-            if (isPreStart) {
-                IconGlassButton(
-                    icon = Icons.Outlined.PhotoCamera,
-                    contentDescription = "배경 사진 지정",
-                    onClick = {
-                        photoPicker.launch(
-                            PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly),
-                        )
-                    },
-                    size = 52.dp,
-                )
-            } else {
-                Spacer(Modifier.size(52.dp))
-            }
-            IconGlassButton(
-                icon = Icons.Outlined.ScreenRotation,
-                contentDescription = "가로 모드 전환",
-                onClick = { forcedLandscape = !forcedLandscape },
-                size = 52.dp,
-                accent = forcedLandscape,
-            )
-        }
+        )
 
         if (isPreStart) {
             PreStartContent(
@@ -210,6 +192,12 @@ fun TimerScreen(
                 durationMs = duration,
                 onDurationChange = viewModel::setDuration,
                 isLandscape = isLandscape,
+                hasBackdrop = backdrop != null,
+                onPickBackdrop = {
+                    photoPicker.launch(
+                        PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly),
+                    )
+                },
                 onStart = viewModel::start,
             )
         } else {
@@ -279,6 +267,8 @@ private fun PreStartContent(
     durationMs: Long,
     onDurationChange: (Long) -> Unit,
     isLandscape: Boolean,
+    hasBackdrop: Boolean,
+    onPickBackdrop: () -> Unit,
     onStart: () -> Unit,
 ) {
     var minutesText by rememberSaveable { mutableStateOf((durationMs / 60_000L).coerceAtLeast(1).toString()) }
@@ -298,7 +288,7 @@ private fun PreStartContent(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
     ) {
-        TaskField(value = task, onValueChange = onTaskChange)
+        TaskField(value = task, onValueChange = onTaskChange, big = !isLandscape)
 
         Spacer(Modifier.height(if (isLandscape) 14.dp else 22.dp))
 
@@ -315,7 +305,17 @@ private fun PreStartContent(
 
         Spacer(Modifier.height(if (isLandscape) 18.dp else 28.dp))
 
-        StartCircle(onClick = onStart, enabled = validMinutes, size = if (isLandscape) 78.dp else 88.dp)
+        // Backdrop-photo button sits right next to the start button.
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+            IconGlassButton(
+                icon = Icons.Outlined.PhotoCamera,
+                contentDescription = "배경 사진 지정",
+                onClick = onPickBackdrop,
+                size = if (isLandscape) 56.dp else 60.dp,
+                accent = hasBackdrop,
+            )
+            StartCircle(onClick = onStart, enabled = validMinutes, size = if (isLandscape) 78.dp else 88.dp)
+        }
     }
 }
 
@@ -456,19 +456,28 @@ private fun RunningContent(task: String, displayMs: Long, progress: Float, isLan
 }
 
 @Composable
-private fun TaskField(value: String, onValueChange: (String) -> Unit) {
+private fun TaskField(value: String, onValueChange: (String) -> Unit, big: Boolean) {
+    val fontSize = if (big) 28.sp else 20.sp
     Box(contentAlignment = Alignment.Center) {
         if (value.isBlank()) {
-            Text("할 일 한 줄 (선택)", color = FocusColors.Muted2, fontSize = 15.sp)
+            Text(
+                "할 일 한 줄 (선택)",
+                color = FocusColors.Muted2,
+                fontFamily = GothicFamily,
+                fontSize = fontSize,
+                fontWeight = FontWeight.Bold,
+            )
         }
         BasicTextField(
             value = value,
             onValueChange = onValueChange,
             singleLine = true,
+            cursorBrush = SolidColor(FocusColors.AccentBlue),
             textStyle = TextStyle(
-                color = FocusColors.Ink2,
-                fontSize = 15.sp,
-                fontWeight = FontWeight.SemiBold,
+                color = FocusColors.Ink,
+                fontFamily = GothicFamily,
+                fontSize = fontSize,
+                fontWeight = FontWeight.Bold,
                 textAlign = TextAlign.Center,
             ),
         )

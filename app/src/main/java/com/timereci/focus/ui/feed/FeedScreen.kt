@@ -48,6 +48,7 @@ import com.timereci.focus.ui.components.PrimaryButton
 import com.timereci.focus.ui.model.FeedDay
 import com.timereci.focus.ui.model.FeedTile
 import com.timereci.focus.ui.theme.FocusColors
+import com.timereci.focus.ui.theme.GothicFamily
 import com.timereci.focus.ui.theme.MonoFamily
 import com.timereci.focus.ui.theme.PhotoTones
 import androidx.compose.foundation.layout.WindowInsets
@@ -108,23 +109,24 @@ fun FeedScreen(
 
 @Composable
 private fun FeedHeader(subtitle: String, onOpenSettings: () -> Unit) {
+    // Compact single-line header so the feed gets the vertical space.
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .windowInsetsPadding(WindowInsets.systemBars)
-            .padding(start = 20.dp, end = 8.dp, top = 16.dp, bottom = 10.dp),
+            .padding(start = 20.dp, end = 8.dp, top = 6.dp, bottom = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Column(Modifier.weight(1f)) {
-            Text("집중", color = FocusColors.Ink, fontSize = 34.sp, fontWeight = FontWeight.Bold, letterSpacing = (-0.5).sp)
-            Text(
-                subtitle,
-                color = FocusColors.Muted,
-                fontFamily = MonoFamily,
-                fontSize = 11.5.sp,
-                modifier = Modifier.padding(top = 4.dp),
-            )
-        }
+        Text("집중", color = FocusColors.Ink, fontSize = 24.sp, fontWeight = FontWeight.Bold, letterSpacing = (-0.4).sp)
+        Spacer(Modifier.width(10.dp))
+        Text(
+            subtitle,
+            color = FocusColors.Muted,
+            fontFamily = MonoFamily,
+            fontSize = 11.5.sp,
+            modifier = Modifier.padding(bottom = 1.dp),
+        )
+        Spacer(Modifier.weight(1f))
         IconButton(onClick = onOpenSettings) {
             Icon(Icons.Outlined.Settings, contentDescription = "설정", tint = FocusColors.Muted)
         }
@@ -180,8 +182,17 @@ private fun DayBlock(day: FeedDay, aspect: PhotoAspect, onClick: () -> Unit) {
                 fontSize = 22.sp,
                 fontWeight = FontWeight.Medium,
             )
-            Spacer(Modifier.width(10.dp))
-            Text(day.weekday, color = FocusColors.InkSoft, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+            Spacer(Modifier.width(9.dp))
+            Text(day.weekday, color = FocusColors.InkSoft, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, fontFamily = GothicFamily)
+            Spacer(Modifier.width(9.dp))
+            // Total focused time, sitting right next to the date.
+            Text(
+                day.focusText,
+                color = FocusColors.AccentBlue,
+                fontFamily = MonoFamily,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Medium,
+            )
             Spacer(
                 Modifier
                     .weight(1f)
@@ -189,7 +200,7 @@ private fun DayBlock(day: FeedDay, aspect: PhotoAspect, onClick: () -> Unit) {
                     .height(1.dp)
                     .background(FocusColors.Line),
             )
-            Text(day.summary, color = FocusColors.Muted2, fontFamily = MonoFamily, fontSize = 11.sp)
+            Text(day.sessionText, color = FocusColors.Muted2, fontFamily = MonoFamily, fontSize = 11.sp)
         }
         Spacer(Modifier.height(6.dp))
         PhotoGrid(day.tiles, aspect)

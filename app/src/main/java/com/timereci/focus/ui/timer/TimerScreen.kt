@@ -13,6 +13,7 @@ import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -31,6 +32,15 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.outlined.Check
+import androidx.compose.material.icons.outlined.Close
+import androidx.compose.material.icons.outlined.EditNote
+import androidx.compose.material.icons.outlined.PhotoCamera
+import androidx.compose.material.icons.outlined.ScreenRotation
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -45,13 +55,18 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -65,6 +80,8 @@ import com.timereci.focus.ui.theme.MonoFamily
 import com.timereci.focus.ui.theme.PhotoTones
 import com.timereci.focus.ui.util.Formatters
 import com.timereci.focus.ui.util.findActivity
+
+private const val MAX_MINUTES = 180 // 3시간
 
 @Composable
 fun TimerScreen(
@@ -80,11 +97,15 @@ fun TimerScreen(
     val commentOpen by viewModel.commentSheetOpen.collectAsStateWithLifecycle()
 
     val context = LocalContext.current
-    val isLandscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
+    val sensorLandscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
 
-    // The rest of the app is portrait-locked (see AndroidManifest); unlock rotation only
-    // while this screen is shown, so landscape kicks in when the user actually turns the
-    // phone rather than being forced on entry. Restored to the app default on exit.
+    // Sensor rotation is unlocked only on this screen (the rest of the app stays portrait —
+    // see AndroidManifest), so landscape kicks in when the user physically turns the phone.
+    // A manual toggle button additionally lets them force landscape without rotating at all
+    // (e.g. phone propped on a stand).
+    var forcedLandscape by rememberSaveable { mutableStateOf(false) }
+    val isLandscape = sensorLandscape || forcedLandscape
+
     DisposableEffect(Unit) {
         val activity = context.findActivity()
         val previous = activity?.requestedOrientation
@@ -92,6 +113,10 @@ fun TimerScreen(
         onDispose {
             activity?.requestedOrientation = previous ?: ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
         }
+    }
+    LaunchedEffect(forcedLandscape) {
+        context.findActivity()?.requestedOrientation =
+            if (forcedLandscape) ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE else ActivityInfo.SCREEN_ORIENTATION_USER
     }
 
     // Ask for notification permission once (Android 13+) so the foreground timer can post.
@@ -146,29 +171,37 @@ fun TimerScreen(
                 ),
         )
 
-        // Doubles as the "pick a backdrop photo" button while setting up.
-        Text(
-            "배경 · 시작 전 지정 사진",
-            color = FocusColors.InkSoft,
-            fontFamily = MonoFamily,
-            fontSize = 9.5.sp,
+        // Top corner controls: backdrop photo (pre-start only) + manual landscape toggle (always).
+        Row(
             modifier = Modifier
-                .align(Alignment.TopStart)
+                .align(Alignment.TopCenter)
+                .fillMaxWidth()
                 .windowInsetsPadding(WindowInsets.safeDrawing)
-                .padding(12.dp)
-                .clip(RoundedCornerShape(20.dp))
-                .background(Color(0x80FFFFFF))
-                .then(
-                    if (isPreStart) {
-                        Modifier.clickable {
-                            photoPicker.launch(
-                                PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly),
-                            )
-                        }
-                    } else Modifier,
+                .padding(16.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+        ) {
+            if (isPreStart) {
+                IconGlassButton(
+                    icon = Icons.Outlined.PhotoCamera,
+                    contentDescription = "배경 사진 지정",
+                    onClick = {
+                        photoPicker.launch(
+                            PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly),
+                        )
+                    },
+                    size = 52.dp,
                 )
-                .padding(horizontal = 9.dp, vertical = 3.dp),
-        )
+            } else {
+                Spacer(Modifier.size(52.dp))
+            }
+            IconGlassButton(
+                icon = Icons.Outlined.ScreenRotation,
+                contentDescription = "가로 모드 전환",
+                onClick = { forcedLandscape = !forcedLandscape },
+                size = 52.dp,
+                accent = forcedLandscape,
+            )
+        }
 
         if (isPreStart) {
             PreStartContent(
@@ -197,16 +230,29 @@ fun TimerScreen(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween,
             ) {
-                GlassButton(text = "코멘트", onClick = {
-                    if (!keepRunning) viewModel.pause()
-                    viewModel.openComment()
-                })
-                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    GlassButton(text = "정지", onClick = {
-                        viewModel.abandon()
-                        onAbandon()
-                    })
-                    DeepButton(text = "완주 →", onClick = viewModel::completeNow, wide = false)
+                IconGlassButton(
+                    icon = Icons.Outlined.EditNote,
+                    contentDescription = "코멘트",
+                    onClick = {
+                        if (!keepRunning) viewModel.pause()
+                        viewModel.openComment()
+                    },
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    IconGlassButton(
+                        icon = Icons.Outlined.Close,
+                        contentDescription = "정지",
+                        onClick = {
+                            viewModel.abandon()
+                            onAbandon()
+                        },
+                    )
+                    IconGlassButton(
+                        icon = Icons.Outlined.Check,
+                        contentDescription = "완주",
+                        onClick = viewModel::completeNow,
+                        accent = true,
+                    )
                 }
             }
         }
@@ -225,7 +271,7 @@ fun TimerScreen(
     }
 }
 
-/** Task label + big digits + a big circular start button + a numeric keypad to set the duration. */
+/** Task label + big minutes field (system numeric keyboard) + presets + a circular start button. */
 @Composable
 private fun PreStartContent(
     task: String,
@@ -235,28 +281,14 @@ private fun PreStartContent(
     isLandscape: Boolean,
     onStart: () -> Unit,
 ) {
-    // The buffer starts pre-filled with the current default so the display isn't blank, but
-    // the first keystroke wipes it and starts a fresh entry — typing "2" right after opening
-    // shouldn't append onto the old default and produce a huge number.
-    var digits by rememberSaveable { mutableStateOf(msToDigits(durationMs)) }
-    var edited by rememberSaveable { mutableStateOf(false) }
+    var minutesText by rememberSaveable { mutableStateOf((durationMs / 60_000L).coerceAtLeast(1).toString()) }
 
-    fun apply(newDigits: String) {
-        val ms = digitsToMs(newDigits).coerceIn(MIN_DURATION_MS, MAX_DURATION_MS)
-        digits = msToDigits(ms)
-        onDurationChange(ms)
+    fun commit(newText: String) {
+        minutesText = newText
+        newText.toIntOrNull()?.let { m -> if (m in 1..MAX_MINUTES) onDurationChange(m * 60_000L) }
     }
 
-    fun typeDigit(d: Int) {
-        val base = if (edited) digits else "00000"
-        edited = true
-        apply((base + d).takeLast(5))
-    }
-
-    fun backspace() {
-        edited = true
-        apply(("0" + digits).dropLast(1))
-    }
+    val validMinutes = minutesText.toIntOrNull()?.let { it in 1..MAX_MINUTES } == true
 
     Column(
         modifier = Modifier
@@ -270,92 +302,120 @@ private fun PreStartContent(
 
         Spacer(Modifier.height(if (isLandscape) 14.dp else 22.dp))
 
-        DigitDisplay(digits = digits, fontSize = if (isLandscape) 84.sp else 58.sp)
+        MinutesField(
+            text = minutesText,
+            onTextChange = ::commit,
+            numberSize = if (isLandscape) 88.sp else 64.sp,
+            suffixSize = if (isLandscape) 28.sp else 22.sp,
+        )
 
-        Spacer(Modifier.height(if (isLandscape) 18.dp else 26.dp))
+        Spacer(Modifier.height(if (isLandscape) 16.dp else 22.dp))
 
-        StartCircle(onClick = onStart, size = if (isLandscape) 84.dp else 96.dp)
+        PresetRow(selectedMinutes = minutesText.toIntOrNull(), onSelect = { m -> commit(m.toString()) })
 
-        Spacer(Modifier.height(if (isLandscape) 16.dp else 24.dp))
+        Spacer(Modifier.height(if (isLandscape) 18.dp else 28.dp))
 
-        Keypad(
-            modifier = Modifier.widthIn(max = 300.dp),
-            onDigit = ::typeDigit,
-            onBackspace = ::backspace,
+        StartCircle(onClick = onStart, enabled = validMinutes, size = if (isLandscape) 78.dp else 88.dp)
+    }
+}
+
+@Composable
+private fun MinutesField(
+    text: String,
+    onTextChange: (String) -> Unit,
+    numberSize: TextUnit,
+    suffixSize: TextUnit,
+) {
+    Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        BasicTextField(
+            value = text,
+            onValueChange = { raw -> onTextChange(raw.filter(Char::isDigit).take(3)) },
+            singleLine = true,
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Done),
+            textStyle = TextStyle(
+                fontFamily = MonoFamily,
+                fontSize = numberSize,
+                fontWeight = FontWeight.Medium,
+                color = Color(0xFF22364A),
+                textAlign = TextAlign.Center,
+            ),
+            cursorBrush = SolidColor(FocusColors.AccentBlue),
+            modifier = Modifier.widthIn(min = 64.dp),
+        )
+        Text(
+            "분",
+            color = Color(0xFF22364A),
+            fontSize = suffixSize,
+            fontWeight = FontWeight.Medium,
+            modifier = Modifier.padding(bottom = 10.dp),
         )
     }
 }
 
 @Composable
-private fun DigitDisplay(digits: String, fontSize: androidx.compose.ui.unit.TextUnit) {
-    val h = digits.substring(0, 1)
-    val m = digits.substring(1, 3)
-    val s = digits.substring(3, 5)
-    Text(
-        "$h : $m : $s",
-        color = Color(0xFF22364A),
-        style = TextStyle(
-            fontFamily = MonoFamily,
-            fontSize = fontSize,
-            fontWeight = FontWeight.Medium,
-            letterSpacing = 2.sp,
-        ),
-    )
+private fun PresetRow(selectedMinutes: Int?, onSelect: (Int) -> Unit) {
+    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        DURATION_PRESETS.forEach { min ->
+            val active = min == selectedMinutes
+            Box(
+                Modifier
+                    .clip(RoundedCornerShape(20.dp))
+                    .background(if (active) FocusColors.AccentDeep else Color(0xB3FFFFFF))
+                    .clickable { onSelect(min) }
+                    .padding(horizontal = 15.dp, vertical = 8.dp),
+            ) {
+                Text(
+                    "${min}분",
+                    color = if (active) FocusColors.Paper else FocusColors.Ink2,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Medium,
+                )
+            }
+        }
+    }
 }
 
 @Composable
-private fun StartCircle(onClick: () -> Unit, size: Dp) {
+private fun StartCircle(onClick: () -> Unit, enabled: Boolean, size: Dp) {
     Box(
         Modifier
             .size(size)
             .clip(CircleShape)
-            .background(FocusColors.AccentDeep)
-            .clickable(onClick = onClick),
+            .background(if (enabled) FocusColors.AccentDeep else FocusColors.AccentDeep.copy(alpha = 0.35f))
+            .clickable(enabled = enabled, onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
-        Text("시작", color = FocusColors.Paper, fontSize = 17.sp, fontWeight = FontWeight.Bold)
+        Icon(
+            Icons.Filled.PlayArrow,
+            contentDescription = "시작",
+            tint = FocusColors.Paper,
+            modifier = Modifier.size(size * 0.42f),
+        )
     }
 }
 
 @Composable
-private fun Keypad(modifier: Modifier = Modifier, onDigit: (Int) -> Unit, onBackspace: () -> Unit) {
-    Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        listOf(listOf(1, 2, 3), listOf(4, 5, 6), listOf(7, 8, 9)).forEach { row ->
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                row.forEach { n ->
-                    KeypadKey(label = "$n", modifier = Modifier.weight(1f), onClick = { onDigit(n) })
-                }
-            }
-        }
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            KeypadKey(
-                label = "⌫",
-                modifier = Modifier.weight(1f),
-                accent = true,
-                onClick = onBackspace,
-            )
-            KeypadKey(label = "0", modifier = Modifier.weight(1f), onClick = { onDigit(0) })
-            Spacer(Modifier.weight(1f))
-        }
-    }
-}
-
-@Composable
-private fun KeypadKey(label: String, modifier: Modifier = Modifier, accent: Boolean = false, onClick: () -> Unit) {
+private fun IconGlassButton(
+    icon: ImageVector,
+    contentDescription: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    size: Dp = 46.dp,
+    accent: Boolean = false,
+) {
     Box(
         modifier
-            .height(48.dp)
-            .clip(RoundedCornerShape(12.dp))
-            .background(if (accent) Color(0x992E4257) else Color(0xB3FFFFFF))
+            .size(size)
+            .clip(CircleShape)
+            .background(if (accent) FocusColors.AccentDeep else Color(0xB3FFFFFF))
             .clickable(onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
-        Text(
-            label,
-            color = if (accent) FocusColors.Paper else FocusColors.Ink2,
-            fontFamily = MonoFamily,
-            fontSize = 17.sp,
-            fontWeight = FontWeight.Medium,
+        Icon(
+            icon,
+            contentDescription = contentDescription,
+            tint = if (accent) FocusColors.Paper else FocusColors.Ink2,
+            modifier = Modifier.size(size * 0.44f),
         )
     }
 }
@@ -458,36 +518,6 @@ private fun ProgressLine(progress: Float, isLandscape: Boolean) {
 }
 
 @Composable
-private fun GlassButton(text: String, onClick: () -> Unit) {
-    Box(
-        Modifier
-            .height(42.dp)
-            .clip(RoundedCornerShape(12.dp))
-            .background(Color(0xA8FFFFFF))
-            .clickable(onClick = onClick)
-            .padding(horizontal = 18.dp),
-        contentAlignment = Alignment.Center,
-    ) {
-        Text(text, color = FocusColors.Ink2, fontSize = 13.5.sp, fontWeight = FontWeight.SemiBold)
-    }
-}
-
-@Composable
-private fun DeepButton(text: String, onClick: () -> Unit, wide: Boolean) {
-    Box(
-        Modifier
-            .height(46.dp)
-            .clip(RoundedCornerShape(13.dp))
-            .background(FocusColors.AccentDeep)
-            .clickable(onClick = onClick)
-            .padding(horizontal = if (wide) 42.dp else 22.dp),
-        contentAlignment = Alignment.Center,
-    ) {
-        Text(text, color = FocusColors.Paper, fontSize = 15.sp, fontWeight = FontWeight.Bold)
-    }
-}
-
-@Composable
 private fun CommentSheet(
     initial: String,
     keepRunning: Boolean,
@@ -498,7 +528,11 @@ private fun CommentSheet(
         Modifier
             .fillMaxSize()
             .background(Color(0x3D0F1B26))
-            .clickable(onClick = onClose),
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                onClick = onClose,
+            ),
         contentAlignment = Alignment.BottomCenter,
     ) {
         Column(
@@ -506,7 +540,11 @@ private fun CommentSheet(
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(topStart = 22.dp, topEnd = 22.dp))
                 .background(Color.White)
-                .clickable(enabled = false) {}
+                .clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null,
+                    enabled = false,
+                ) {}
                 .windowInsetsPadding(WindowInsets.safeDrawing)
                 .padding(horizontal = 26.dp, vertical = 18.dp),
         ) {
@@ -549,33 +587,14 @@ private fun CommentSheet(
             Box(
                 Modifier
                     .align(Alignment.End)
-                    .clip(RoundedCornerShape(10.dp))
+                    .size(44.dp)
+                    .clip(CircleShape)
                     .background(FocusColors.AccentDeep)
-                    .clickable(onClick = onClose)
-                    .padding(horizontal = 20.dp, vertical = 10.dp),
+                    .clickable(onClick = onClose),
+                contentAlignment = Alignment.Center,
             ) {
-                Text("완료", color = FocusColors.Paper, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                Icon(Icons.Outlined.Check, contentDescription = "완료", tint = FocusColors.Paper, modifier = Modifier.size(20.dp))
             }
         }
     }
-}
-
-private const val MIN_DURATION_MS = 60_000L        // 1분
-private const val MAX_DURATION_MS = 180 * 60_000L  // 3시간 (단일 시 자리에 들어가는 상한)
-
-/** ms -> 5-digit "HMMSS" buffer, e.g. 25분 -> "02500" -> displayed "0 : 25 : 00". */
-private fun msToDigits(ms: Long): String {
-    val totalSec = (ms / 1000).toInt().coerceAtLeast(0)
-    val h = (totalSec / 3600).coerceIn(0, 9)
-    val m = (totalSec % 3600) / 60
-    val s = totalSec % 60
-    return "%01d%02d%02d".format(h, m, s)
-}
-
-private fun digitsToMs(digits: String): Long {
-    val safe = digits.padStart(5, '0').takeLast(5)
-    val h = safe.substring(0, 1).toInt()
-    val m = safe.substring(1, 3).toInt()
-    val s = safe.substring(3, 5).toInt()
-    return (h * 3_600_000L) + (m * 60_000L) + (s * 1_000L)
 }

@@ -39,6 +39,10 @@ class TimerViewModel @Inject constructor(
         .map { it.durationPresets }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), DEFAULT_DURATION_PRESETS)
 
+    /** Photos from past sessions, offered as a quick "reuse this one" backdrop. */
+    val recentPhotos: StateFlow<List<PhotoRef>> = repository.observeRecentPhotos()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
     // ---- Pre-start setup ----
     private val _durationMs = MutableStateFlow(25 * 60_000L)
     val durationMs: StateFlow<Long> = _durationMs
@@ -52,10 +56,15 @@ class TimerViewModel @Inject constructor(
     private val _commentSheetOpen = MutableStateFlow(false)
     val commentSheetOpen: StateFlow<Boolean> = _commentSheetOpen
 
+    /** True when this session was pushed from the todo queue (planned/next-up/break-continue),
+     * false for an ad-hoc one-off timer — set once from nav args, unaffected by later edits. */
+    val cameFromQueue: Boolean
+
     init {
         // Prefill from a planned focus, if we arrived here by tapping one.
         val argTask = savedStateHandle.get<String>(Routes.ARG_TASK).orEmpty()
         val argMinutes = savedStateHandle.get<Int>(Routes.ARG_MINUTES) ?: 0
+        cameFromQueue = argTask.isNotBlank() || argMinutes > 0
         if (argTask.isNotBlank()) _taskLabel.value = argTask
         if (argMinutes > 0) {
             _durationMs.value = argMinutes * 60_000L
@@ -77,6 +86,12 @@ class TimerViewModel @Inject constructor(
     fun importBackdrop(uri: Uri) {
         viewModelScope.launch {
             repository.photoStorageRef.import(uri)?.let { _backdrop.value = it }
+        }
+    }
+
+    fun useRecentBackdrop(ref: PhotoRef) {
+        viewModelScope.launch {
+            repository.reusePhoto(ref, ref.toneIndex)?.let { _backdrop.value = it }
         }
     }
 

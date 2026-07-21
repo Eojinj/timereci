@@ -1,6 +1,7 @@
 package com.timereci.focus.data
 
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -64,4 +65,16 @@ class FocusRepository @Inject constructor(
     // ---- Photos ----
 
     val photoStorageRef: PhotoStorage get() = photoStorage
+
+    /** Most recently used photos across past receipts, for "pick from recent" pickers. */
+    fun observeRecentPhotos(limit: Int = 18): Flow<List<PhotoRef>> = receiptDao.observeAll().map { receipts ->
+        receipts.flatMap { it.photos }
+            .filter { it.fileName != null }
+            .distinctBy { it.fileName }
+            .take(limit)
+    }
+
+    /** Duplicates a recent photo's file so it becomes an independent copy for a new session. */
+    suspend fun reusePhoto(ref: PhotoRef, toneIndex: Int): PhotoRef? =
+        ref.fileName?.let { photoStorage.copy(it, ref.aspect, toneIndex) }
 }

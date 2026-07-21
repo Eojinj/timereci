@@ -47,6 +47,10 @@ class PublishViewModel @Inject constructor(
         .map { it.photoAspect }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), PhotoAspect.PORTRAIT)
 
+    /** Photos from past sessions, offered as a quick "reuse this one" alternative. */
+    val recentPhotos: StateFlow<List<PhotoRef>> = repository.observeRecentPhotos()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
     private val _ui = MutableStateFlow(
         PublishUiState(
             stamp = Formatters.stamp(issuedAt),
@@ -65,6 +69,15 @@ class PublishViewModel @Inject constructor(
         viewModelScope.launch {
             val tone = _ui.value.photos.size % PhotoTones.count
             repository.photoStorageRef.import(uri, tone)?.let { added ->
+                _ui.value = _ui.value.copy(photos = _ui.value.photos + added)
+            }
+        }
+    }
+
+    fun addExistingPhoto(ref: PhotoRef) {
+        viewModelScope.launch {
+            val tone = _ui.value.photos.size % PhotoTones.count
+            repository.reusePhoto(ref, tone)?.let { added ->
                 _ui.value = _ui.value.copy(photos = _ui.value.photos + added)
             }
         }

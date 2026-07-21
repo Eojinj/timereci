@@ -30,6 +30,9 @@ import androidx.compose.material.icons.outlined.DeleteOutline
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -50,6 +53,7 @@ import com.timereci.focus.data.PhotoRef
 import com.timereci.focus.data.PhotoStorage
 import com.timereci.focus.data.PlannedFocusEntity
 import com.timereci.focus.ui.components.IconActionButton
+import com.timereci.focus.ui.components.RecentPhotoPickerDialog
 import com.timereci.focus.ui.components.grain
 import com.timereci.focus.ui.theme.FocusColors
 import com.timereci.focus.ui.theme.MonoFamily
@@ -67,11 +71,17 @@ fun PublishScreen(
 ) {
     val ui by viewModel.ui.collectAsStateWithLifecycle()
     val aspect by viewModel.photoAspect.collectAsStateWithLifecycle()
+    val recentPhotos by viewModel.recentPhotos.collectAsStateWithLifecycle()
     val context = LocalContext.current
+    var showPhotoPicker by remember { mutableStateOf(false) }
 
     val photoPicker = rememberLauncherForActivityResult(
         ActivityResultContracts.PickVisualMedia(),
     ) { uri -> uri?.let(viewModel::addPhoto) }
+
+    fun launchSystemPicker() {
+        photoPicker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+    }
 
     Column(
         Modifier
@@ -204,9 +214,7 @@ fun PublishScreen(
                 icon = Icons.Outlined.AddPhotoAlternate,
                 contentDescription = "사진 추가",
                 onClick = {
-                    photoPicker.launch(
-                        PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly),
-                    )
+                    if (recentPhotos.isEmpty()) launchSystemPicker() else showPhotoPicker = true
                 },
                 onDark = true,
                 size = 50.dp,
@@ -229,5 +237,20 @@ fun PublishScreen(
         }
 
         Spacer(Modifier.height(20.dp))
+    }
+
+    if (showPhotoPicker) {
+        RecentPhotoPickerDialog(
+            recent = recentPhotos,
+            onPickRecent = { ref ->
+                viewModel.addExistingPhoto(ref)
+                showPhotoPicker = false
+            },
+            onPickNew = {
+                showPhotoPicker = false
+                launchSystemPicker()
+            },
+            onDismiss = { showPhotoPicker = false },
+        )
     }
 }

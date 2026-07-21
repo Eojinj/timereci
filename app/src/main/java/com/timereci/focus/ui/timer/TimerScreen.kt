@@ -38,6 +38,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.outlined.Check
+import androidx.compose.material.icons.outlined.Checklist
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.EditNote
 import androidx.compose.material.icons.outlined.GridView
@@ -79,6 +80,7 @@ import coil.request.ImageRequest
 import com.timereci.focus.data.PhotoStorage
 import com.timereci.focus.timer.TimerPhase
 import com.timereci.focus.ui.components.IconActionButton
+import com.timereci.focus.ui.components.RecentPhotoPickerDialog
 import com.timereci.focus.ui.components.grain
 import com.timereci.focus.ui.theme.FocusColors
 import com.timereci.focus.ui.theme.GothicFamily
@@ -104,7 +106,10 @@ fun TimerScreen(
     val keepRunning by viewModel.keepRunningWhileCommenting.collectAsStateWithLifecycle()
     val commentOpen by viewModel.commentSheetOpen.collectAsStateWithLifecycle()
     val durationPresets by viewModel.durationPresets.collectAsStateWithLifecycle()
+    val recentPhotos by viewModel.recentPhotos.collectAsStateWithLifecycle()
     var editingPresetIndex by remember { mutableStateOf<Int?>(null) }
+    var showBackdropPicker by remember { mutableStateOf(false) }
+    val emptyBackdropTone = remember { PhotoTones.indexFor(java.time.LocalDate.now().toEpochDay()) }
 
     val context = LocalContext.current
     val sensorLandscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
@@ -148,6 +153,10 @@ fun TimerScreen(
         ActivityResultContracts.PickVisualMedia(),
     ) { uri -> uri?.let(viewModel::importBackdrop) }
 
+    fun launchSystemBackdropPicker() {
+        photoPicker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+    }
+
     val isPreStart = state.phase == TimerPhase.IDLE
     val displayMs = if (isPreStart) duration else state.remainingMs
 
@@ -169,7 +178,7 @@ fun TimerScreen(
         } ?: Box(
             Modifier
                 .fillMaxSize()
-                .patternPlaceholder(0),
+                .patternPlaceholder(emptyBackdropTone),
         )
         // Wash so the digits stay readable over any photo (neutral, not blue).
         Box(
@@ -219,13 +228,12 @@ fun TimerScreen(
                 isLandscape = isLandscape,
                 hasBackdrop = backdrop != null,
                 onPickBackdrop = {
-                    photoPicker.launch(
-                        PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly),
-                    )
+                    if (recentPhotos.isEmpty()) launchSystemBackdropPicker() else showBackdropPicker = true
                 },
                 onStart = viewModel::start,
                 presets = durationPresets,
                 onLongPressPreset = { index -> editingPresetIndex = index },
+                cameFromQueue = viewModel.cameFromQueue,
             )
         } else {
             RunningContent(
@@ -295,6 +303,21 @@ fun TimerScreen(
             },
         )
     }
+
+    if (showBackdropPicker) {
+        RecentPhotoPickerDialog(
+            recent = recentPhotos,
+            onPickRecent = { ref ->
+                viewModel.useRecentBackdrop(ref)
+                showBackdropPicker = false
+            },
+            onPickNew = {
+                showBackdropPicker = false
+                launchSystemBackdropPicker()
+            },
+            onDismiss = { showBackdropPicker = false },
+        )
+    }
 }
 
 /** Task label + big minutes field (system numeric keyboard) + presets + a circular start button. */
@@ -310,6 +333,7 @@ private fun PreStartContent(
     onStart: () -> Unit,
     presets: List<Int>,
     onLongPressPreset: (index: Int) -> Unit,
+    cameFromQueue: Boolean,
 ) {
     var minutesText by rememberSaveable { mutableStateOf((durationMs / 60_000L).coerceAtLeast(1).toString()) }
 
@@ -328,6 +352,26 @@ private fun PreStartContent(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
     ) {
+        if (cameFromQueue) {
+            Row(
+                Modifier
+                    .clip(RoundedCornerShape(20.dp))
+                    .background(FocusColors.Mist)
+                    .padding(horizontal = 12.dp, vertical = 6.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                Icon(
+                    Icons.Outlined.Checklist,
+                    contentDescription = null,
+                    tint = FocusColors.AccentBlue,
+                    modifier = Modifier.size(13.dp),
+                )
+                Text("할 일 큐에서", color = FocusColors.AccentBlue, fontFamily = MonoFamily, fontSize = 11.sp)
+            }
+            Spacer(Modifier.height(10.dp))
+        }
+
         TaskField(value = task, onValueChange = onTaskChange, big = !isLandscape)
 
         Spacer(Modifier.height(if (isLandscape) 14.dp else 22.dp))
@@ -356,10 +400,10 @@ private fun PreStartContent(
                 icon = Icons.Outlined.PhotoCamera,
                 contentDescription = "배경 사진 지정",
                 onClick = onPickBackdrop,
-                size = if (isLandscape) 56.dp else 60.dp,
+                size = if (isLandscape) 62.dp else 68.dp,
                 accent = hasBackdrop,
             )
-            StartCircle(onClick = onStart, enabled = validMinutes, size = if (isLandscape) 78.dp else 88.dp)
+            StartCircle(onClick = onStart, enabled = validMinutes, size = if (isLandscape) 74.dp else 82.dp)
         }
     }
 }

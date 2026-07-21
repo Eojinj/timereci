@@ -5,18 +5,22 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 
 /**
- * The six calm gradients from the prototype, used as placeholders when a card has no photo
- * (and as the timer backdrop before a photo is picked). Ported from the `tones` array in
- * PhotoCard.dc.html.
+ * Calm gradients used as placeholders when a card has no photo (and as the timer backdrop
+ * before a photo is picked). Started as the six blues from the prototype's `tones` array in
+ * PhotoCard.dc.html; widened with a few more hues (sage, clay, lavender, sand, rose, teal) so
+ * a run of photo-less sessions doesn't read as "everything is blue".
  */
 object PhotoTones {
     private val stops: List<List<Pair<Float, Color>>> = listOf(
-        listOf(0f to Color(0xFF9CC0E0), 0.55f to Color(0xFFC6DEEF), 1f to Color(0xFFE6F2FB)),
-        listOf(0f to Color(0xFF6E93B8), 1f to Color(0xFF9EBFDB)),
-        listOf(0f to Color(0xFF41607F), 1f to Color(0xFF7C9EBE)),
-        listOf(0f to Color(0xFFBBD3E7), 1f to Color(0xFFE9F4FC)),
-        listOf(0f to Color(0xFF2E4257), 0.92f to Color(0xFF5C7E9E)),
-        listOf(0f to Color(0xFF84A8C9), 1f to Color(0xFFB6D2E8)),
+        listOf(0f to Color(0xFF9CC0E0), 0.55f to Color(0xFFC6DEEF), 1f to Color(0xFFE6F2FB)), // blue
+        listOf(0f to Color(0xFFA8C3A0), 1f to Color(0xFFE3EEDF)), // sage
+        listOf(0f to Color(0xFFD9A483), 1f to Color(0xFFF3E1D3)), // clay
+        listOf(0f to Color(0xFF41607F), 1f to Color(0xFF7C9EBE)), // deep blue
+        listOf(0f to Color(0xFFB8AEDB), 1f to Color(0xFFEDE9F7)), // lavender
+        listOf(0f to Color(0xFFD8C8A8), 1f to Color(0xFFF5EFE0)), // sand
+        listOf(0f to Color(0xFF2E4257), 0.92f to Color(0xFF5C7E9E)), // navy
+        listOf(0f to Color(0xFFD79FA0), 1f to Color(0xFFF6E4E5)), // dusty rose
+        listOf(0f to Color(0xFF5C8A8A), 1f to Color(0xFFC3DEDE)), // slate teal
     )
 
     val count: Int get() = stops.size

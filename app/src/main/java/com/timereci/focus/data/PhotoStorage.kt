@@ -52,6 +52,22 @@ class PhotoStorage @Inject constructor(
         runCatching { fileFor(fileName).delete() }
     }
 
+    /**
+     * Duplicates an already-stored photo under a new file name, for "reuse a recent photo"
+     * pickers. Sessions each own their photo files (deleting a receipt deletes its files), so
+     * reusing one directly by name would risk one receipt's delete wiping another's photo.
+     */
+    suspend fun copy(sourceFileName: String, aspect: Float, toneIndex: Int): PhotoRef? =
+        withContext(Dispatchers.IO) {
+            runCatching {
+                val source = fileFor(sourceFileName)
+                if (!source.exists()) return@runCatching null
+                val name = "${UUID.randomUUID()}.jpg"
+                source.copyTo(fileFor(name), overwrite = true)
+                PhotoRef(fileName = name, aspect = aspect, toneIndex = toneIndex)
+            }.getOrNull()
+        }
+
     /** Decodes a bitmap capped at [MAX_EDGE] px on its long side, honoring EXIF rotation. */
     private fun decodeScaled(uri: Uri): Bitmap? {
         val resolver = context.contentResolver

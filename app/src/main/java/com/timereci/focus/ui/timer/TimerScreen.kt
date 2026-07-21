@@ -38,6 +38,7 @@ import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.EditNote
+import androidx.compose.material.icons.outlined.GridView
 import androidx.compose.material.icons.outlined.PhotoCamera
 import androidx.compose.material.icons.outlined.ScreenRotation
 import androidx.compose.material3.Icon
@@ -89,6 +90,7 @@ private const val MAX_MINUTES = 180 // 3시간
 fun TimerScreen(
     onCompleted: () -> Unit,
     onAbandon: () -> Unit,
+    onOpenFeed: () -> Unit,
     viewModel: TimerViewModel = hiltViewModel(),
 ) {
     val state by viewModel.timerState.collectAsStateWithLifecycle()
@@ -173,6 +175,20 @@ fun TimerScreen(
                     ),
                 ),
         )
+
+        // Records / feed shortcut, top-left (pre-start only — hidden while focusing).
+        if (isPreStart) {
+            IconGlassButton(
+                icon = Icons.Outlined.GridView,
+                contentDescription = "기록 보기",
+                onClick = onOpenFeed,
+                size = 48.dp,
+                modifier = Modifier
+                    .align(Alignment.TopStart)
+                    .windowInsetsPadding(WindowInsets.safeDrawing)
+                    .padding(16.dp),
+            )
+        }
 
         // Manual landscape toggle, top-right (always available).
         IconGlassButton(

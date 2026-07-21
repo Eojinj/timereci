@@ -41,24 +41,12 @@ fun FocusApp(root: RootViewModel = hiltViewModel()) {
 
     NavHost(
         navController = navController,
-        startDestination = Routes.FEED,
+        startDestination = Routes.TIMER,
         enterTransition = { fadeIn(tween(220)) },
         exitTransition = { fadeOut(tween(180)) },
         popEnterTransition = { fadeIn(tween(220)) },
         popExitTransition = { fadeOut(tween(180)) },
     ) {
-        composable(Routes.FEED) {
-            FeedScreen(
-                onStartFocus = { navController.navigate(Routes.timer()) },
-                onStartPlanned = { label, minutes ->
-                    navController.navigate(Routes.timer(label, minutes))
-                },
-                onOpenDay = { epochDay -> navController.navigate(Routes.day(epochDay)) },
-                onOpenReceipt = { id -> navController.navigate(Routes.detail(id)) },
-                onOpenSettings = { navController.navigate(Routes.SETTINGS) },
-            )
-        }
-
         composable(
             route = Routes.TIMER,
             arguments = listOf(
@@ -68,20 +56,39 @@ fun FocusApp(root: RootViewModel = hiltViewModel()) {
         ) {
             TimerScreen(
                 onCompleted = {
-                    navController.navigate(Routes.PUBLISH) {
-                        popUpTo(Routes.FEED)
-                        launchSingleTop = true
+                    navController.navigate(Routes.PUBLISH) { launchSingleTop = true }
+                },
+                onAbandon = {
+                    // Pushed (planned) timer returns to the feed; the home timer just stays idle.
+                    navController.popBackStack(Routes.FEED, inclusive = false)
+                },
+                onOpenFeed = { navController.navigate(Routes.FEED) },
+            )
+        }
+
+        composable(Routes.FEED) {
+            FeedScreen(
+                onStartFocus = {
+                    // Home timer is the root — return to it rather than stacking another.
+                    if (!navController.popBackStack(Routes.TIMER, inclusive = false)) {
+                        navController.navigate(Routes.timer())
                     }
                 },
-                onAbandon = { navController.popBackStack(Routes.FEED, inclusive = false) },
+                onStartPlanned = { label, minutes ->
+                    navController.navigate(Routes.timer(label, minutes))
+                },
+                onOpenDay = { epochDay -> navController.navigate(Routes.day(epochDay)) },
+                onOpenReceipt = { id -> navController.navigate(Routes.detail(id)) },
+                onOpenSettings = { navController.navigate(Routes.SETTINGS) },
             )
         }
 
         composable(Routes.PUBLISH) {
             PublishScreen(
                 onStored = {
+                    // Land on the feed to see the new record; drop timer+publish from the stack.
                     navController.navigate(Routes.FEED) {
-                        popUpTo(Routes.FEED) { inclusive = true }
+                        popUpTo(Routes.TIMER) { inclusive = false }
                     }
                 },
             )

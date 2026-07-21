@@ -2,6 +2,7 @@ package com.timereci.focus.ui.model
 
 import com.timereci.focus.data.PhotoRef
 import com.timereci.focus.data.ReceiptEntity
+import com.timereci.focus.ui.theme.PhotoTones
 import com.timereci.focus.ui.util.Formatters
 import java.time.LocalDate
 
@@ -21,7 +22,7 @@ fun ReceiptEntity.toSessionCard() = SessionCard(
     stamp = Formatters.stamp(issuedAtEpoch),
     task = taskLabel,
     focus = Formatters.focus(focusedMs),
-    photos = photos,
+    photos = photos.ifEmpty { listOf(PhotoRef(toneIndex = PhotoTones.indexFor(id))) },
     comment = comment,
 )
 
@@ -30,6 +31,7 @@ data class FeedTile(
     val photo: PhotoRef,
     val sessionId: Long,
     val task: String,
+    val comment: String?,
     /** "+3" overlay when this is the last visible tile and more exist; else null. */
     val moreLabel: String?,
 )
@@ -47,6 +49,8 @@ data class FeedDay(
     val date: LocalDate get() = LocalDate.ofEpochDay(epochDay)
 }
 
+private data class FlatTile(val sessionId: Long, val task: String, val comment: String?, val photo: PhotoRef)
+
 object FeedBuilder {
     private const val MAX_TILES = 6
 
@@ -60,15 +64,17 @@ object FeedBuilder {
                 val sessions = sorted.map { it.toSessionCard() }
                 // Flatten to (session, photo) so each tile knows which session it belongs to.
                 val flat = sorted.flatMap { r ->
-                    r.photos.ifEmpty { listOf(PhotoRef()) }.map { p -> Triple(r.id, r.taskLabel, p) }
+                    r.photos.ifEmpty { listOf(PhotoRef(toneIndex = PhotoTones.indexFor(r.id))) }
+                        .map { p -> FlatTile(r.id, r.taskLabel, r.comment, p) }
                 }
                 val shown = flat.take(MAX_TILES)
-                val tiles = shown.mapIndexed { i, (id, task, p) ->
+                val tiles = shown.mapIndexed { i, flatTile ->
                     val isLast = i == MAX_TILES - 1 && flat.size > MAX_TILES
                     FeedTile(
-                        photo = p,
-                        sessionId = id,
-                        task = task,
+                        photo = flatTile.photo,
+                        sessionId = flatTile.sessionId,
+                        task = flatTile.task,
+                        comment = flatTile.comment,
                         moreLabel = if (isLast) "+${flat.size - MAX_TILES}" else null,
                     )
                 }

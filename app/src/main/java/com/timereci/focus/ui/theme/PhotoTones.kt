@@ -21,6 +21,13 @@ object PhotoTones {
 
     val count: Int get() = stops.size
 
+    /**
+     * Deterministic tone index for a session that has no photo, derived from a stable seed
+     * (e.g. the receipt id) so different sessions land on different tones/patterns instead of
+     * all defaulting to index 0.
+     */
+    fun indexFor(seed: Long): Int = (((seed % count) + count) % count).toInt()
+
     /** A diagonal (~150°) gradient brush matching the prototype's `linear-gradient(150deg …)`. */
     fun brush(index: Int): Brush {
         val s = stops[((index % count) + count) % count]

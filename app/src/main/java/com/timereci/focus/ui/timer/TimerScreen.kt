@@ -11,8 +11,10 @@ import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -41,6 +43,7 @@ import androidx.compose.material.icons.outlined.EditNote
 import androidx.compose.material.icons.outlined.GridView
 import androidx.compose.material.icons.outlined.PhotoCamera
 import androidx.compose.material.icons.outlined.ScreenRotation
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -100,6 +103,8 @@ fun TimerScreen(
     val backdrop by viewModel.backdrop.collectAsStateWithLifecycle()
     val keepRunning by viewModel.keepRunningWhileCommenting.collectAsStateWithLifecycle()
     val commentOpen by viewModel.commentSheetOpen.collectAsStateWithLifecycle()
+    val durationPresets by viewModel.durationPresets.collectAsStateWithLifecycle()
+    var editingPresetIndex by remember { mutableStateOf<Int?>(null) }
 
     val context = LocalContext.current
     val sensorLandscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
@@ -219,6 +224,8 @@ fun TimerScreen(
                     )
                 },
                 onStart = viewModel::start,
+                presets = durationPresets,
+                onLongPressPreset = { index -> editingPresetIndex = index },
             )
         } else {
             RunningContent(
@@ -277,6 +284,17 @@ fun TimerScreen(
             )
         }
     }
+
+    editingPresetIndex?.let { index ->
+        EditPresetDialog(
+            initialMinutes = durationPresets.getOrElse(index) { 25 },
+            onDismiss = { editingPresetIndex = null },
+            onSave = { minutes ->
+                viewModel.updatePreset(index, minutes)
+                editingPresetIndex = null
+            },
+        )
+    }
 }
 
 /** Task label + big minutes field (system numeric keyboard) + presets + a circular start button. */
@@ -290,6 +308,8 @@ private fun PreStartContent(
     hasBackdrop: Boolean,
     onPickBackdrop: () -> Unit,
     onStart: () -> Unit,
+    presets: List<Int>,
+    onLongPressPreset: (index: Int) -> Unit,
 ) {
     var minutesText by rememberSaveable { mutableStateOf((durationMs / 60_000L).coerceAtLeast(1).toString()) }
 
@@ -321,7 +341,12 @@ private fun PreStartContent(
 
         Spacer(Modifier.height(if (isLandscape) 16.dp else 22.dp))
 
-        PresetRow(selectedMinutes = minutesText.toIntOrNull(), onSelect = { m -> commit(m.toString()) })
+        PresetRow(
+            presets = presets,
+            selectedMinutes = minutesText.toIntOrNull(),
+            onSelect = { m -> commit(m.toString()) },
+            onLongPress = onLongPressPreset,
+        )
 
         Spacer(Modifier.height(if (isLandscape) 18.dp else 28.dp))
 
@@ -375,16 +400,21 @@ private fun MinutesField(
     }
 }
 
+/** Preset chips — tap to pick, long-press to rename ("이미 있는 버튼 꾹 눌러서 수정"). */
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun PresetRow(selectedMinutes: Int?, onSelect: (Int) -> Unit) {
+private fun PresetRow(presets: List<Int>, selectedMinutes: Int?, onSelect: (Int) -> Unit, onLongPress: (Int) -> Unit) {
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        DURATION_PRESETS.forEach { min ->
+        presets.forEachIndexed { index, min ->
             val active = min == selectedMinutes
             Box(
                 Modifier
                     .clip(RoundedCornerShape(20.dp))
                     .background(if (active) FocusColors.AccentDeep else Color(0xB3FFFFFF))
-                    .clickable { onSelect(min) }
+                    .combinedClickable(
+                        onClick = { onSelect(min) },
+                        onLongClick = { onLongPress(index) },
+                    )
                     .padding(horizontal = 15.dp, vertical = 8.dp),
             ) {
                 Text(
@@ -396,6 +426,51 @@ private fun PresetRow(selectedMinutes: Int?, onSelect: (Int) -> Unit) {
             }
         }
     }
+}
+
+@Composable
+private fun EditPresetDialog(initialMinutes: Int, onDismiss: () -> Unit, onSave: (Int) -> Unit) {
+    var text by rememberSaveable(initialMinutes) { mutableStateOf(initialMinutes.toString()) }
+    val valid = text.toIntOrNull()?.let { it in 1..MAX_MINUTES } == true
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("프리셋 시간 수정", fontWeight = FontWeight.Bold) },
+        text = {
+            Box(
+                Modifier
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(FocusColors.Mist)
+                    .padding(horizontal = 14.dp, vertical = 10.dp),
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    BasicTextField(
+                        value = text,
+                        onValueChange = { text = it.filter(Char::isDigit).take(3) },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Done),
+                        textStyle = TextStyle(color = FocusColors.Ink, fontSize = 18.sp, fontWeight = FontWeight.Medium),
+                        cursorBrush = SolidColor(FocusColors.AccentBlue),
+                        modifier = Modifier.widthIn(min = 40.dp),
+                    )
+                    Text("분", color = FocusColors.Muted, fontSize = 15.sp)
+                }
+            }
+        },
+        confirmButton = {
+            IconActionButton(
+                icon = Icons.Outlined.Check,
+                contentDescription = "저장",
+                onClick = { text.toIntOrNull()?.let(onSave) },
+                accent = true,
+                enabled = valid,
+                size = 40.dp,
+            )
+        },
+        dismissButton = {
+            IconActionButton(icon = Icons.Outlined.Close, contentDescription = "취소", onClick = onDismiss, size = 40.dp)
+        },
+    )
 }
 
 @Composable

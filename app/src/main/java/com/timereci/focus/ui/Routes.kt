@@ -35,4 +35,6 @@ object Routes {
     const val ARG_RECEIPT_ID = "receiptId"
 
     const val SETTINGS = "settings"
+
+    const val TODO = "todo"
 }

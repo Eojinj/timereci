@@ -10,6 +10,7 @@ import com.timereci.focus.data.PlannedFocusEntity
 import com.timereci.focus.data.ReceiptEntity
 import com.timereci.focus.data.SettingsRepository
 import com.timereci.focus.timer.FocusTimerController
+import com.timereci.focus.ui.theme.PhotoTones
 import com.timereci.focus.ui.util.Formatters
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -28,6 +29,7 @@ data class PublishUiState(
     val comment: String = "",
     val photos: List<PhotoRef> = emptyList(),
     val saving: Boolean = false,
+    val placeholderTone: Int = 0,
 )
 
 @HiltViewModel
@@ -54,13 +56,14 @@ class PublishViewModel @Inject constructor(
             photos = completed.backdropFileName
                 ?.let { listOf(PhotoRef(fileName = it)) }
                 ?: emptyList(),
+            placeholderTone = PhotoTones.indexFor(issuedAt),
         ),
     )
     val ui: StateFlow<PublishUiState> = _ui.asStateFlow()
 
     fun addPhoto(uri: Uri) {
         viewModelScope.launch {
-            val tone = _ui.value.photos.size % com.timereci.focus.ui.theme.PhotoTones.count
+            val tone = _ui.value.photos.size % PhotoTones.count
             repository.photoStorageRef.import(uri, tone)?.let { added ->
                 _ui.value = _ui.value.copy(photos = _ui.value.photos + added)
             }

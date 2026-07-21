@@ -39,7 +39,6 @@ import com.timereci.focus.ui.components.IconActionButton
 import com.timereci.focus.ui.components.grainyBackground
 import com.timereci.focus.ui.theme.FocusColors
 import com.timereci.focus.ui.theme.MonoFamily
-import com.timereci.focus.ui.timer.DURATION_PRESETS
 
 @Composable
 fun SettingsScreen(
@@ -69,7 +68,7 @@ fun SettingsScreen(
 
         Section("타이머 기본값") {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                DURATION_PRESETS.forEach { min ->
+                settings.durationPresets.forEach { min ->
                     val ms = min * 60_000L
                     val active = ms == settings.defaultDurationMs
                     Box(

@@ -63,9 +63,16 @@ class FeedViewModel @Inject constructor(
         }
     }
 
-    fun addPlanned(label: String, minutes: Int) {
+    fun updateSession(receiptId: Long, task: String, comment: String) {
         viewModelScope.launch {
-            repository.addPlannedFocus(label.trim(), minutes * 60_000L)
+            repository.getReceipt(receiptId)?.let { receipt ->
+                repository.updateReceipt(
+                    receipt.copy(
+                        taskLabel = task.trim(),
+                        comment = comment.trim().ifBlank { null },
+                    ),
+                )
+            }
         }
     }
 

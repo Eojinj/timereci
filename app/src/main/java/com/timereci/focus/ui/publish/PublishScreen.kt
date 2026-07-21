@@ -94,7 +94,7 @@ fun PublishScreen(
         )
 
         // The card: photo (or gradient), with the comment editable right on top of it.
-        val photos = ui.photos.ifEmpty { listOf(PhotoRef()) }
+        val photos = ui.photos.ifEmpty { listOf(PhotoRef(toneIndex = ui.placeholderTone)) }
         val current = photos.first()
         Box(
             Modifier

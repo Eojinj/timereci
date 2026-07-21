@@ -21,6 +21,7 @@ import com.timereci.focus.ui.nextup.NextUpScreen
 import com.timereci.focus.ui.publish.PublishScreen
 import com.timereci.focus.ui.settings.SettingsScreen
 import com.timereci.focus.ui.timer.TimerScreen
+import com.timereci.focus.ui.todo.TodoScreen
 
 @Composable
 fun FocusApp(root: RootViewModel = hiltViewModel()) {
@@ -82,6 +83,16 @@ fun FocusApp(root: RootViewModel = hiltViewModel()) {
                 onOpenDay = { epochDay -> navController.navigate(Routes.day(epochDay)) },
                 onOpenReceipt = { id -> navController.navigate(Routes.detail(id)) },
                 onOpenSettings = { navController.navigate(Routes.SETTINGS) },
+                onOpenTodo = { navController.navigate(Routes.TODO) },
+            )
+        }
+
+        composable(Routes.TODO) {
+            TodoScreen(
+                onBack = { navController.popBackStack() },
+                onStartPlanned = { label, minutes ->
+                    navController.navigate(Routes.timer(label, minutes))
+                },
             )
         }
 

@@ -29,6 +29,9 @@ enum class PhotoAspect(val ratio: Float, val label: String) {
     }
 }
 
+/** Preset durations offered before a session starts (minutes). User-editable via long-press. */
+val DEFAULT_DURATION_PRESETS = listOf(15, 25, 45, 60, 90)
+
 /** User-facing behavior settings from PRD §6 & §10, backed by Preferences DataStore. */
 data class FocusSettings(
     /** Default timer duration in ms (settings screen default value). */
@@ -39,6 +42,8 @@ data class FocusSettings(
     val keepRunningWhileCommenting: Boolean = true,
     /** Crop ratio used when displaying photos in the feed and carousel. */
     val photoAspect: PhotoAspect = PhotoAspect.PORTRAIT,
+    /** Quick-pick minute presets shown on the timer, settings and todo screens. */
+    val durationPresets: List<Int> = DEFAULT_DURATION_PRESETS,
 )
 
 @Singleton
@@ -51,6 +56,7 @@ class SettingsRepository @Inject constructor(
             proportionalLength = prefs[KEY_PROPORTIONAL] ?: true,
             keepRunningWhileCommenting = prefs[KEY_KEEP_RUNNING] ?: true,
             photoAspect = PhotoAspect.from(prefs[KEY_PHOTO_ASPECT]),
+            durationPresets = parsePresets(prefs[KEY_DURATION_PRESETS]),
         )
     }
 
@@ -58,6 +64,20 @@ class SettingsRepository @Inject constructor(
     suspend fun setProportionalLength(value: Boolean) = edit { it[KEY_PROPORTIONAL] = value }
     suspend fun setKeepRunningWhileCommenting(value: Boolean) = edit { it[KEY_KEEP_RUNNING] = value }
     suspend fun setPhotoAspect(value: PhotoAspect) = edit { it[KEY_PHOTO_ASPECT] = value.name }
+
+    /** Overwrites a single preset slot (e.g. the "25분" chip long-pressed and changed to "30분"). */
+    suspend fun setDurationPreset(index: Int, minutes: Int) = edit { prefs ->
+        val current = parsePresets(prefs[KEY_DURATION_PRESETS]).toMutableList()
+        if (index in current.indices) {
+            current[index] = minutes
+            prefs[KEY_DURATION_PRESETS] = current.joinToString(",")
+        }
+    }
+
+    private fun parsePresets(raw: String?): List<Int> {
+        val parsed = raw?.split(",")?.mapNotNull { it.toIntOrNull() }
+        return if (parsed != null && parsed.size == DEFAULT_DURATION_PRESETS.size) parsed else DEFAULT_DURATION_PRESETS
+    }
 
     private suspend fun edit(block: (androidx.datastore.preferences.core.MutablePreferences) -> Unit) {
         context.dataStore.edit(block)
@@ -68,5 +88,6 @@ class SettingsRepository @Inject constructor(
         val KEY_PROPORTIONAL = booleanPreferencesKey("proportional_length")
         val KEY_KEEP_RUNNING = booleanPreferencesKey("keep_running_commenting")
         val KEY_PHOTO_ASPECT = stringPreferencesKey("photo_aspect")
+        val KEY_DURATION_PRESETS = stringPreferencesKey("duration_presets")
     }
 }

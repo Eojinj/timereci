@@ -77,9 +77,8 @@ import com.timereci.focus.ui.theme.GothicFamily
 import com.timereci.focus.ui.theme.MonoFamily
 import com.timereci.focus.ui.theme.PhotoTones
 import com.timereci.focus.ui.theme.patternPlaceholder
-import com.timereci.focus.ui.timer.DURATION_PRESETS
 
-private data class PendingDelete(val id: Long, val label: String)
+private data class PendingEdit(val id: Long, val task: String, val comment: String)
 
 @Composable
 fun FeedScreen(
@@ -88,6 +87,7 @@ fun FeedScreen(
     onOpenDay: (Long) -> Unit,
     onOpenReceipt: (Long) -> Unit,
     onOpenSettings: () -> Unit,
+    onOpenTodo: () -> Unit,
     viewModel: FeedViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -96,8 +96,7 @@ fun FeedScreen(
     val rollSessions by viewModel.rollSessions.collectAsStateWithLifecycle()
 
     var mode by remember { mutableStateOf(FeedViewMode.GRID) }
-    var pendingDelete by remember { mutableStateOf<PendingDelete?>(null) }
-    var showAddPlanned by remember { mutableStateOf(false) }
+    var pendingEdit by remember { mutableStateOf<PendingEdit?>(null) }
 
     Box(
         Modifier
@@ -123,7 +122,7 @@ fun FeedScreen(
                     onStartPlanned(p.label, (p.plannedMs / 60_000L).toInt().coerceAtLeast(1))
                 },
                 onDelete = { viewModel.deletePlanned(it) },
-                onAdd = { showAddPlanned = true },
+                onAdd = onOpenTodo,
             )
 
             when {
@@ -140,7 +139,9 @@ fun FeedScreen(
                             taskSize = 30.sp,
                             commentSize = 20.sp,
                             onClick = { onOpenReceipt(session.id) },
-                            onLongClick = { pendingDelete = PendingDelete(session.id, session.task) },
+                            onLongClick = {
+                                pendingEdit = PendingEdit(session.id, session.task, session.comment.orEmpty())
+                            },
                         )
                     }
                 }
@@ -153,7 +154,9 @@ fun FeedScreen(
                             day = day,
                             aspect = aspect,
                             onOpenDay = { onOpenDay(day.epochDay) },
-                            onLongPressTile = { tile -> pendingDelete = PendingDelete(tile.sessionId, tile.task) },
+                            onLongPressTile = { tile ->
+                                pendingEdit = PendingEdit(tile.sessionId, tile.task, tile.comment.orEmpty())
+                            },
                         )
                     }
                 }
@@ -175,42 +178,103 @@ fun FeedScreen(
         )
     }
 
-    pendingDelete?.let { target ->
-        AlertDialog(
-            onDismissRequest = { pendingDelete = null },
-            title = { Text("이 집중을 삭제할까요?", fontWeight = FontWeight.Bold) },
-            text = { Text(target.label.ifBlank { "제목 없는 집중" }) },
-            confirmButton = {
+    pendingEdit?.let { target ->
+        EditSessionDialog(
+            target = target,
+            onDismiss = { pendingEdit = null },
+            onSave = { task, comment ->
+                viewModel.updateSession(target.id, task, comment)
+                pendingEdit = null
+            },
+            onDelete = {
+                viewModel.delete(target.id)
+                pendingEdit = null
+            },
+        )
+    }
+}
+
+@Composable
+private fun EditSessionDialog(
+    target: PendingEdit,
+    onDismiss: () -> Unit,
+    onSave: (task: String, comment: String) -> Unit,
+    onDelete: () -> Unit,
+) {
+    var task by remember(target.id) { mutableStateOf(target.task) }
+    var comment by remember(target.id) { mutableStateOf(target.comment) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("집중 수정", fontWeight = FontWeight.Bold) },
+        text = {
+            Column {
+                Box(
+                    Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(FocusColors.Mist)
+                        .padding(horizontal = 12.dp, vertical = 12.dp),
+                ) {
+                    BasicTextField(
+                        value = task,
+                        onValueChange = { task = it },
+                        singleLine = true,
+                        cursorBrush = SolidColor(FocusColors.AccentBlue),
+                        textStyle = TextStyle(color = FocusColors.Ink, fontSize = 15.sp, fontWeight = FontWeight.SemiBold),
+                        decorationBox = { inner ->
+                            if (task.isEmpty()) Text("할 일", color = FocusColors.Muted2, fontSize = 15.sp)
+                            inner()
+                        },
+                    )
+                }
+                Spacer(Modifier.height(10.dp))
+                Box(
+                    Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(FocusColors.Mist)
+                        .padding(horizontal = 12.dp, vertical = 12.dp),
+                ) {
+                    BasicTextField(
+                        value = comment,
+                        onValueChange = { comment = it },
+                        cursorBrush = SolidColor(FocusColors.AccentBlue),
+                        textStyle = TextStyle(color = FocusColors.Ink, fontSize = 14.sp, lineHeight = 20.sp),
+                        decorationBox = { inner ->
+                            if (comment.isEmpty()) Text("코멘트", color = FocusColors.Muted2, fontSize = 14.sp)
+                            inner()
+                        },
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            IconActionButton(
+                icon = Icons.Outlined.Check,
+                contentDescription = "저장",
+                onClick = { onSave(task, comment) },
+                accent = true,
+                size = 40.dp,
+            )
+        },
+        dismissButton = {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 IconActionButton(
                     icon = Icons.Outlined.DeleteOutline,
                     contentDescription = "삭제",
-                    onClick = {
-                        viewModel.delete(target.id)
-                        pendingDelete = null
-                    },
+                    onClick = onDelete,
                     size = 40.dp,
                 )
-            },
-            dismissButton = {
                 IconActionButton(
                     icon = Icons.Outlined.Close,
                     contentDescription = "취소",
-                    onClick = { pendingDelete = null },
+                    onClick = onDismiss,
                     size = 40.dp,
                 )
-            },
-        )
-    }
-
-    if (showAddPlanned) {
-        AddPlannedDialog(
-            onDismiss = { showAddPlanned = false },
-            onConfirm = { label, minutes ->
-                viewModel.addPlanned(label, minutes)
-                showAddPlanned = false
-            },
-        )
-    }
+            }
+        },
+    )
 }
 
 @Composable
@@ -292,77 +356,6 @@ private fun PlannedStrip(
             size = 34.dp,
         )
     }
-}
-
-@Composable
-private fun AddPlannedDialog(onDismiss: () -> Unit, onConfirm: (String, Int) -> Unit) {
-    var label by remember { mutableStateOf("") }
-    var minutes by remember { mutableStateOf(25) }
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("오늘 할 집중", fontWeight = FontWeight.Bold) },
-        text = {
-            Column {
-                Box(
-                    Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(10.dp))
-                        .background(FocusColors.Mist)
-                        .padding(horizontal = 12.dp, vertical = 12.dp),
-                ) {
-                    BasicTextField(
-                        value = label,
-                        onValueChange = { label = it },
-                        singleLine = true,
-                        cursorBrush = SolidColor(FocusColors.AccentBlue),
-                        textStyle = TextStyle(color = FocusColors.Ink, fontSize = 15.sp),
-                        decorationBox = { inner ->
-                            if (label.isEmpty()) Text("무엇에 집중할까요?", color = FocusColors.Muted2, fontSize = 15.sp)
-                            inner()
-                        },
-                    )
-                }
-                Spacer(Modifier.height(14.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    DURATION_PRESETS.forEach { m ->
-                        val active = m == minutes
-                        Box(
-                            Modifier
-                                .clip(RoundedCornerShape(10.dp))
-                                .background(if (active) FocusColors.AccentDeep else FocusColors.Mist)
-                                .clickable { minutes = m }
-                                .padding(horizontal = 12.dp, vertical = 7.dp),
-                        ) {
-                            Text(
-                                "${m}분",
-                                color = if (active) FocusColors.Paper else FocusColors.Ink2,
-                                fontFamily = MonoFamily,
-                                fontSize = 12.sp,
-                            )
-                        }
-                    }
-                }
-            }
-        },
-        confirmButton = {
-            IconActionButton(
-                icon = Icons.Outlined.Check,
-                contentDescription = "추가",
-                onClick = { onConfirm(label.ifBlank { "집중" }, minutes) },
-                accent = true,
-                size = 40.dp,
-            )
-        },
-        dismissButton = {
-            IconActionButton(
-                icon = Icons.Outlined.Close,
-                contentDescription = "취소",
-                onClick = onDismiss,
-                size = 40.dp,
-            )
-        },
-    )
 }
 
 @Composable

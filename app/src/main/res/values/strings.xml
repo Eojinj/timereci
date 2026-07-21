@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">집중 영수증</string>
+    <string name="app_name">Merci</string>
 
     <!-- Notification -->
     <string name="timer_channel_name">집중 타이머</string>

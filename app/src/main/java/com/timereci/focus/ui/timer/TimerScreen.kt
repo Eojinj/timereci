@@ -57,7 +57,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
@@ -76,6 +75,7 @@ import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.timereci.focus.data.PhotoStorage
 import com.timereci.focus.timer.TimerPhase
+import com.timereci.focus.ui.components.IconActionButton
 import com.timereci.focus.ui.components.grain
 import com.timereci.focus.ui.theme.FocusColors
 import com.timereci.focus.ui.theme.GothicFamily
@@ -178,7 +178,7 @@ fun TimerScreen(
 
         // Records / feed shortcut, top-left (pre-start only — hidden while focusing).
         if (isPreStart) {
-            IconGlassButton(
+            IconActionButton(
                 icon = Icons.Outlined.GridView,
                 contentDescription = "기록 보기",
                 onClick = onOpenFeed,
@@ -191,7 +191,7 @@ fun TimerScreen(
         }
 
         // Manual landscape toggle, top-right (always available).
-        IconGlassButton(
+        IconActionButton(
             icon = Icons.Outlined.ScreenRotation,
             contentDescription = "가로 모드 전환",
             onClick = { forcedLandscape = !forcedLandscape },
@@ -236,7 +236,7 @@ fun TimerScreen(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween,
             ) {
-                IconGlassButton(
+                IconActionButton(
                     icon = Icons.Outlined.EditNote,
                     contentDescription = "코멘트",
                     onClick = {
@@ -245,7 +245,7 @@ fun TimerScreen(
                     },
                 )
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    IconGlassButton(
+                    IconActionButton(
                         icon = Icons.Outlined.Close,
                         contentDescription = "정지",
                         onClick = {
@@ -253,7 +253,7 @@ fun TimerScreen(
                             onAbandon()
                         },
                     )
-                    IconGlassButton(
+                    IconActionButton(
                         icon = Icons.Outlined.Check,
                         contentDescription = "완주",
                         onClick = viewModel::completeNow,
@@ -325,7 +325,7 @@ private fun PreStartContent(
 
         // Backdrop-photo button sits right next to the start button.
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-            IconGlassButton(
+            IconActionButton(
                 icon = Icons.Outlined.PhotoCamera,
                 contentDescription = "배경 사진 지정",
                 onClick = onPickBackdrop,
@@ -411,32 +411,6 @@ private fun StartCircle(onClick: () -> Unit, enabled: Boolean, size: Dp) {
             contentDescription = "시작",
             tint = FocusColors.Paper,
             modifier = Modifier.size(size * 0.42f),
-        )
-    }
-}
-
-@Composable
-private fun IconGlassButton(
-    icon: ImageVector,
-    contentDescription: String,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-    size: Dp = 46.dp,
-    accent: Boolean = false,
-) {
-    Box(
-        modifier
-            .size(size)
-            .clip(CircleShape)
-            .background(if (accent) FocusColors.AccentDeep else Color(0xB3FFFFFF))
-            .clickable(onClick = onClick),
-        contentAlignment = Alignment.Center,
-    ) {
-        Icon(
-            icon,
-            contentDescription = contentDescription,
-            tint = if (accent) FocusColors.Paper else FocusColors.Ink2,
-            modifier = Modifier.size(size * 0.44f),
         )
     }
 }

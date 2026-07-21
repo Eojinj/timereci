@@ -2,7 +2,6 @@ package com.timereci.focus.ui.day
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -11,15 +10,17 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.ArrowBack
+import androidx.compose.material.icons.outlined.Close
+import androidx.compose.material.icons.outlined.DeleteOutline
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -36,6 +37,7 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.timereci.focus.data.PhotoAspect
+import com.timereci.focus.ui.components.IconActionButton
 import com.timereci.focus.ui.components.SessionOverlayCard
 import com.timereci.focus.ui.components.grain
 import com.timereci.focus.ui.model.SessionCard
@@ -95,17 +97,7 @@ fun DayScreen(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Box(
-                Modifier
-                    .size(38.dp)
-                    .clip(CircleShape)
-                    .background(FocusColors.Glass)
-                    .border(1.dp, FocusColors.GlassBorder, CircleShape)
-                    .clickable(onClick = onBack),
-                contentAlignment = Alignment.Center,
-            ) {
-                Text("←", color = FocusColors.NightInk, fontSize = 18.sp)
-            }
+            IconActionButton(icon = Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = "뒤로", onClick = onBack, onDark = true, size = 38.dp)
             Column(Modifier.weight(1f)) {
                 Text(state.title, color = FocusColors.NightInk, fontFamily = MonoFamily, fontSize = 14.sp)
                 Text(
@@ -146,15 +138,18 @@ fun DayScreen(
                 )
             },
             confirmButton = {
-                TextButton(onClick = {
-                    viewModel.delete(target.id)
-                    pendingDelete = null
-                }) { Text("삭제", color = FocusColors.AccentBlue, fontWeight = FontWeight.Bold) }
+                IconActionButton(
+                    icon = Icons.Outlined.DeleteOutline,
+                    contentDescription = "삭제",
+                    onClick = {
+                        viewModel.delete(target.id)
+                        pendingDelete = null
+                    },
+                    size = 40.dp,
+                )
             },
             dismissButton = {
-                TextButton(onClick = { pendingDelete = null }) {
-                    Text("취소", color = FocusColors.Muted)
-                }
+                IconActionButton(icon = Icons.Outlined.Close, contentDescription = "취소", onClick = { pendingDelete = null }, size = 40.dp)
             },
         )
     }

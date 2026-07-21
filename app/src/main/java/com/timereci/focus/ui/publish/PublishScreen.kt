@@ -23,6 +23,10 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.AddPhotoAlternate
+import androidx.compose.material.icons.outlined.Check
+import androidx.compose.material.icons.outlined.DeleteOutline
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -44,8 +48,7 @@ import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.timereci.focus.data.PhotoRef
 import com.timereci.focus.data.PhotoStorage
-import com.timereci.focus.ui.components.PrimaryButton
-import com.timereci.focus.ui.components.SecondaryButton
+import com.timereci.focus.ui.components.IconActionButton
 import com.timereci.focus.ui.components.grain
 import com.timereci.focus.ui.theme.FocusColors
 import com.timereci.focus.ui.theme.MonoFamily
@@ -189,38 +192,37 @@ fun PublishScreen(
             }
         }
 
-        Spacer(Modifier.height(16.dp))
+        Spacer(Modifier.height(18.dp))
 
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            SecondaryButton(
-                text = "사진 추가",
+        Row(horizontalArrangement = Arrangement.spacedBy(18.dp), verticalAlignment = Alignment.CenterVertically) {
+            IconActionButton(
+                icon = Icons.Outlined.AddPhotoAlternate,
+                contentDescription = "사진 추가",
                 onClick = {
                     photoPicker.launch(
                         PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly),
                     )
                 },
                 onDark = true,
-                modifier = Modifier.weight(1f),
+                size = 50.dp,
             )
-            SecondaryButton(
-                text = "버리기",
+            IconActionButton(
+                icon = Icons.Outlined.DeleteOutline,
+                contentDescription = "버리기",
                 onClick = { viewModel.discard(onStored) },
                 onDark = true,
-                modifier = Modifier.weight(1f),
+                size = 50.dp,
+            )
+            IconActionButton(
+                icon = Icons.Outlined.Check,
+                contentDescription = "피드에 담기",
+                onClick = { viewModel.store(onStored) },
+                accent = true,
+                enabled = !ui.saving,
+                size = 62.dp,
             )
         }
 
-        Spacer(Modifier.height(12.dp))
-
-        PrimaryButton(
-            text = "피드에 담기",
-            onClick = { viewModel.store(onStored) },
-            container = FocusColors.AccentSky,
-            content = FocusColors.Night2,
-            enabled = !ui.saving,
-            modifier = Modifier.fillMaxWidth(),
-        )
-
-        Spacer(Modifier.height(16.dp))
+        Spacer(Modifier.height(20.dp))
     }
 }

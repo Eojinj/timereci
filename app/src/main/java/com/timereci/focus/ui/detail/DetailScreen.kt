@@ -20,9 +20,9 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.DeleteOutline
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
+import androidx.compose.material.icons.outlined.Download
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -41,8 +41,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.timereci.focus.ui.components.IconActionButton
 import com.timereci.focus.ui.components.PhotoCard
-import com.timereci.focus.ui.components.PrimaryButton
 import com.timereci.focus.ui.components.grainyBackground
 import com.timereci.focus.ui.theme.FocusColors
 import com.timereci.focus.ui.theme.MonoFamily
@@ -68,28 +68,16 @@ fun DetailScreen(
             )
             .windowInsetsPadding(WindowInsets.safeDrawing),
     ) {
-        // Header
+        // Header — icons only, no title text.
         Row(
             Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 12.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Box(
-                Modifier
-                    .size(38.dp)
-                    .clip(RoundedCornerShape(11.dp))
-                    .background(FocusColors.Paper)
-                    .border(1.dp, FocusColors.LineStrong, RoundedCornerShape(11.dp))
-                    .clickable(onClick = onBack),
-                contentAlignment = Alignment.Center,
-            ) { Text("←", color = FocusColors.Ink2, fontSize = 18.sp) }
-            Spacer(Modifier.width(12.dp))
-            Text("내보내기", color = FocusColors.Ink, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+            IconActionButton(icon = Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = "뒤로", onClick = onBack, size = 38.dp)
             Spacer(Modifier.weight(1f))
-            IconButton(onClick = { viewModel.delete(onBack) }) {
-                Icon(Icons.Outlined.DeleteOutline, contentDescription = "삭제", tint = FocusColors.Muted)
-            }
+            IconActionButton(icon = Icons.Outlined.DeleteOutline, contentDescription = "삭제", onClick = { viewModel.delete(onBack) }, size = 38.dp)
         }
 
         val current = card
@@ -121,11 +109,12 @@ fun DetailScreen(
                 }
             }
 
-            Column(Modifier.padding(horizontal = 24.dp)) {
+            Column(Modifier.padding(horizontal = 24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                 FormatRow()
-                Spacer(Modifier.height(16.dp))
-                PrimaryButton(
-                    text = "이미지 저장",
+                Spacer(Modifier.height(18.dp))
+                IconActionButton(
+                    icon = Icons.Outlined.Download,
+                    contentDescription = "이미지 저장",
                     onClick = {
                         scope.launch {
                             val bitmap = graphicsLayer.toImageBitmap().asAndroidBitmap()
@@ -141,7 +130,8 @@ fun DetailScreen(
                             ).show()
                         }
                     },
-                    modifier = Modifier.fillMaxWidth(),
+                    accent = true,
+                    size = 60.dp,
                 )
                 Spacer(Modifier.height(12.dp))
                 Text(

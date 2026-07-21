@@ -29,8 +29,11 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.outlined.Add
+import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.Close
+import androidx.compose.material.icons.outlined.DeleteOutline
 import androidx.compose.material.icons.outlined.GridView
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.ViewDay
@@ -38,7 +41,6 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -65,7 +67,7 @@ import coil.request.ImageRequest
 import com.timereci.focus.data.PhotoAspect
 import com.timereci.focus.data.PhotoStorage
 import com.timereci.focus.data.PlannedFocusEntity
-import com.timereci.focus.ui.components.PrimaryButton
+import com.timereci.focus.ui.components.IconActionButton
 import com.timereci.focus.ui.components.SessionOverlayCard
 import com.timereci.focus.ui.components.grainyBackground
 import com.timereci.focus.ui.model.FeedDay
@@ -154,17 +156,18 @@ fun FeedScreen(
             }
         }
 
-        // Sticky "집중 시작" action.
-        Box(
-            Modifier
+        // Floating "start" action.
+        IconActionButton(
+            icon = Icons.Filled.PlayArrow,
+            contentDescription = "집중 시작",
+            onClick = onStartFocus,
+            accent = true,
+            size = 62.dp,
+            modifier = Modifier
                 .align(Alignment.BottomCenter)
-                .fillMaxWidth()
-                .padding(horizontal = 20.dp)
                 .windowInsetsPadding(WindowInsets.systemBars)
-                .padding(bottom = 16.dp),
-        ) {
-            PrimaryButton(text = "집중 시작", onClick = onStartFocus, modifier = Modifier.fillMaxWidth())
-        }
+                .padding(bottom = 20.dp),
+        )
     }
 
     pendingDelete?.let { target ->
@@ -173,13 +176,23 @@ fun FeedScreen(
             title = { Text("이 집중을 삭제할까요?", fontWeight = FontWeight.Bold) },
             text = { Text(target.label.ifBlank { "제목 없는 집중" }) },
             confirmButton = {
-                TextButton(onClick = {
-                    viewModel.delete(target.id)
-                    pendingDelete = null
-                }) { Text("삭제", color = FocusColors.AccentBlue, fontWeight = FontWeight.Bold) }
+                IconActionButton(
+                    icon = Icons.Outlined.DeleteOutline,
+                    contentDescription = "삭제",
+                    onClick = {
+                        viewModel.delete(target.id)
+                        pendingDelete = null
+                    },
+                    size = 40.dp,
+                )
             },
             dismissButton = {
-                TextButton(onClick = { pendingDelete = null }) { Text("취소", color = FocusColors.Muted) }
+                IconActionButton(
+                    icon = Icons.Outlined.Close,
+                    contentDescription = "취소",
+                    onClick = { pendingDelete = null },
+                    size = 40.dp,
+                )
             },
         )
     }
@@ -266,19 +279,13 @@ private fun PlannedStrip(
                 }
             }
         }
-        // Add chip.
-        Row(
-            Modifier
-                .clip(RoundedCornerShape(20.dp))
-                .background(FocusColors.Mist)
-                .clickable(onClick = onAdd)
-                .padding(horizontal = 13.dp, vertical = 7.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(4.dp),
-        ) {
-            Icon(Icons.Outlined.Add, contentDescription = null, tint = FocusColors.AccentBlue, modifier = Modifier.size(15.dp))
-            Text("오늘 할 집중", color = FocusColors.AccentBlue, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
-        }
+        // Add chip — icon only.
+        IconActionButton(
+            icon = Icons.Outlined.Add,
+            contentDescription = "오늘 할 집중 추가",
+            onClick = onAdd,
+            size = 34.dp,
+        )
     }
 }
 
@@ -334,12 +341,21 @@ private fun AddPlannedDialog(onDismiss: () -> Unit, onConfirm: (String, Int) -> 
             }
         },
         confirmButton = {
-            TextButton(
+            IconActionButton(
+                icon = Icons.Outlined.Check,
+                contentDescription = "추가",
                 onClick = { onConfirm(label.ifBlank { "집중" }, minutes) },
-            ) { Text("추가", color = FocusColors.AccentBlue, fontWeight = FontWeight.Bold) }
+                accent = true,
+                size = 40.dp,
+            )
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text("취소", color = FocusColors.Muted) }
+            IconActionButton(
+                icon = Icons.Outlined.Close,
+                contentDescription = "취소",
+                onClick = onDismiss,
+                size = 40.dp,
+            )
         },
     )
 }

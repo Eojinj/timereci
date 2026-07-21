@@ -4,64 +4,55 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Text
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.timereci.focus.ui.theme.FocusColors
 
-/** Filled dark action button — the primary CTA across screens ("집중 시작", "피드에 담기"). */
+/**
+ * The app's standard circular icon button — used everywhere a text-label button used to be
+ * (add, save, discard, confirm, cancel, delete…). `accent` gives the solid deep-navy CTA
+ * treatment; otherwise it's a translucent glass chip that adapts to light/dark surfaces via
+ * `onDark`.
+ */
 @Composable
-fun PrimaryButton(
-    text: String,
+fun IconActionButton(
+    icon: ImageVector,
+    contentDescription: String,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
-    container: Color = FocusColors.AccentInk,
-    content: Color = FocusColors.Paper,
+    size: Dp = 46.dp,
+    accent: Boolean = false,
+    onDark: Boolean = false,
     enabled: Boolean = true,
 ) {
-    Box(
-        modifier
-            .height(52.dp)
-            .clip(RoundedCornerShape(15.dp))
-            .background(if (enabled) container else container.copy(alpha = 0.4f))
-            .clickable(enabled = enabled, onClick = onClick)
-            .padding(horizontal = 24.dp),
-        contentAlignment = Alignment.Center,
-    ) {
-        Text(text, color = content, fontSize = 15.5.sp, fontWeight = FontWeight.Bold)
+    val bg = when {
+        accent -> FocusColors.AccentDeep
+        onDark -> FocusColors.Glass
+        else -> Color(0xB3FFFFFF)
     }
-}
-
-/** Outlined / soft secondary button used for "코멘트", "사진 추가" etc. */
-@Composable
-fun SecondaryButton(
-    text: String,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-    onDark: Boolean = false,
-) {
-    val border = if (onDark) FocusColors.GlassBorder else FocusColors.LineStrong
-    val bg = if (onDark) FocusColors.Glass else Color.White
-    val fg = if (onDark) FocusColors.NightInk else FocusColors.Ink2
+    val fg = when {
+        accent -> FocusColors.Paper
+        onDark -> FocusColors.NightInk
+        else -> FocusColors.Ink2
+    }
     Box(
         modifier
-            .height(44.dp)
-            .clip(RoundedCornerShape(12.dp))
-            .background(bg)
-            .border(1.dp, border, RoundedCornerShape(12.dp))
-            .clickable(onClick = onClick)
-            .padding(horizontal = 18.dp),
+            .size(size)
+            .clip(CircleShape)
+            .background(if (enabled) bg else bg.copy(alpha = 0.4f))
+            .then(if (onDark && !accent) Modifier.border(1.dp, FocusColors.GlassBorder, CircleShape) else Modifier)
+            .clickable(enabled = enabled, onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
-        Text(text, color = fg, fontSize = 13.5.sp, fontWeight = FontWeight.SemiBold)
+        Icon(icon, contentDescription = contentDescription, tint = fg, modifier = Modifier.size(size * 0.44f))
     }
 }

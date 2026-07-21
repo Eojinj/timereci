@@ -1,7 +1,6 @@
 package com.timereci.focus.ui.settings
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -20,6 +19,8 @@ import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
@@ -34,6 +35,7 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.timereci.focus.data.PhotoAspect
+import com.timereci.focus.ui.components.IconActionButton
 import com.timereci.focus.ui.components.grainyBackground
 import com.timereci.focus.ui.theme.FocusColors
 import com.timereci.focus.ui.theme.MonoFamily
@@ -62,17 +64,7 @@ fun SettingsScreen(
                 .padding(horizontal = 12.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Box(
-                Modifier
-                    .size(38.dp)
-                    .clip(RoundedCornerShape(11.dp))
-                    .background(FocusColors.Paper)
-                    .border(1.dp, FocusColors.LineStrong, RoundedCornerShape(11.dp))
-                    .clickable(onClick = onBack),
-                contentAlignment = Alignment.Center,
-            ) { Text("←", color = FocusColors.Ink2, fontSize = 18.sp) }
-            Spacer(Modifier.width(12.dp))
-            Text("설정", color = FocusColors.Ink, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+            IconActionButton(icon = Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = "뒤로", onClick = onBack, size = 38.dp)
         }
 
         Section("타이머 기본값") {

@@ -16,6 +16,8 @@ import androidx.navigation.navArgument
 import com.timereci.focus.ui.day.DayScreen
 import com.timereci.focus.ui.detail.DetailScreen
 import com.timereci.focus.ui.feed.FeedScreen
+import com.timereci.focus.ui.nextup.BreakScreen
+import com.timereci.focus.ui.nextup.NextUpScreen
 import com.timereci.focus.ui.publish.PublishScreen
 import com.timereci.focus.ui.settings.SettingsScreen
 import com.timereci.focus.ui.timer.TimerScreen
@@ -85,10 +87,73 @@ fun FocusApp(root: RootViewModel = hiltViewModel()) {
 
         composable(Routes.PUBLISH) {
             PublishScreen(
-                onStored = {
-                    // Land on the feed to see the new record; drop timer+publish from the stack.
+                onFinished = { next ->
+                    if (next != null) {
+                        // Queue has more — offer to continue straight into it.
+                        val nextMinutes = (next.plannedMs / 60_000L).toInt().coerceAtLeast(1)
+                        navController.navigate(Routes.nextUp(next.id, next.label, nextMinutes)) {
+                            popUpTo(Routes.TIMER) { inclusive = false }
+                        }
+                    } else {
+                        navController.navigate(Routes.FEED) {
+                            popUpTo(Routes.TIMER) { inclusive = false }
+                        }
+                    }
+                },
+            )
+        }
+
+        composable(
+            route = Routes.NEXT_UP,
+            arguments = listOf(
+                navArgument(Routes.ARG_PLANNED_ID) { type = NavType.LongType },
+                navArgument(Routes.ARG_TASK) { type = NavType.StringType; defaultValue = "" },
+                navArgument(Routes.ARG_MINUTES) { type = NavType.IntType; defaultValue = 25 },
+            ),
+        ) { backStackEntry ->
+            val args = backStackEntry.arguments
+            val plannedId = args?.getLong(Routes.ARG_PLANNED_ID) ?: 0L
+            val task = args?.getString(Routes.ARG_TASK).orEmpty()
+            val minutes = args?.getInt(Routes.ARG_MINUTES) ?: 25
+            NextUpScreen(
+                plannedId = plannedId,
+                task = task,
+                minutes = minutes,
+                onContinueNow = {
+                    navController.navigate(Routes.timer(task, minutes)) {
+                        popUpTo(Routes.TIMER) { inclusive = true }
+                        launchSingleTop = true
+                    }
+                },
+                onBreak = { breakMinutes ->
+                    navController.navigate(Routes.breakScreen(breakMinutes, task, minutes))
+                },
+                onSkip = {
                     navController.navigate(Routes.FEED) {
                         popUpTo(Routes.TIMER) { inclusive = false }
+                    }
+                },
+            )
+        }
+
+        composable(
+            route = Routes.BREAK,
+            arguments = listOf(
+                navArgument(Routes.ARG_BREAK_MINUTES) { type = NavType.IntType },
+                navArgument(Routes.ARG_TASK) { type = NavType.StringType; defaultValue = "" },
+                navArgument(Routes.ARG_MINUTES) { type = NavType.IntType; defaultValue = 25 },
+            ),
+        ) { backStackEntry ->
+            val args = backStackEntry.arguments
+            val breakMinutes = args?.getInt(Routes.ARG_BREAK_MINUTES) ?: 5
+            val task = args?.getString(Routes.ARG_TASK).orEmpty()
+            val minutes = args?.getInt(Routes.ARG_MINUTES) ?: 25
+            BreakScreen(
+                minutes = breakMinutes,
+                onDone = {
+                    navController.navigate(Routes.timer(task, minutes)) {
+                        popUpTo(Routes.TIMER) { inclusive = true }
+                        launchSingleTop = true
                     }
                 },
             )

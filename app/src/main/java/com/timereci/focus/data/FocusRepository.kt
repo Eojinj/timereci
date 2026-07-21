@@ -58,6 +58,9 @@ class FocusRepository @Inject constructor(
 
     suspend fun deletePlannedFocus(id: Long) = plannedFocusDao.deleteById(id)
 
+    /** Head of the todo queue, if any — used to offer "continue with the next task". */
+    suspend fun nextPlannedFocus(): PlannedFocusEntity? = plannedFocusDao.getFirst()
+
     // ---- Photos ----
 
     val photoStorageRef: PhotoStorage get() = photoStorage

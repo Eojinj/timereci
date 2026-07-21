@@ -176,7 +176,8 @@ fun TimerScreen(
                 ),
         )
 
-        // Records / feed shortcut, top-left (pre-start only — hidden while focusing).
+        // Records / feed shortcut, bottom-left (pre-start only — hidden while focusing).
+        // Bottom corner is easier to reach one-handed than the top.
         if (isPreStart) {
             IconActionButton(
                 icon = Icons.Outlined.GridView,
@@ -184,7 +185,7 @@ fun TimerScreen(
                 onClick = onOpenFeed,
                 size = 48.dp,
                 modifier = Modifier
-                    .align(Alignment.TopStart)
+                    .align(Alignment.BottomStart)
                     .windowInsetsPadding(WindowInsets.safeDrawing)
                     .padding(16.dp),
             )

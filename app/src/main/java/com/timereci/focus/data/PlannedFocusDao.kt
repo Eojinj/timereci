@@ -11,6 +11,10 @@ interface PlannedFocusDao {
     @Query("SELECT * FROM planned_focus ORDER BY createdAtEpoch ASC")
     fun observeAll(): Flow<List<PlannedFocusEntity>>
 
+    /** The head of the queue — whatever was added first (oldest still-pending item). */
+    @Query("SELECT * FROM planned_focus ORDER BY createdAtEpoch ASC LIMIT 1")
+    suspend fun getFirst(): PlannedFocusEntity?
+
     @Insert
     suspend fun insert(item: PlannedFocusEntity): Long
 

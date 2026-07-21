@@ -48,6 +48,7 @@ import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.timereci.focus.data.PhotoRef
 import com.timereci.focus.data.PhotoStorage
+import com.timereci.focus.data.PlannedFocusEntity
 import com.timereci.focus.ui.components.IconActionButton
 import com.timereci.focus.ui.components.grain
 import com.timereci.focus.ui.theme.FocusColors
@@ -60,7 +61,7 @@ import com.timereci.focus.ui.theme.MonoFamily
  */
 @Composable
 fun PublishScreen(
-    onStored: () -> Unit,
+    onFinished: (PlannedFocusEntity?) -> Unit,
     viewModel: PublishViewModel = hiltViewModel(),
 ) {
     val ui by viewModel.ui.collectAsStateWithLifecycle()
@@ -209,14 +210,14 @@ fun PublishScreen(
             IconActionButton(
                 icon = Icons.Outlined.DeleteOutline,
                 contentDescription = "버리기",
-                onClick = { viewModel.discard(onStored) },
+                onClick = { viewModel.discard(onFinished) },
                 onDark = true,
                 size = 50.dp,
             )
             IconActionButton(
                 icon = Icons.Outlined.Check,
                 contentDescription = "피드에 담기",
-                onClick = { viewModel.store(onStored) },
+                onClick = { viewModel.store(onFinished) },
                 accent = true,
                 enabled = !ui.saving,
                 size = 62.dp,

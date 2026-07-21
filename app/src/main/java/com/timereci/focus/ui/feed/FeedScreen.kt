@@ -116,7 +116,11 @@ fun FeedScreen(
 
             PlannedStrip(
                 planned = planned,
-                onStart = { p -> onStartPlanned(p.label, (p.plannedMs / 60_000L).toInt().coerceAtLeast(1)) },
+                onStart = { p ->
+                    // Starting a queued item consumes it, same as continuing from NextUp.
+                    viewModel.deletePlanned(p.id)
+                    onStartPlanned(p.label, (p.plannedMs / 60_000L).toInt().coerceAtLeast(1))
+                },
                 onDelete = { viewModel.deletePlanned(it) },
                 onAdd = { showAddPlanned = true },
             )

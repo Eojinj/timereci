@@ -14,6 +14,18 @@ object Routes {
     fun timer(task: String = "", minutes: Int = 0) =
         "timer?task=${Uri.encode(task)}&minutes=$minutes"
 
+    // Shown after a session ends when the todo queue still has something in it.
+    const val NEXT_UP = "nextup?plannedId={plannedId}&task={task}&minutes={minutes}"
+    const val ARG_PLANNED_ID = "plannedId"
+    fun nextUp(plannedId: Long, task: String, minutes: Int) =
+        "nextup?plannedId=$plannedId&task=${Uri.encode(task)}&minutes=$minutes"
+
+    // A short break before continuing into the next queued task.
+    const val BREAK = "break?breakMinutes={breakMinutes}&task={task}&minutes={minutes}"
+    const val ARG_BREAK_MINUTES = "breakMinutes"
+    fun breakScreen(breakMinutes: Int, task: String, minutes: Int) =
+        "break?breakMinutes=$breakMinutes&task=${Uri.encode(task)}&minutes=$minutes"
+
     const val DAY = "day/{epochDay}"
     fun day(epochDay: Long) = "day/$epochDay"
     const val ARG_EPOCH_DAY = "epochDay"

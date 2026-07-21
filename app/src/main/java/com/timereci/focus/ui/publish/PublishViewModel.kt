@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.timereci.focus.data.FocusRepository
 import com.timereci.focus.data.PhotoAspect
 import com.timereci.focus.data.PhotoRef
+import com.timereci.focus.data.PlannedFocusEntity
 import com.timereci.focus.data.ReceiptEntity
 import com.timereci.focus.data.SettingsRepository
 import com.timereci.focus.timer.FocusTimerController
@@ -70,8 +71,11 @@ class PublishViewModel @Inject constructor(
         _ui.value = _ui.value.copy(comment = text)
     }
 
-    /** Commit to the feed, then clear the session. */
-    fun store(onDone: () -> Unit) {
+    /**
+     * Commit to the feed, clear the session, then hand back whatever is next in the todo
+     * queue (if anything) so the caller can offer to continue straight into it.
+     */
+    fun store(onDone: (PlannedFocusEntity?) -> Unit) {
         if (_ui.value.saving) return
         _ui.value = _ui.value.copy(saving = true)
         viewModelScope.launch {
@@ -85,14 +89,18 @@ class PublishViewModel @Inject constructor(
                     photos = _ui.value.photos,
                 ),
             )
+            val next = repository.nextPlannedFocus()
             controller.reset()
-            onDone()
+            onDone(next)
         }
     }
 
     /** Drop the session without publishing (leaves no trace, like an abandon). */
-    fun discard(onDone: () -> Unit) {
-        controller.reset()
-        onDone()
+    fun discard(onDone: (PlannedFocusEntity?) -> Unit) {
+        viewModelScope.launch {
+            val next = repository.nextPlannedFocus()
+            controller.reset()
+            onDone(next)
+        }
     }
 }

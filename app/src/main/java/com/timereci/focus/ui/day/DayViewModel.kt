@@ -8,6 +8,7 @@ import com.timereci.focus.data.PhotoAspect
 import com.timereci.focus.data.SettingsRepository
 import com.timereci.focus.ui.Routes
 import com.timereci.focus.ui.model.SessionCard
+import com.timereci.focus.ui.model.toSessionCard
 import com.timereci.focus.ui.util.Formatters
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
@@ -46,16 +47,7 @@ class DayViewModel @Inject constructor(
             DayUiState(
                 title = Formatters.dayTitle(date),
                 summary = Formatters.daySummary(forDay.size, forDay.sumOf { it.focusedMs }),
-                sessions = forDay.map { r ->
-                    SessionCard(
-                        id = r.id,
-                        stamp = Formatters.stamp(r.issuedAtEpoch),
-                        task = r.taskLabel,
-                        focus = Formatters.focus(r.focusedMs),
-                        photos = r.photos,
-                        comment = r.comment,
-                    )
-                },
+                sessions = forDay.map { it.toSessionCard() },
             )
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), DayUiState())

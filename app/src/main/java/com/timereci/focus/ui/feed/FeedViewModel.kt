@@ -24,8 +24,8 @@ sealed interface FeedUiState {
     data class Content(val days: List<FeedDay>, val subtitle: String) : FeedUiState
 }
 
-/** Which way the feed is shown: the date-grouped grid or the continuous vertical roll. */
-enum class FeedViewMode { GRID, ROLL }
+/** Which way the feed is shown: a per-day proportional strip, or the continuous vertical roll. */
+enum class FeedViewMode { STRIP, ROLL }
 
 @HiltViewModel
 class FeedViewModel @Inject constructor(

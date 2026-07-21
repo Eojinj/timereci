@@ -237,7 +237,6 @@ fun TimerScreen(
             )
         } else {
             RunningContent(
-                task = task,
                 displayMs = displayMs,
                 progress = state.progress,
                 isLandscape = isLandscape,
@@ -536,9 +535,9 @@ private fun StartCircle(onClick: () -> Unit, enabled: Boolean, size: Dp) {
     }
 }
 
-/** Countdown while a session is running: current task, big digits, breathing progress line. */
+/** Countdown while a session is running: big digits, breathing progress line. */
 @Composable
-private fun RunningContent(task: String, displayMs: Long, progress: Float, isLandscape: Boolean) {
+private fun RunningContent(displayMs: Long, progress: Float, isLandscape: Boolean) {
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -546,16 +545,6 @@ private fun RunningContent(task: String, displayMs: Long, progress: Float, isLan
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
     ) {
-        Text(
-            "지금 · ${task.ifBlank { "집중" }}",
-            color = FocusColors.Muted,
-            fontFamily = GothicFamily,
-            fontSize = 13.sp,
-            fontWeight = FontWeight.Normal,
-            letterSpacing = 1.5.sp,
-        )
-        Spacer(Modifier.height(8.dp))
-
         Text(
             Formatters.clock(displayMs),
             color = FocusColors.Ink,

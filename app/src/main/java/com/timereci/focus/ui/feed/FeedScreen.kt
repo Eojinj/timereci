@@ -1,10 +1,8 @@
 package com.timereci.focus.ui.feed
 
-import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -13,7 +11,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -31,10 +29,10 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.outlined.Add
+import androidx.compose.material.icons.outlined.BarChart
 import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.DeleteOutline
-import androidx.compose.material.icons.outlined.GridView
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.ViewDay
 import androidx.compose.material3.AlertDialog
@@ -49,34 +47,22 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
-import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import coil.compose.AsyncImage
-import coil.request.ImageRequest
-import com.timereci.focus.data.PhotoAspect
-import com.timereci.focus.data.PhotoStorage
 import com.timereci.focus.data.PlannedFocusEntity
 import com.timereci.focus.ui.components.IconActionButton
 import com.timereci.focus.ui.components.SessionOverlayCard
 import com.timereci.focus.ui.components.grainyBackground
 import com.timereci.focus.ui.model.FeedDay
-import com.timereci.focus.ui.model.FeedTile
 import com.timereci.focus.ui.theme.FocusColors
-import com.timereci.focus.ui.theme.GothicFamily
 import com.timereci.focus.ui.theme.MonoFamily
-import com.timereci.focus.ui.theme.PhotoTones
-import com.timereci.focus.ui.theme.patternPlaceholder
 
 private data class PendingEdit(val id: Long, val task: String, val comment: String)
 
@@ -95,7 +81,7 @@ fun FeedScreen(
     val planned by viewModel.planned.collectAsStateWithLifecycle()
     val rollSessions by viewModel.rollSessions.collectAsStateWithLifecycle()
 
-    var mode by remember { mutableStateOf(FeedViewMode.GRID) }
+    var mode by remember { mutableStateOf(FeedViewMode.STRIP) }
     var pendingEdit by remember { mutableStateOf<PendingEdit?>(null) }
 
     Box(
@@ -110,7 +96,7 @@ fun FeedScreen(
             FeedHeader(
                 subtitle = (state as? FeedUiState.Content)?.subtitle ?: "0장",
                 mode = mode,
-                onToggleMode = { mode = if (mode == FeedViewMode.GRID) FeedViewMode.ROLL else FeedViewMode.GRID },
+                onToggleMode = { mode = if (mode == FeedViewMode.STRIP) FeedViewMode.ROLL else FeedViewMode.STRIP },
                 onOpenSettings = onOpenSettings,
             )
 
@@ -147,17 +133,10 @@ fun FeedScreen(
                 }
                 state is FeedUiState.Content -> LazyColumn(
                     modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(bottom = 120.dp),
+                    contentPadding = PaddingValues(top = 8.dp, bottom = 120.dp),
                 ) {
                     items((state as FeedUiState.Content).days, key = { it.epochDay }) { day ->
-                        DayBlock(
-                            day = day,
-                            aspect = aspect,
-                            onOpenDay = { onOpenDay(day.epochDay) },
-                            onLongPressTile = { tile ->
-                                pendingEdit = PendingEdit(tile.sessionId, tile.task, tile.comment.orEmpty())
-                            },
-                        )
+                        DayStripRow(day = day, onOpenDay = { onOpenDay(day.epochDay) })
                     }
                 }
                 else -> Spacer(Modifier.fillMaxSize())
@@ -297,7 +276,7 @@ private fun FeedHeader(
         Spacer(Modifier.weight(1f))
         IconButton(onClick = onToggleMode) {
             Icon(
-                if (mode == FeedViewMode.GRID) Icons.Outlined.ViewDay else Icons.Outlined.GridView,
+                if (mode == FeedViewMode.STRIP) Icons.Outlined.ViewDay else Icons.Outlined.BarChart,
                 contentDescription = "보기 전환",
                 tint = FocusColors.Ink2,
             )
@@ -385,125 +364,55 @@ private fun EmptyFeed() {
     }
 }
 
+/** 8h of focus fills the bar — a full workday's worth reads as a "complete" strip. */
+private const val STRIP_SCALE_MS = 8 * 60 * 60 * 1000L
+
+/**
+ * One day as a single proportional band: abbreviated date at the left, a bar whose fill
+ * length is the day's focused time against an 8h scale, and the exact duration at the right.
+ * Tapping the row opens that day's detail (photos live there, not in the feed list anymore).
+ */
 @Composable
-private fun DayBlock(
-    day: FeedDay,
-    aspect: PhotoAspect,
-    onOpenDay: () -> Unit,
-    onLongPressTile: (FeedTile) -> Unit,
-) {
-    Column(
-        Modifier
+private fun DayStripRow(day: FeedDay, onOpenDay: () -> Unit) {
+    val fraction = (day.focusMs.toFloat() / STRIP_SCALE_MS).coerceIn(0.03f, 1f)
+    Row(
+        modifier = Modifier
             .fillMaxWidth()
-            .padding(bottom = 22.dp),
+            .clickable(onClick = onOpenDay)
+            .padding(horizontal = 20.dp, vertical = 9.dp),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clickable(onClick = onOpenDay)
-                .padding(horizontal = 20.dp, vertical = 8.dp),
-            verticalAlignment = Alignment.CenterVertically,
+        Text(
+            day.dayLabel,
+            color = FocusColors.Ink,
+            fontFamily = MonoFamily,
+            fontSize = 12.5.sp,
+            fontWeight = FontWeight.Medium,
+            modifier = Modifier.width(50.dp),
+        )
+        Box(
+            Modifier
+                .weight(1f)
+                .height(22.dp)
+                .clip(RoundedCornerShape(6.dp))
+                .background(FocusColors.Line),
         ) {
-            Text(day.dayLabel, color = FocusColors.Ink, fontFamily = MonoFamily, fontSize = 22.sp, fontWeight = FontWeight.Medium)
-            Spacer(Modifier.width(9.dp))
-            Text(day.weekday, color = FocusColors.InkSoft, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, fontFamily = GothicFamily)
-            Spacer(Modifier.width(9.dp))
-            Text(day.focusText, color = FocusColors.AccentBlue, fontFamily = MonoFamily, fontSize = 13.sp, fontWeight = FontWeight.Medium)
-            Spacer(
-                Modifier
-                    .weight(1f)
-                    .padding(horizontal = 10.dp)
-                    .height(1.dp)
-                    .background(FocusColors.Line),
-            )
-            Text(day.sessionText, color = FocusColors.Muted2, fontFamily = MonoFamily, fontSize = 11.sp)
-        }
-        Spacer(Modifier.height(6.dp))
-        PhotoGrid(day.tiles, aspect, onOpenDay, onLongPressTile)
-    }
-}
-
-@Composable
-private fun PhotoGrid(
-    tiles: List<FeedTile>,
-    aspect: PhotoAspect,
-    onOpenDay: () -> Unit,
-    onLongPressTile: (FeedTile) -> Unit,
-) {
-    Column(
-        Modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(2.dp),
-    ) {
-        tiles.chunked(3).forEach { row ->
-            Row(
-                Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(2.dp),
-            ) {
-                row.forEach { tile ->
-                    PhotoTile(tile, aspect, Modifier.weight(1f), onOpenDay, { onLongPressTile(tile) })
-                }
-                repeat(3 - row.size) { Spacer(Modifier.weight(1f)) }
-            }
-        }
-    }
-}
-
-@OptIn(ExperimentalFoundationApi::class)
-@Composable
-private fun PhotoTile(
-    tile: FeedTile,
-    aspect: PhotoAspect,
-    modifier: Modifier,
-    onClick: () -> Unit,
-    onLongClick: () -> Unit,
-) {
-    val context = LocalContext.current
-    Box(
-        modifier
-            .aspectRatio(aspect.ratio)
-            .then(
-                if (tile.photo.fileName == null) Modifier.patternPlaceholder(tile.photo.toneIndex)
-                else Modifier.background(PhotoTones.brush(tile.photo.toneIndex)),
-            )
-            .combinedClickable(onClick = onClick, onLongClick = onLongClick),
-    ) {
-        tile.photo.fileName?.let { name ->
-            AsyncImage(
-                model = ImageRequest.Builder(context)
-                    .data(PhotoStorage.fileIn(context, name)).crossfade(true).build(),
-                contentDescription = null,
-                contentScale = ContentScale.Crop,
-                modifier = Modifier.fillMaxSize(),
-            )
-        }
-        if (tile.task.isNotBlank()) {
             Box(
                 Modifier
-                    .align(Alignment.BottomStart)
-                    .fillMaxWidth()
-                    .background(Brush.verticalGradient(listOf(Color(0x00182630), Color(0xB3182630))))
-                    .padding(horizontal = 7.dp, vertical = 6.dp),
-            ) {
-                Text(
-                    tile.task,
-                    color = Color.White,
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    lineHeight = 13.sp,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            }
+                    .fillMaxHeight()
+                    .fillMaxWidth(fraction)
+                    .clip(RoundedCornerShape(6.dp))
+                    .background(FocusColors.AccentBlue),
+            )
         }
-        tile.moreLabel?.let { label ->
-            Box(
-                Modifier
-                    .fillMaxSize()
-                    .background(Color(0x801F3145)),
-                contentAlignment = Alignment.Center,
-            ) {
-                Text(label, color = Color.White, fontFamily = MonoFamily, fontSize = 15.sp)
-            }
-        }
+        Spacer(Modifier.width(10.dp))
+        Text(
+            day.focusText,
+            color = FocusColors.Muted,
+            fontFamily = MonoFamily,
+            fontSize = 11.sp,
+            textAlign = TextAlign.End,
+            modifier = Modifier.width(48.dp),
+        )
     }
 }

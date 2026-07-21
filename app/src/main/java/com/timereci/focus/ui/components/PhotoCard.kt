@@ -35,6 +35,7 @@ import com.timereci.focus.data.PhotoRef
 import com.timereci.focus.data.PhotoStorage
 import com.timereci.focus.ui.theme.MonoFamily
 import com.timereci.focus.ui.theme.PhotoTones
+import com.timereci.focus.ui.theme.patternPlaceholder
 
 /**
  * The signature card: a full-bleed photo (or calm gradient placeholder) stamped with time,
@@ -68,7 +69,10 @@ fun PhotoCard(
     Box(
         modifier = modifier
             .clip(shape)
-            .background(PhotoTones.brush(current.toneIndex))
+            .then(
+                if (current.fileName == null) Modifier.patternPlaceholder(current.toneIndex)
+                else Modifier.background(PhotoTones.brush(current.toneIndex)),
+            )
             .then(clickModifier),
     ) {
         // Real photo, drawn over the gradient when present.

@@ -30,14 +30,4 @@ object PhotoTones {
             end = Offset(0f, Float.POSITIVE_INFINITY),
         )
     }
-
-    /** Neutral fill for an empty photo slot on a light surface (feed grid). */
-    val EmptyLight: Brush = Brush.verticalGradient(
-        listOf(FocusColors.TileEmptyTop, FocusColors.TileEmptyBottom),
-    )
-
-    /** Neutral fill for an empty photo slot on a dark surface (carousel / roll). */
-    val EmptyDark: Brush = Brush.verticalGradient(
-        listOf(FocusColors.TileEmptyDarkTop, FocusColors.TileEmptyDarkBottom),
-    )
 }

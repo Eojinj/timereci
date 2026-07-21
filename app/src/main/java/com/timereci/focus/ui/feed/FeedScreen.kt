@@ -76,6 +76,7 @@ import com.timereci.focus.ui.theme.FocusColors
 import com.timereci.focus.ui.theme.GothicFamily
 import com.timereci.focus.ui.theme.MonoFamily
 import com.timereci.focus.ui.theme.PhotoTones
+import com.timereci.focus.ui.theme.patternPlaceholder
 import com.timereci.focus.ui.timer.DURATION_PRESETS
 
 private data class PendingDelete(val id: Long, val label: String)
@@ -467,8 +468,10 @@ private fun PhotoTile(
     Box(
         modifier
             .aspectRatio(aspect.ratio)
-            // Empty slots are neutral grey so only real photos carry colour.
-            .background(if (tile.photo.fileName == null) PhotoTones.EmptyLight else PhotoTones.brush(tile.photo.toneIndex))
+            .then(
+                if (tile.photo.fileName == null) Modifier.patternPlaceholder(tile.photo.toneIndex)
+                else Modifier.background(PhotoTones.brush(tile.photo.toneIndex)),
+            )
             .combinedClickable(onClick = onClick, onLongClick = onLongClick),
     ) {
         tile.photo.fileName?.let { name ->

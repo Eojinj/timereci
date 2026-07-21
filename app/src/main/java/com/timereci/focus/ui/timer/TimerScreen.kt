@@ -81,6 +81,7 @@ import com.timereci.focus.ui.theme.FocusColors
 import com.timereci.focus.ui.theme.GothicFamily
 import com.timereci.focus.ui.theme.MonoFamily
 import com.timereci.focus.ui.theme.PhotoTones
+import com.timereci.focus.ui.theme.patternPlaceholder
 import com.timereci.focus.ui.util.Formatters
 import com.timereci.focus.ui.util.findActivity
 
@@ -163,7 +164,7 @@ fun TimerScreen(
         } ?: Box(
             Modifier
                 .fillMaxSize()
-                .background(PhotoTones.EmptyLight),
+                .patternPlaceholder(0),
         )
         // Wash so the digits stay readable over any photo (neutral, not blue).
         Box(

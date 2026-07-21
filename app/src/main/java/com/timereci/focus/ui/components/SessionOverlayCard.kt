@@ -47,6 +47,7 @@ import com.timereci.focus.data.PhotoStorage
 import com.timereci.focus.ui.model.SessionCard
 import com.timereci.focus.ui.theme.MonoFamily
 import com.timereci.focus.ui.theme.PhotoTones
+import com.timereci.focus.ui.theme.patternPlaceholder
 
 /**
  * The full-width session card used by both the day carousel and the vertical roll: a photo
@@ -75,8 +76,10 @@ fun SessionOverlayCard(
             .fillMaxWidth()
             .aspectRatio(aspect.ratio)
             .clip(RoundedCornerShape(cornerRadius))
-            // Empty sessions get a neutral dark fill rather than a plastic blue gradient.
-            .background(if (current.fileName == null) PhotoTones.EmptyDark else PhotoTones.brush(current.toneIndex))
+            .then(
+                if (current.fileName == null) Modifier.patternPlaceholder(current.toneIndex)
+                else Modifier.background(PhotoTones.brush(current.toneIndex)),
+            )
             .combinedClickable(onClick = onClick, onLongClick = onLongClick),
     ) {
         current.fileName?.let { name ->

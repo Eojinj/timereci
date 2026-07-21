@@ -53,6 +53,7 @@ import com.timereci.focus.ui.components.IconActionButton
 import com.timereci.focus.ui.components.grain
 import com.timereci.focus.ui.theme.FocusColors
 import com.timereci.focus.ui.theme.MonoFamily
+import com.timereci.focus.ui.theme.patternPlaceholder
 
 /**
  * The publish moment: the just-earned card with the comment typed directly onto the photo
@@ -100,9 +101,12 @@ fun PublishScreen(
                 .fillMaxWidth()
                 .aspectRatio(aspect.ratio)
                 .clip(RoundedCornerShape(20.dp))
-                .background(
-                    if (current.fileName == null) com.timereci.focus.ui.theme.PhotoTones.EmptyDark
-                    else com.timereci.focus.ui.theme.PhotoTones.brush(current.toneIndex),
+                .then(
+                    if (current.fileName == null) {
+                        Modifier.patternPlaceholder(current.toneIndex)
+                    } else {
+                        Modifier.background(com.timereci.focus.ui.theme.PhotoTones.brush(current.toneIndex))
+                    },
                 ),
         ) {
             current.fileName?.let { name ->

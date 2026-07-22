@@ -310,10 +310,15 @@ private fun EmptyFeed() {
 /** 8h of focus fills the bar — a full workday's worth reads as a "complete" strip. */
 private const val STRIP_SCALE_MS = 8 * 60 * 60 * 1000L
 
+/** Alternates so adjacent sessions read as distinct pieces stitched into one bar. */
+private val SEGMENT_COLORS = listOf(FocusColors.AccentBlue, FocusColors.AccentDeep)
+
 /**
- * One day as a single proportional band: abbreviated date at the left, a bar whose fill
- * length is the day's focused time against an 8h scale, and the exact duration at the right.
- * Tapping the row opens that day's detail (photos live there, not in the feed list anymore).
+ * One day as a single proportional band: abbreviated date at the left, a bar whose overall
+ * length is the day's focused time against an 8h scale — but instead of one solid fill, it's
+ * built from one segment per session (oldest to newest, left to right), each sized by its own
+ * share of the day's total, so the bar reads as pieces stitched end to end. Tapping the row
+ * opens that day's feed (photos live there, not in this list anymore).
  */
 @Composable
 private fun DayStripRow(day: FeedDay, onOpenDay: () -> Unit) {
@@ -340,13 +345,22 @@ private fun DayStripRow(day: FeedDay, onOpenDay: () -> Unit) {
                 .clip(RoundedCornerShape(6.dp))
                 .background(FocusColors.Line),
         ) {
-            Box(
-                Modifier
+            Row(
+                modifier = Modifier
                     .fillMaxHeight()
-                    .fillMaxWidth(fraction)
-                    .clip(RoundedCornerShape(6.dp))
-                    .background(FocusColors.AccentBlue),
-            )
+                    .fillMaxWidth(fraction),
+                horizontalArrangement = Arrangement.spacedBy(1.5.dp),
+            ) {
+                // Oldest first so the pieces read left-to-right like a timeline.
+                day.sessions.asReversed().forEachIndexed { index, session ->
+                    Box(
+                        Modifier
+                            .weight(session.focusMs.toFloat().coerceAtLeast(1f))
+                            .fillMaxHeight()
+                            .background(SEGMENT_COLORS[index % SEGMENT_COLORS.size]),
+                    )
+                }
+            }
         }
         Spacer(Modifier.width(10.dp))
         Text(

@@ -12,6 +12,7 @@ data class SessionCard(
     val stamp: String,
     val task: String,
     val focus: String,
+    val focusMs: Long,
     val photos: List<PhotoRef>,
     val comment: String? = null,
 )
@@ -22,6 +23,7 @@ fun ReceiptEntity.toSessionCard() = SessionCard(
     stamp = Formatters.stamp(issuedAtEpoch),
     task = taskLabel,
     focus = Formatters.focus(focusedMs),
+    focusMs = focusedMs,
     photos = photos.ifEmpty { listOf(PhotoRef(toneIndex = PhotoTones.indexFor(id))) },
     comment = comment,
 )

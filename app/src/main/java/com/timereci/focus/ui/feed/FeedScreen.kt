@@ -3,7 +3,6 @@ package com.timereci.focus.ui.feed
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -22,15 +21,13 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.BarChart
 import androidx.compose.material.icons.outlined.Check
+import androidx.compose.material.icons.outlined.Checklist
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.DeleteOutline
 import androidx.compose.material.icons.outlined.Settings
@@ -47,7 +44,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -56,7 +52,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.timereci.focus.data.PlannedFocusEntity
 import com.timereci.focus.ui.components.IconActionButton
 import com.timereci.focus.ui.components.SessionOverlayCard
 import com.timereci.focus.ui.components.grainyBackground
@@ -69,7 +64,6 @@ private data class PendingEdit(val id: Long, val task: String, val comment: Stri
 @Composable
 fun FeedScreen(
     onStartFocus: () -> Unit,
-    onStartPlanned: (String, Int) -> Unit,
     onOpenDay: (Long) -> Unit,
     onOpenReceipt: (Long) -> Unit,
     onOpenSettings: () -> Unit,
@@ -78,7 +72,6 @@ fun FeedScreen(
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val aspect by viewModel.photoAspect.collectAsStateWithLifecycle()
-    val planned by viewModel.planned.collectAsStateWithLifecycle()
     val rollSessions by viewModel.rollSessions.collectAsStateWithLifecycle()
 
     var mode by remember { mutableStateOf(FeedViewMode.STRIP) }
@@ -98,17 +91,6 @@ fun FeedScreen(
                 mode = mode,
                 onToggleMode = { mode = if (mode == FeedViewMode.STRIP) FeedViewMode.ROLL else FeedViewMode.STRIP },
                 onOpenSettings = onOpenSettings,
-            )
-
-            PlannedStrip(
-                planned = planned,
-                onStart = { p ->
-                    // Starting a queued item consumes it, same as continuing from NextUp.
-                    viewModel.deletePlanned(p.id)
-                    onStartPlanned(p.label, (p.plannedMs / 60_000L).toInt().coerceAtLeast(1))
-                },
-                onDelete = { viewModel.deletePlanned(it) },
-                onAdd = onOpenTodo,
             )
 
             when {
@@ -143,18 +125,29 @@ fun FeedScreen(
             }
         }
 
-        // Floating "start" action.
-        IconActionButton(
-            icon = Icons.Filled.PlayArrow,
-            contentDescription = "집중 시작",
-            onClick = onStartFocus,
-            accent = true,
-            size = 62.dp,
+        // Floating "start" action, with the todo list right beside it.
+        Row(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .windowInsetsPadding(WindowInsets.systemBars)
                 .padding(bottom = 20.dp),
-        )
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(14.dp),
+        ) {
+            IconActionButton(
+                icon = Icons.Outlined.Checklist,
+                contentDescription = "할 일 목록",
+                onClick = onOpenTodo,
+                size = 50.dp,
+            )
+            IconActionButton(
+                icon = Icons.Filled.PlayArrow,
+                contentDescription = "집중 시작",
+                onClick = onStartFocus,
+                accent = true,
+                size = 62.dp,
+            )
+        }
     }
 
     pendingEdit?.let { target ->
@@ -284,56 +277,6 @@ private fun FeedHeader(
         IconButton(onClick = onOpenSettings) {
             Icon(Icons.Outlined.Settings, contentDescription = "설정", tint = FocusColors.Muted)
         }
-    }
-}
-
-/** Slim horizontal strip of today's planned focus intentions. */
-@Composable
-private fun PlannedStrip(
-    planned: List<PlannedFocusEntity>,
-    onStart: (PlannedFocusEntity) -> Unit,
-    onDelete: (Long) -> Unit,
-    onAdd: () -> Unit,
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .horizontalScroll(rememberScrollState())
-            .padding(horizontal = 16.dp, vertical = 6.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        planned.forEach { p ->
-            Row(
-                Modifier
-                    .clip(RoundedCornerShape(20.dp))
-                    .background(Color.White)
-                    .border(1.dp, FocusColors.LineStrong, RoundedCornerShape(20.dp))
-                    .clickable { onStart(p) }
-                    .padding(start = 13.dp, end = 6.dp, top = 7.dp, bottom = 7.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
-            ) {
-                Text(p.label.ifBlank { "집중" }, color = FocusColors.Ink, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
-                Text("${(p.plannedMs / 60_000L).toInt()}분", color = FocusColors.Muted, fontFamily = MonoFamily, fontSize = 11.sp)
-                Box(
-                    Modifier
-                        .size(18.dp)
-                        .clip(CircleShape)
-                        .clickable { onDelete(p.id) },
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Icon(Icons.Outlined.Close, contentDescription = "삭제", tint = FocusColors.Muted2, modifier = Modifier.size(13.dp))
-                }
-            }
-        }
-        // Add chip — icon only.
-        IconActionButton(
-            icon = Icons.Outlined.Add,
-            contentDescription = "오늘 할 집중 추가",
-            onClick = onAdd,
-            size = 34.dp,
-        )
     }
 }
 

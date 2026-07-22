@@ -4,7 +4,6 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.timereci.focus.data.FocusRepository
 import com.timereci.focus.data.PhotoAspect
-import com.timereci.focus.data.PlannedFocusEntity
 import com.timereci.focus.data.SettingsRepository
 import com.timereci.focus.ui.model.FeedBuilder
 import com.timereci.focus.ui.model.FeedDay
@@ -54,9 +53,6 @@ class FeedViewModel @Inject constructor(
         .map { it.photoAspect }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), PhotoAspect.PORTRAIT)
 
-    val planned: StateFlow<List<PlannedFocusEntity>> = repository.observePlannedFocus()
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
-
     fun delete(receiptId: Long) {
         viewModelScope.launch {
             repository.getReceipt(receiptId)?.let { repository.deleteReceipt(it) }
@@ -74,9 +70,5 @@ class FeedViewModel @Inject constructor(
                 )
             }
         }
-    }
-
-    fun deletePlanned(id: Long) {
-        viewModelScope.launch { repository.deletePlannedFocus(id) }
     }
 }

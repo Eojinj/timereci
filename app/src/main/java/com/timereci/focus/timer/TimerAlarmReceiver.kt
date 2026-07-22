@@ -35,7 +35,7 @@ class TimerAlarmReceiver : BroadcastReceiver() {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
 
-        val notification = NotificationCompat.Builder(context, FocusTimerService.CHANNEL_ID)
+        val notification = NotificationCompat.Builder(context, FocusTimerService.DONE_CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_launcher_foreground)
             .setContentTitle("집중 완주")
             .setContentText("영수증이 준비됐어요. 열어서 담아보세요.")

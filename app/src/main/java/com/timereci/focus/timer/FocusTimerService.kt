@@ -100,6 +100,8 @@ class FocusTimerService : LifecycleService() {
 
     companion object {
         const val CHANNEL_ID = "focus_timer"
+        /** Separate, audible channel — the ticking channel above is deliberately silent. */
+        const val DONE_CHANNEL_ID = "focus_timer_done"
         const val ONGOING_NOTIFICATION_ID = 42
         const val DONE_NOTIFICATION_ID = 43
     }

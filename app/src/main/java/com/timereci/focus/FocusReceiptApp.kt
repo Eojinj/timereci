@@ -16,12 +16,12 @@ class FocusReceiptApp : Application() {
 
     override fun onCreate() {
         super.onCreate()
-        createTimerNotificationChannel()
+        createTimerNotificationChannels()
     }
 
-    private fun createTimerNotificationChannel() {
+    private fun createTimerNotificationChannels() {
         val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        val channel = NotificationChannel(
+        val ticking = NotificationChannel(
             FocusTimerService.CHANNEL_ID,
             getString(R.string.timer_channel_name),
             NotificationManager.IMPORTANCE_LOW,
@@ -29,6 +29,16 @@ class FocusReceiptApp : Application() {
             description = getString(R.string.timer_channel_desc)
             setShowBadge(false)
         }
-        manager.createNotificationChannel(channel)
+        // Separate, higher-importance channel so the completion alert can actually ring/pop up —
+        // the ticking channel above is deliberately silent (IMPORTANCE_LOW).
+        val done = NotificationChannel(
+            FocusTimerService.DONE_CHANNEL_ID,
+            getString(R.string.timer_done_channel_name),
+            NotificationManager.IMPORTANCE_HIGH,
+        ).apply {
+            description = getString(R.string.timer_done_channel_desc)
+        }
+        manager.createNotificationChannel(ticking)
+        manager.createNotificationChannel(done)
     }
 }

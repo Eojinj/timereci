@@ -77,9 +77,6 @@ fun FocusApp(root: RootViewModel = hiltViewModel()) {
                         navController.navigate(Routes.timer())
                     }
                 },
-                onStartPlanned = { label, minutes ->
-                    navController.navigate(Routes.timer(label, minutes))
-                },
                 onOpenDay = { epochDay -> navController.navigate(Routes.day(epochDay)) },
                 onOpenReceipt = { id -> navController.navigate(Routes.detail(id)) },
                 onOpenSettings = { navController.navigate(Routes.SETTINGS) },

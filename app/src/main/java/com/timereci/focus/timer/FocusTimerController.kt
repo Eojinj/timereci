@@ -2,6 +2,7 @@ package com.timereci.focus.timer
 
 import android.content.Context
 import android.content.Intent
+import android.media.RingtoneManager
 import android.os.SystemClock
 import androidx.core.content.ContextCompat
 import com.timereci.focus.data.ActiveSessionEntity
@@ -147,7 +148,7 @@ class FocusTimerController @Inject constructor(
         scope.launch { repository.clearActiveSession() }
     }
 
-    private fun finish(focusedMs: Long) {
+    private fun finish(focusedMs: Long, playAlarm: Boolean = false) {
         endsAtElapsed = null
         stopTicker()
         alarms.cancel()
@@ -158,6 +159,16 @@ class FocusTimerController @Inject constructor(
             focusedMs = focusedMs,
         )
         // Keep ActiveSession persisted so the publish screen can be rebuilt after a crash.
+        if (playAlarm) playCompletionSound()
+    }
+
+    /** Rings the device's default alarm tone once when the countdown runs out on its own. */
+    private fun playCompletionSound() {
+        runCatching {
+            val uri = RingtoneManager.getActualDefaultRingtoneUri(context, RingtoneManager.TYPE_ALARM)
+                ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
+            RingtoneManager.getRingtone(context, uri)?.play()
+        }
     }
 
     private fun startTicker() {
@@ -167,7 +178,7 @@ class FocusTimerController @Inject constructor(
                 val end = endsAtElapsed ?: break
                 val remaining = end - SystemClock.elapsedRealtime()
                 if (remaining <= 0L) {
-                    finish(focusedMs = _state.value.plannedMs)
+                    finish(focusedMs = _state.value.plannedMs, playAlarm = true)
                     break
                 }
                 _state.value = _state.value.copy(remainingMs = remaining)

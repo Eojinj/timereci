@@ -35,7 +35,6 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
-import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.PlayArrow
@@ -88,7 +87,6 @@ import com.timereci.focus.ui.theme.MonoFamily
 import com.timereci.focus.ui.theme.PhotoTones
 import com.timereci.focus.ui.theme.patternPlaceholder
 import com.timereci.focus.ui.util.Formatters
-import com.timereci.focus.ui.util.QuickEntry
 import com.timereci.focus.ui.util.findActivity
 
 private const val MAX_MINUTES = 180 // 3시간
@@ -382,18 +380,7 @@ private fun PreStartContent(
 
             Spacer(Modifier.height(if (isLandscape) 10.dp else 18.dp))
 
-            TaskField(
-                value = task,
-                onValueChange = onTaskChange,
-                big = !isLandscape,
-                onDone = {
-                    val (parsedTask, parsedMinutes) = QuickEntry.parse(task)
-                    if (parsedMinutes != null) {
-                        onTaskChange(parsedTask)
-                        commit(parsedMinutes.toString())
-                    }
-                },
-            )
+            TaskField(value = task, onValueChange = onTaskChange, big = !isLandscape)
 
             Spacer(Modifier.height(if (isLandscape) 10.dp else 18.dp))
 
@@ -582,12 +569,12 @@ private fun RunningContent(displayMs: Long, progress: Float, isLandscape: Boolea
 }
 
 @Composable
-private fun TaskField(value: String, onValueChange: (String) -> Unit, big: Boolean, onDone: () -> Unit) {
+private fun TaskField(value: String, onValueChange: (String) -> Unit, big: Boolean) {
     val fontSize = if (big) 26.sp else 19.sp
     Box(contentAlignment = Alignment.Center) {
         if (value.isBlank()) {
             Text(
-                "할 일 + 분 (예: 빨래 20)",
+                "할 일 한 줄 (선택)",
                 color = FocusColors.Muted2,
                 fontFamily = GothicFamily,
                 fontSize = fontSize,
@@ -598,8 +585,6 @@ private fun TaskField(value: String, onValueChange: (String) -> Unit, big: Boole
             value = value,
             onValueChange = onValueChange,
             singleLine = true,
-            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-            keyboardActions = KeyboardActions(onDone = { onDone() }),
             cursorBrush = SolidColor(FocusColors.AccentBlue),
             textStyle = TextStyle(
                 color = FocusColors.Ink,

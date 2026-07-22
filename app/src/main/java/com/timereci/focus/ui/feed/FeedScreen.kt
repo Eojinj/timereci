@@ -45,6 +45,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -52,12 +54,17 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import coil.compose.AsyncImage
+import coil.request.ImageRequest
+import com.timereci.focus.data.PhotoStorage
 import com.timereci.focus.ui.components.IconActionButton
 import com.timereci.focus.ui.components.SessionOverlayCard
 import com.timereci.focus.ui.components.grainyBackground
 import com.timereci.focus.ui.model.FeedDay
 import com.timereci.focus.ui.theme.FocusColors
 import com.timereci.focus.ui.theme.MonoFamily
+import com.timereci.focus.ui.theme.PhotoTones
+import com.timereci.focus.ui.theme.patternPlaceholder
 
 private data class PendingEdit(val id: Long, val task: String, val comment: String)
 
@@ -310,18 +317,17 @@ private fun EmptyFeed() {
 /** 8h of focus fills the bar — a full workday's worth reads as a "complete" strip. */
 private const val STRIP_SCALE_MS = 8 * 60 * 60 * 1000L
 
-/** Alternates so adjacent sessions read as distinct pieces stitched into one bar. */
-private val SEGMENT_COLORS = listOf(FocusColors.AccentBlue, FocusColors.AccentDeep)
-
 /**
  * One day as a single proportional band: abbreviated date at the left, a bar whose overall
  * length is the day's focused time against an 8h scale — but instead of one solid fill, it's
  * built from one segment per session (oldest to newest, left to right), each sized by its own
- * share of the day's total, so the bar reads as pieces stitched end to end. Tapping the row
- * opens that day's feed (photos live there, not in this list anymore).
+ * share of the day's total, so the bar reads as pieces stitched end to end. Each piece shows
+ * its own photo center-cropped, or the same varied placeholder pattern used elsewhere when the
+ * session has none. Tapping the row opens that day's feed (photos live there in full).
  */
 @Composable
 private fun DayStripRow(day: FeedDay, onOpenDay: () -> Unit) {
+    val context = LocalContext.current
     val fraction = (day.focusMs.toFloat() / STRIP_SCALE_MS).coerceIn(0.03f, 1f)
     Row(
         modifier = Modifier
@@ -352,13 +358,29 @@ private fun DayStripRow(day: FeedDay, onOpenDay: () -> Unit) {
                 horizontalArrangement = Arrangement.spacedBy(1.5.dp),
             ) {
                 // Oldest first so the pieces read left-to-right like a timeline.
-                day.sessions.asReversed().forEachIndexed { index, session ->
+                day.sessions.asReversed().forEach { session ->
+                    val photo = session.photos.first()
                     Box(
                         Modifier
                             .weight(session.focusMs.toFloat().coerceAtLeast(1f))
                             .fillMaxHeight()
-                            .background(SEGMENT_COLORS[index % SEGMENT_COLORS.size]),
-                    )
+                            .then(
+                                if (photo.fileName == null) Modifier.patternPlaceholder(photo.toneIndex)
+                                else Modifier.background(PhotoTones.brush(photo.toneIndex)),
+                            ),
+                    ) {
+                        photo.fileName?.let { name ->
+                            AsyncImage(
+                                model = ImageRequest.Builder(context)
+                                    .data(PhotoStorage.fileIn(context, name))
+                                    .crossfade(true)
+                                    .build(),
+                                contentDescription = null,
+                                contentScale = ContentScale.Crop,
+                                modifier = Modifier.fillMaxSize(),
+                            )
+                        }
+                    }
                 }
             }
         }

@@ -11,11 +11,9 @@ import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -35,7 +33,6 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.outlined.Check
@@ -44,7 +41,6 @@ import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.EditNote
 import androidx.compose.material.icons.outlined.PhotoCamera
 import androidx.compose.material.icons.outlined.ScreenRotation
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -66,10 +62,7 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -89,8 +82,6 @@ import com.timereci.focus.ui.theme.patternPlaceholder
 import com.timereci.focus.ui.util.Formatters
 import com.timereci.focus.ui.util.findActivity
 
-private const val MAX_MINUTES = 180 // 3시간
-
 @Composable
 fun TimerScreen(
     onCompleted: () -> Unit,
@@ -103,9 +94,7 @@ fun TimerScreen(
     val backdrop by viewModel.backdrop.collectAsStateWithLifecycle()
     val keepRunning by viewModel.keepRunningWhileCommenting.collectAsStateWithLifecycle()
     val commentOpen by viewModel.commentSheetOpen.collectAsStateWithLifecycle()
-    val durationPresets by viewModel.durationPresets.collectAsStateWithLifecycle()
     val recentPhotos by viewModel.recentPhotos.collectAsStateWithLifecycle()
-    var editingPresetIndex by remember { mutableStateOf<Int?>(null) }
     var showBackdropPicker by remember { mutableStateOf(false) }
     val emptyBackdropTone = remember { PhotoTones.indexFor(java.time.LocalDate.now().toEpochDay()) }
 
@@ -206,16 +195,12 @@ fun TimerScreen(
             PreStartContent(
                 task = task,
                 onTaskChange = viewModel::setTask,
-                durationMs = duration,
-                onDurationChange = viewModel::setDuration,
                 isLandscape = isLandscape,
                 hasBackdrop = backdrop != null,
                 onPickBackdrop = {
                     if (recentPhotos.isEmpty()) launchSystemBackdropPicker() else showBackdropPicker = true
                 },
                 onStart = viewModel::start,
-                presets = durationPresets,
-                onLongPressPreset = { index -> editingPresetIndex = index },
                 cameFromQueue = viewModel.cameFromQueue,
             )
         } else {
@@ -275,17 +260,6 @@ fun TimerScreen(
         }
     }
 
-    editingPresetIndex?.let { index ->
-        EditPresetDialog(
-            initialMinutes = durationPresets.getOrElse(index) { 25 },
-            onDismiss = { editingPresetIndex = null },
-            onSave = { minutes ->
-                viewModel.updatePreset(index, minutes)
-                editingPresetIndex = null
-            },
-        )
-    }
-
     if (showBackdropPicker) {
         RecentPhotoPickerDialog(
             recent = recentPhotos,
@@ -303,34 +277,20 @@ fun TimerScreen(
 }
 
 /**
- * The pre-start setup, presented as a single card floating over the backdrop: task + big
- * minutes field, presets, and a full-width start button anchored to the bottom of the card.
- * Typing "할 일 20" into the task field and dismissing the keyboard splits it into the task
- * label and the minutes field in one move — the same shorthand as the todo quick-add.
+ * The pre-start setup, presented as a single card floating over the backdrop: just a task
+ * field and a full-width start button anchored to the bottom of the card. Duration isn't set
+ * here — it's whatever the default (Settings) or queued item already supplied.
  */
 @Composable
 private fun PreStartContent(
     task: String,
     onTaskChange: (String) -> Unit,
-    durationMs: Long,
-    onDurationChange: (Long) -> Unit,
     isLandscape: Boolean,
     hasBackdrop: Boolean,
     onPickBackdrop: () -> Unit,
     onStart: () -> Unit,
-    presets: List<Int>,
-    onLongPressPreset: (index: Int) -> Unit,
     cameFromQueue: Boolean,
 ) {
-    var minutesText by rememberSaveable { mutableStateOf((durationMs / 60_000L).coerceAtLeast(1).toString()) }
-
-    fun commit(newText: String) {
-        minutesText = newText
-        newText.toIntOrNull()?.let { m -> if (m in 1..MAX_MINUTES) onDurationChange(m * 60_000L) }
-    }
-
-    val validMinutes = minutesText.toIntOrNull()?.let { it in 1..MAX_MINUTES } == true
-
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -382,138 +342,11 @@ private fun PreStartContent(
 
             TaskField(value = task, onValueChange = onTaskChange, big = !isLandscape)
 
-            Spacer(Modifier.height(if (isLandscape) 10.dp else 18.dp))
-
-            MinutesField(
-                text = minutesText,
-                onTextChange = ::commit,
-                numberSize = if (isLandscape) 76.sp else 60.sp,
-                suffixSize = if (isLandscape) 26.sp else 20.sp,
-            )
-
-            Spacer(Modifier.height(if (isLandscape) 14.dp else 20.dp))
-
-            PresetRow(
-                presets = presets,
-                selectedMinutes = minutesText.toIntOrNull(),
-                onSelect = { m -> commit(m.toString()) },
-                onLongPress = onLongPressPreset,
-            )
-
             Spacer(Modifier.height(if (isLandscape) 18.dp else 24.dp))
 
-            StartButton(onClick = onStart, enabled = validMinutes)
+            StartButton(onClick = onStart, enabled = true)
         }
     }
-}
-
-@Composable
-private fun MinutesField(
-    text: String,
-    onTextChange: (String) -> Unit,
-    numberSize: TextUnit,
-    suffixSize: TextUnit,
-) {
-    Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        BasicTextField(
-            value = text,
-            onValueChange = { raw -> onTextChange(raw.filter(Char::isDigit).take(3)) },
-            singleLine = true,
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Done),
-            textStyle = TextStyle(
-                fontFamily = GothicFamily,
-                fontSize = numberSize,
-                fontWeight = FontWeight.Bold,
-                letterSpacing = (-2).sp,
-                fontFeatureSettings = "tnum",
-                color = FocusColors.Ink,
-                textAlign = TextAlign.Center,
-            ),
-            cursorBrush = SolidColor(FocusColors.AccentBlue),
-            modifier = Modifier.widthIn(min = 64.dp),
-        )
-        Text(
-            "분",
-            color = FocusColors.Muted,
-            fontFamily = GothicFamily,
-            fontSize = suffixSize,
-            fontWeight = FontWeight.Normal,
-            modifier = Modifier.padding(bottom = 12.dp),
-        )
-    }
-}
-
-/** Preset chips — tap to pick, long-press to rename ("이미 있는 버튼 꾹 눌러서 수정"). */
-@OptIn(ExperimentalFoundationApi::class)
-@Composable
-private fun PresetRow(presets: List<Int>, selectedMinutes: Int?, onSelect: (Int) -> Unit, onLongPress: (Int) -> Unit) {
-    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        presets.forEachIndexed { index, min ->
-            val active = min == selectedMinutes
-            Box(
-                Modifier
-                    .clip(RoundedCornerShape(20.dp))
-                    .background(if (active) FocusColors.AccentDeep else Color(0xB3FFFFFF))
-                    .combinedClickable(
-                        onClick = { onSelect(min) },
-                        onLongClick = { onLongPress(index) },
-                    )
-                    .padding(horizontal = 15.dp, vertical = 8.dp),
-            ) {
-                Text(
-                    "${min}분",
-                    color = if (active) FocusColors.Paper else FocusColors.Ink2,
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.Medium,
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun EditPresetDialog(initialMinutes: Int, onDismiss: () -> Unit, onSave: (Int) -> Unit) {
-    var text by rememberSaveable(initialMinutes) { mutableStateOf(initialMinutes.toString()) }
-    val valid = text.toIntOrNull()?.let { it in 1..MAX_MINUTES } == true
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("프리셋 시간 수정", fontWeight = FontWeight.Bold) },
-        text = {
-            Box(
-                Modifier
-                    .clip(RoundedCornerShape(10.dp))
-                    .background(FocusColors.Mist)
-                    .padding(horizontal = 14.dp, vertical = 10.dp),
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    BasicTextField(
-                        value = text,
-                        onValueChange = { text = it.filter(Char::isDigit).take(3) },
-                        singleLine = true,
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Done),
-                        textStyle = TextStyle(color = FocusColors.Ink, fontSize = 18.sp, fontWeight = FontWeight.Medium),
-                        cursorBrush = SolidColor(FocusColors.AccentBlue),
-                        modifier = Modifier.widthIn(min = 40.dp),
-                    )
-                    Text("분", color = FocusColors.Muted, fontSize = 15.sp)
-                }
-            }
-        },
-        confirmButton = {
-            IconActionButton(
-                icon = Icons.Outlined.Check,
-                contentDescription = "저장",
-                onClick = { text.toIntOrNull()?.let(onSave) },
-                accent = true,
-                enabled = valid,
-                size = 40.dp,
-            )
-        },
-        dismissButton = {
-            IconActionButton(icon = Icons.Outlined.Close, contentDescription = "취소", onClick = onDismiss, size = 40.dp)
-        },
-    )
 }
 
 /** Full-width primary action, anchored to the bottom of the pre-start card. */
@@ -572,15 +405,6 @@ private fun RunningContent(displayMs: Long, progress: Float, isLandscape: Boolea
 private fun TaskField(value: String, onValueChange: (String) -> Unit, big: Boolean) {
     val fontSize = if (big) 26.sp else 19.sp
     Box(contentAlignment = Alignment.Center) {
-        if (value.isBlank()) {
-            Text(
-                "할 일 한 줄 (선택)",
-                color = FocusColors.Muted2,
-                fontFamily = GothicFamily,
-                fontSize = fontSize,
-                fontWeight = FontWeight.Bold,
-            )
-        }
         BasicTextField(
             value = value,
             onValueChange = onValueChange,

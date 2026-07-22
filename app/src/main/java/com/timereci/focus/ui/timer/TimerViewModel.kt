@@ -4,7 +4,6 @@ import android.net.Uri
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.timereci.focus.data.DEFAULT_DURATION_PRESETS
 import com.timereci.focus.data.FocusRepository
 import com.timereci.focus.data.PhotoRef
 import com.timereci.focus.data.SettingsRepository
@@ -34,10 +33,6 @@ class TimerViewModel @Inject constructor(
     val keepRunningWhileCommenting: StateFlow<Boolean> = settingsRepository.settings
         .map { it.keepRunningWhileCommenting }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), true)
-
-    val durationPresets: StateFlow<List<Int>> = settingsRepository.settings
-        .map { it.durationPresets }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), DEFAULT_DURATION_PRESETS)
 
     /** Photos from past sessions, offered as a quick "reuse this one" backdrop. */
     val recentPhotos: StateFlow<List<PhotoRef>> = repository.observeRecentPhotos()
@@ -75,13 +70,7 @@ class TimerViewModel @Inject constructor(
         }
     }
 
-    fun setDuration(ms: Long) { _durationMs.value = ms }
     fun setTask(text: String) { _taskLabel.value = text }
-
-    /** Long-press edit: overwrite one preset chip (e.g. "25분" → "30분") for every screen. */
-    fun updatePreset(index: Int, minutes: Int) {
-        viewModelScope.launch { settingsRepository.setDurationPreset(index, minutes) }
-    }
 
     fun importBackdrop(uri: Uri) {
         viewModelScope.launch {

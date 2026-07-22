@@ -65,15 +65,6 @@ class SettingsRepository @Inject constructor(
     suspend fun setKeepRunningWhileCommenting(value: Boolean) = edit { it[KEY_KEEP_RUNNING] = value }
     suspend fun setPhotoAspect(value: PhotoAspect) = edit { it[KEY_PHOTO_ASPECT] = value.name }
 
-    /** Overwrites a single preset slot (e.g. the "25분" chip long-pressed and changed to "30분"). */
-    suspend fun setDurationPreset(index: Int, minutes: Int) = edit { prefs ->
-        val current = parsePresets(prefs[KEY_DURATION_PRESETS]).toMutableList()
-        if (index in current.indices) {
-            current[index] = minutes
-            prefs[KEY_DURATION_PRESETS] = current.joinToString(",")
-        }
-    }
-
     private fun parsePresets(raw: String?): List<Int> {
         val parsed = raw?.split(",")?.mapNotNull { it.toIntOrNull() }
         return if (parsed != null && parsed.size == DEFAULT_DURATION_PRESETS.size) parsed else DEFAULT_DURATION_PRESETS

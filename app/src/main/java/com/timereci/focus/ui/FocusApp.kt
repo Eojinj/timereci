@@ -3,14 +3,45 @@ package com.timereci.focus.ui
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.systemBars
+import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.BarChart
+import androidx.compose.material.icons.outlined.Checklist
+import androidx.compose.material.icons.outlined.Settings
+import androidx.compose.material.icons.outlined.Timer
+import androidx.compose.material3.Icon
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.navigation.NavGraph.Companion.findStartDestination
+import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.timereci.focus.ui.day.DayScreen
@@ -20,13 +51,19 @@ import com.timereci.focus.ui.nextup.BreakScreen
 import com.timereci.focus.ui.nextup.NextUpScreen
 import com.timereci.focus.ui.publish.PublishScreen
 import com.timereci.focus.ui.settings.SettingsScreen
+import com.timereci.focus.ui.theme.FocusColors
+import com.timereci.focus.ui.theme.MonoFamily
 import com.timereci.focus.ui.timer.TimerScreen
 import com.timereci.focus.ui.todo.TodoScreen
+
+/** The four top-level areas — everything else (publish, day, detail, …) is a drill-down. */
+private val TAB_ROUTES = setOf(Routes.TIMER, Routes.FEED, Routes.TODO, Routes.SETTINGS)
 
 @Composable
 fun FocusApp(root: RootViewModel = hiltViewModel()) {
     val navController = rememberNavController()
     val resume by root.resume.collectAsStateWithLifecycle()
+    val currentRoute = navController.currentBackStackEntryAsState().value?.destination?.route
 
     LaunchedEffect(resume) {
         when (resume) {
@@ -42,150 +79,220 @@ fun FocusApp(root: RootViewModel = hiltViewModel()) {
         }
     }
 
-    NavHost(
-        navController = navController,
-        startDestination = Routes.TIMER,
-        enterTransition = { fadeIn(tween(220)) },
-        exitTransition = { fadeOut(tween(180)) },
-        popEnterTransition = { fadeIn(tween(220)) },
-        popExitTransition = { fadeOut(tween(180)) },
-    ) {
-        composable(
-            route = Routes.TIMER,
-            arguments = listOf(
-                navArgument(Routes.ARG_TASK) { type = NavType.StringType; defaultValue = "" },
-                navArgument(Routes.ARG_MINUTES) { type = NavType.IntType; defaultValue = 0 },
-            ),
+    Box(Modifier.fillMaxSize()) {
+        NavHost(
+            navController = navController,
+            startDestination = Routes.TIMER,
+            enterTransition = { fadeIn(tween(220)) },
+            exitTransition = { fadeOut(tween(180)) },
+            popEnterTransition = { fadeIn(tween(220)) },
+            popExitTransition = { fadeOut(tween(180)) },
         ) {
-            TimerScreen(
-                onCompleted = {
-                    navController.navigate(Routes.PUBLISH) { launchSingleTop = true }
-                },
-                onAbandon = {
-                    // Pushed (planned) timer returns to the feed; the home timer just stays idle.
-                    navController.popBackStack(Routes.FEED, inclusive = false)
-                },
-                onOpenFeed = { navController.navigate(Routes.FEED) },
-            )
-        }
+            composable(
+                route = Routes.TIMER,
+                arguments = listOf(
+                    navArgument(Routes.ARG_TASK) { type = NavType.StringType; defaultValue = "" },
+                    navArgument(Routes.ARG_MINUTES) { type = NavType.IntType; defaultValue = 0 },
+                ),
+            ) {
+                TimerScreen(
+                    onCompleted = {
+                        navController.navigate(Routes.PUBLISH) { launchSingleTop = true }
+                    },
+                    onAbandon = {
+                        // A pushed (planned/queued) timer returns to wherever it was started
+                        // from; the home tab's timer has nothing below it, so this is a no-op
+                        // and it just stays idle.
+                        navController.popBackStack()
+                    },
+                )
+            }
 
-        composable(Routes.FEED) {
-            FeedScreen(
-                onStartFocus = {
-                    // Home timer is the root — return to it rather than stacking another.
-                    if (!navController.popBackStack(Routes.TIMER, inclusive = false)) {
-                        navController.navigate(Routes.timer())
-                    }
-                },
-                onOpenDay = { epochDay -> navController.navigate(Routes.day(epochDay)) },
-                onOpenReceipt = { id -> navController.navigate(Routes.detail(id)) },
-                onOpenSettings = { navController.navigate(Routes.SETTINGS) },
-                onOpenTodo = { navController.navigate(Routes.TODO) },
-            )
-        }
+            composable(Routes.FEED) {
+                FeedScreen(
+                    onOpenDay = { epochDay -> navController.navigate(Routes.day(epochDay)) },
+                    onOpenReceipt = { id -> navController.navigate(Routes.detail(id)) },
+                )
+            }
 
-        composable(Routes.TODO) {
-            TodoScreen(
-                onBack = { navController.popBackStack() },
-                onStartPlanned = { label, minutes ->
-                    navController.navigate(Routes.timer(label, minutes))
-                },
-            )
-        }
+            composable(Routes.TODO) {
+                TodoScreen(
+                    onStartPlanned = { label, minutes ->
+                        navController.navigate(Routes.timer(label, minutes))
+                    },
+                )
+            }
 
-        composable(Routes.PUBLISH) {
-            PublishScreen(
-                onFinished = { next ->
-                    if (next != null) {
-                        // Queue has more — offer to continue straight into it.
-                        val nextMinutes = (next.plannedMs / 60_000L).toInt().coerceAtLeast(1)
-                        navController.navigate(Routes.nextUp(next.id, next.label, nextMinutes)) {
-                            popUpTo(Routes.TIMER) { inclusive = false }
+            composable(Routes.PUBLISH) {
+                PublishScreen(
+                    onFinished = { next ->
+                        if (next != null) {
+                            // Queue has more — offer to continue straight into it.
+                            val nextMinutes = (next.plannedMs / 60_000L).toInt().coerceAtLeast(1)
+                            navController.navigate(Routes.nextUp(next.id, next.label, nextMinutes)) {
+                                popUpTo(Routes.TIMER) { inclusive = false }
+                            }
+                        } else {
+                            navController.navigate(Routes.FEED) {
+                                popUpTo(Routes.TIMER) { inclusive = false }
+                            }
                         }
-                    } else {
+                    },
+                )
+            }
+
+            composable(
+                route = Routes.NEXT_UP,
+                arguments = listOf(
+                    navArgument(Routes.ARG_PLANNED_ID) { type = NavType.LongType },
+                    navArgument(Routes.ARG_TASK) { type = NavType.StringType; defaultValue = "" },
+                    navArgument(Routes.ARG_MINUTES) { type = NavType.IntType; defaultValue = 25 },
+                ),
+            ) { backStackEntry ->
+                val args = backStackEntry.arguments
+                val plannedId = args?.getLong(Routes.ARG_PLANNED_ID) ?: 0L
+                val task = args?.getString(Routes.ARG_TASK).orEmpty()
+                val minutes = args?.getInt(Routes.ARG_MINUTES) ?: 25
+                NextUpScreen(
+                    plannedId = plannedId,
+                    task = task,
+                    minutes = minutes,
+                    onContinueNow = {
+                        navController.navigate(Routes.timer(task, minutes)) {
+                            popUpTo(Routes.TIMER) { inclusive = true }
+                            launchSingleTop = true
+                        }
+                    },
+                    onBreak = { breakMinutes ->
+                        navController.navigate(Routes.breakScreen(breakMinutes, task, minutes))
+                    },
+                    onSkip = {
                         navController.navigate(Routes.FEED) {
                             popUpTo(Routes.TIMER) { inclusive = false }
                         }
-                    }
-                },
+                    },
+                )
+            }
+
+            composable(
+                route = Routes.BREAK,
+                arguments = listOf(
+                    navArgument(Routes.ARG_BREAK_MINUTES) { type = NavType.IntType },
+                    navArgument(Routes.ARG_TASK) { type = NavType.StringType; defaultValue = "" },
+                    navArgument(Routes.ARG_MINUTES) { type = NavType.IntType; defaultValue = 25 },
+                ),
+            ) { backStackEntry ->
+                val args = backStackEntry.arguments
+                val breakMinutes = args?.getInt(Routes.ARG_BREAK_MINUTES) ?: 5
+                val task = args?.getString(Routes.ARG_TASK).orEmpty()
+                val minutes = args?.getInt(Routes.ARG_MINUTES) ?: 25
+                BreakScreen(
+                    minutes = breakMinutes,
+                    onDone = {
+                        navController.navigate(Routes.timer(task, minutes)) {
+                            popUpTo(Routes.TIMER) { inclusive = true }
+                            launchSingleTop = true
+                        }
+                    },
+                )
+            }
+
+            composable(
+                route = Routes.DAY,
+                arguments = listOf(navArgument(Routes.ARG_EPOCH_DAY) { type = NavType.LongType }),
+            ) {
+                DayScreen(
+                    onBack = { navController.popBackStack() },
+                    onOpenReceipt = { id -> navController.navigate(Routes.detail(id)) },
+                )
+            }
+
+            composable(
+                route = Routes.DETAIL,
+                arguments = listOf(navArgument(Routes.ARG_RECEIPT_ID) { type = NavType.LongType }),
+            ) {
+                DetailScreen(onBack = { navController.popBackStack() })
+            }
+
+            composable(Routes.SETTINGS) {
+                SettingsScreen()
+            }
+        }
+
+        if (currentRoute in TAB_ROUTES) {
+            BottomTabBar(
+                currentRoute = currentRoute,
+                onNavigate = { route -> navController.navigateToTab(route) },
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .windowInsetsPadding(WindowInsets.systemBars)
+                    .padding(bottom = 14.dp),
             )
         }
+    }
+}
 
-        composable(
-            route = Routes.NEXT_UP,
-            arguments = listOf(
-                navArgument(Routes.ARG_PLANNED_ID) { type = NavType.LongType },
-                navArgument(Routes.ARG_TASK) { type = NavType.StringType; defaultValue = "" },
-                navArgument(Routes.ARG_MINUTES) { type = NavType.IntType; defaultValue = 25 },
-            ),
-        ) { backStackEntry ->
-            val args = backStackEntry.arguments
-            val plannedId = args?.getLong(Routes.ARG_PLANNED_ID) ?: 0L
-            val task = args?.getString(Routes.ARG_TASK).orEmpty()
-            val minutes = args?.getInt(Routes.ARG_MINUTES) ?: 25
-            NextUpScreen(
-                plannedId = plannedId,
-                task = task,
-                minutes = minutes,
-                onContinueNow = {
-                    navController.navigate(Routes.timer(task, minutes)) {
-                        popUpTo(Routes.TIMER) { inclusive = true }
-                        launchSingleTop = true
-                    }
-                },
-                onBreak = { breakMinutes ->
-                    navController.navigate(Routes.breakScreen(breakMinutes, task, minutes))
-                },
-                onSkip = {
-                    navController.navigate(Routes.FEED) {
-                        popUpTo(Routes.TIMER) { inclusive = false }
-                    }
-                },
-            )
-        }
+/** Standard bottom-nav pattern: keeps each tab's own back stack and scroll state. */
+private fun NavHostController.navigateToTab(route: String) {
+    navigate(route) {
+        popUpTo(graph.findStartDestination().id) { saveState = true }
+        launchSingleTop = true
+        restoreState = true
+    }
+}
 
-        composable(
-            route = Routes.BREAK,
-            arguments = listOf(
-                navArgument(Routes.ARG_BREAK_MINUTES) { type = NavType.IntType },
-                navArgument(Routes.ARG_TASK) { type = NavType.StringType; defaultValue = "" },
-                navArgument(Routes.ARG_MINUTES) { type = NavType.IntType; defaultValue = 25 },
-            ),
-        ) { backStackEntry ->
-            val args = backStackEntry.arguments
-            val breakMinutes = args?.getInt(Routes.ARG_BREAK_MINUTES) ?: 5
-            val task = args?.getString(Routes.ARG_TASK).orEmpty()
-            val minutes = args?.getInt(Routes.ARG_MINUTES) ?: 25
-            BreakScreen(
-                minutes = breakMinutes,
-                onDone = {
-                    navController.navigate(Routes.timer(task, minutes)) {
-                        popUpTo(Routes.TIMER) { inclusive = true }
-                        launchSingleTop = true
-                    }
-                },
-            )
-        }
+/**
+ * [matchRoute] is the registered route *pattern* (what [NavDestination.route] reports, used to
+ * tell which tab is selected); [target] is the concrete route actually passed to `navigate()`.
+ * They differ only for Timer, whose pattern carries unfilled `{task}`/`{minutes}` placeholders.
+ */
+private data class TabSpec(val matchRoute: String, val target: String, val label: String, val icon: ImageVector)
 
-        composable(
-            route = Routes.DAY,
-            arguments = listOf(navArgument(Routes.ARG_EPOCH_DAY) { type = NavType.LongType }),
-        ) {
-            DayScreen(
-                onBack = { navController.popBackStack() },
-                onOpenReceipt = { id -> navController.navigate(Routes.detail(id)) },
-            )
-        }
+private val TABS = listOf(
+    TabSpec(Routes.TIMER, Routes.timer(), "타이머", Icons.Outlined.Timer),
+    TabSpec(Routes.FEED, Routes.FEED, "피드", Icons.Outlined.BarChart),
+    TabSpec(Routes.TODO, Routes.TODO, "할 일", Icons.Outlined.Checklist),
+    TabSpec(Routes.SETTINGS, Routes.SETTINGS, "설정", Icons.Outlined.Settings),
+)
 
-        composable(
-            route = Routes.DETAIL,
-            arguments = listOf(navArgument(Routes.ARG_RECEIPT_ID) { type = NavType.LongType }),
-        ) {
-            DetailScreen(onBack = { navController.popBackStack() })
-        }
-
-        composable(Routes.SETTINGS) {
-            SettingsScreen(onBack = { navController.popBackStack() })
+@Composable
+private fun BottomTabBar(
+    currentRoute: String?,
+    onNavigate: (String) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 28.dp)
+            .clip(RoundedCornerShape(28.dp))
+            .background(FocusColors.Paper)
+            .border(1.dp, FocusColors.LineSoft, RoundedCornerShape(28.dp))
+            .padding(vertical = 8.dp, horizontal = 6.dp),
+        horizontalArrangement = Arrangement.SpaceEvenly,
+    ) {
+        TABS.forEach { tab ->
+            val selected = currentRoute == tab.matchRoute
+            Column(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(16.dp))
+                    .clickable { onNavigate(tab.target) }
+                    .padding(horizontal = 14.dp, vertical = 6.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                Icon(
+                    tab.icon,
+                    contentDescription = tab.label,
+                    tint = if (selected) FocusColors.AccentBlue else FocusColors.Muted2,
+                    modifier = Modifier.size(22.dp),
+                )
+                Text(
+                    tab.label,
+                    color = if (selected) FocusColors.AccentBlue else FocusColors.Muted2,
+                    fontFamily = MonoFamily,
+                    fontSize = 10.sp,
+                )
+            }
         }
     }
 }

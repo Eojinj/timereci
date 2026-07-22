@@ -24,13 +24,10 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.outlined.BarChart
 import androidx.compose.material.icons.outlined.Check
-import androidx.compose.material.icons.outlined.Checklist
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.DeleteOutline
-import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.ViewDay
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
@@ -70,11 +67,8 @@ private data class PendingEdit(val id: Long, val task: String, val comment: Stri
 
 @Composable
 fun FeedScreen(
-    onStartFocus: () -> Unit,
     onOpenDay: (Long) -> Unit,
     onOpenReceipt: (Long) -> Unit,
-    onOpenSettings: () -> Unit,
-    onOpenTodo: () -> Unit,
     viewModel: FeedViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -97,14 +91,13 @@ fun FeedScreen(
                 subtitle = (state as? FeedUiState.Content)?.subtitle ?: "0장",
                 mode = mode,
                 onToggleMode = { mode = if (mode == FeedViewMode.STRIP) FeedViewMode.ROLL else FeedViewMode.STRIP },
-                onOpenSettings = onOpenSettings,
             )
 
             when {
                 state is FeedUiState.Empty -> EmptyFeed()
                 mode == FeedViewMode.ROLL -> LazyColumn(
                     modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(bottom = 120.dp),
+                    contentPadding = PaddingValues(bottom = 100.dp),
                 ) {
                     items(rollSessions, key = { it.id }) { session ->
                         SessionOverlayCard(
@@ -122,7 +115,7 @@ fun FeedScreen(
                 }
                 state is FeedUiState.Content -> LazyColumn(
                     modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(top = 8.dp, bottom = 120.dp),
+                    contentPadding = PaddingValues(top = 8.dp, bottom = 100.dp),
                 ) {
                     items((state as FeedUiState.Content).days, key = { it.epochDay }) { day ->
                         DayStripRow(day = day, onOpenDay = { onOpenDay(day.epochDay) })
@@ -130,30 +123,6 @@ fun FeedScreen(
                 }
                 else -> Spacer(Modifier.fillMaxSize())
             }
-        }
-
-        // Floating "start" action, with the todo list right beside it.
-        Row(
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .windowInsetsPadding(WindowInsets.systemBars)
-                .padding(bottom = 20.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(14.dp),
-        ) {
-            IconActionButton(
-                icon = Icons.Outlined.Checklist,
-                contentDescription = "할 일 목록",
-                onClick = onOpenTodo,
-                size = 50.dp,
-            )
-            IconActionButton(
-                icon = Icons.Filled.PlayArrow,
-                contentDescription = "집중 시작",
-                onClick = onStartFocus,
-                accent = true,
-                size = 62.dp,
-            )
         }
     }
 
@@ -261,7 +230,6 @@ private fun FeedHeader(
     subtitle: String,
     mode: FeedViewMode,
     onToggleMode: () -> Unit,
-    onOpenSettings: () -> Unit,
 ) {
     Row(
         modifier = Modifier
@@ -280,9 +248,6 @@ private fun FeedHeader(
                 contentDescription = "보기 전환",
                 tint = FocusColors.Ink2,
             )
-        }
-        IconButton(onClick = onOpenSettings) {
-            Icon(Icons.Outlined.Settings, contentDescription = "설정", tint = FocusColors.Muted)
         }
     }
 }

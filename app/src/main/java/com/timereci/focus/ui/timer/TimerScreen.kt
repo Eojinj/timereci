@@ -13,6 +13,7 @@ import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -34,6 +35,7 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.PlayArrow
@@ -41,7 +43,6 @@ import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.Checklist
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.EditNote
-import androidx.compose.material.icons.outlined.GridView
 import androidx.compose.material.icons.outlined.PhotoCamera
 import androidx.compose.material.icons.outlined.ScreenRotation
 import androidx.compose.material3.AlertDialog
@@ -69,7 +70,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -88,6 +88,7 @@ import com.timereci.focus.ui.theme.MonoFamily
 import com.timereci.focus.ui.theme.PhotoTones
 import com.timereci.focus.ui.theme.patternPlaceholder
 import com.timereci.focus.ui.util.Formatters
+import com.timereci.focus.ui.util.QuickEntry
 import com.timereci.focus.ui.util.findActivity
 
 private const val MAX_MINUTES = 180 // 3시간
@@ -96,7 +97,6 @@ private const val MAX_MINUTES = 180 // 3시간
 fun TimerScreen(
     onCompleted: () -> Unit,
     onAbandon: () -> Unit,
-    onOpenFeed: () -> Unit,
     viewModel: TimerViewModel = hiltViewModel(),
 ) {
     val state by viewModel.timerState.collectAsStateWithLifecycle()
@@ -190,21 +190,6 @@ fun TimerScreen(
                     ),
                 ),
         )
-
-        // Records / feed shortcut, bottom-left (pre-start only — hidden while focusing).
-        // Bottom corner is easier to reach one-handed than the top.
-        if (isPreStart) {
-            IconActionButton(
-                icon = Icons.Outlined.GridView,
-                contentDescription = "기록 보기",
-                onClick = onOpenFeed,
-                size = 48.dp,
-                modifier = Modifier
-                    .align(Alignment.BottomStart)
-                    .windowInsetsPadding(WindowInsets.safeDrawing)
-                    .padding(16.dp),
-            )
-        }
 
         // Manual landscape toggle, top-right (always available).
         IconActionButton(
@@ -319,7 +304,12 @@ fun TimerScreen(
     }
 }
 
-/** Task label + big minutes field (system numeric keyboard) + presets + a circular start button. */
+/**
+ * The pre-start setup, presented as a single card floating over the backdrop: task + big
+ * minutes field, presets, and a full-width start button anchored to the bottom of the card.
+ * Typing "할 일 20" into the task field and dismissing the keyboard splits it into the task
+ * label and the minutes field in one move — the same shorthand as the todo quick-add.
+ */
 @Composable
 private fun PreStartContent(
     task: String,
@@ -343,66 +333,89 @@ private fun PreStartContent(
 
     val validMinutes = minutesText.toIntOrNull()?.let { it in 1..MAX_MINUTES } == true
 
-    Column(
+    Box(
         modifier = Modifier
             .fillMaxSize()
             .windowInsetsPadding(WindowInsets.safeDrawing)
-            .padding(horizontal = 24.dp, vertical = 12.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center,
+            .padding(horizontal = 22.dp, vertical = 16.dp),
+        contentAlignment = Alignment.Center,
     ) {
-        if (cameFromQueue) {
+        Column(
+            modifier = Modifier
+                .then(if (isLandscape) Modifier.widthIn(max = 420.dp) else Modifier.fillMaxWidth())
+                .clip(RoundedCornerShape(28.dp))
+                .background(FocusColors.Paper)
+                .border(1.dp, FocusColors.LineSoft, RoundedCornerShape(28.dp))
+                .padding(horizontal = 22.dp, vertical = 22.dp),
+        ) {
             Row(
-                Modifier
-                    .clip(RoundedCornerShape(20.dp))
-                    .background(FocusColors.Mist)
-                    .padding(horizontal = 12.dp, vertical = 6.dp),
+                Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
             ) {
-                Icon(
-                    Icons.Outlined.Checklist,
-                    contentDescription = null,
-                    tint = FocusColors.AccentBlue,
-                    modifier = Modifier.size(13.dp),
+                if (cameFromQueue) {
+                    Row(
+                        Modifier
+                            .clip(RoundedCornerShape(20.dp))
+                            .background(FocusColors.Mist)
+                            .padding(horizontal = 12.dp, vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    ) {
+                        Icon(
+                            Icons.Outlined.Checklist,
+                            contentDescription = null,
+                            tint = FocusColors.AccentBlue,
+                            modifier = Modifier.size(13.dp),
+                        )
+                        Text("할 일 큐에서", color = FocusColors.AccentBlue, fontFamily = MonoFamily, fontSize = 11.sp)
+                    }
+                }
+                Spacer(Modifier.weight(1f))
+                IconActionButton(
+                    icon = Icons.Outlined.PhotoCamera,
+                    contentDescription = "배경 사진 지정",
+                    onClick = onPickBackdrop,
+                    size = 42.dp,
+                    accent = hasBackdrop,
                 )
-                Text("할 일 큐에서", color = FocusColors.AccentBlue, fontFamily = MonoFamily, fontSize = 11.sp)
             }
-            Spacer(Modifier.height(10.dp))
-        }
 
-        TaskField(value = task, onValueChange = onTaskChange, big = !isLandscape)
+            Spacer(Modifier.height(if (isLandscape) 10.dp else 18.dp))
 
-        Spacer(Modifier.height(if (isLandscape) 14.dp else 22.dp))
-
-        MinutesField(
-            text = minutesText,
-            onTextChange = ::commit,
-            numberSize = if (isLandscape) 88.sp else 64.sp,
-            suffixSize = if (isLandscape) 28.sp else 22.sp,
-        )
-
-        Spacer(Modifier.height(if (isLandscape) 16.dp else 22.dp))
-
-        PresetRow(
-            presets = presets,
-            selectedMinutes = minutesText.toIntOrNull(),
-            onSelect = { m -> commit(m.toString()) },
-            onLongPress = onLongPressPreset,
-        )
-
-        Spacer(Modifier.height(if (isLandscape) 18.dp else 28.dp))
-
-        // Backdrop-photo button sits right next to the start button.
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-            IconActionButton(
-                icon = Icons.Outlined.PhotoCamera,
-                contentDescription = "배경 사진 지정",
-                onClick = onPickBackdrop,
-                size = if (isLandscape) 62.dp else 68.dp,
-                accent = hasBackdrop,
+            TaskField(
+                value = task,
+                onValueChange = onTaskChange,
+                big = !isLandscape,
+                onDone = {
+                    val (parsedTask, parsedMinutes) = QuickEntry.parse(task)
+                    if (parsedMinutes != null) {
+                        onTaskChange(parsedTask)
+                        commit(parsedMinutes.toString())
+                    }
+                },
             )
-            StartCircle(onClick = onStart, enabled = validMinutes, size = if (isLandscape) 74.dp else 82.dp)
+
+            Spacer(Modifier.height(if (isLandscape) 10.dp else 18.dp))
+
+            MinutesField(
+                text = minutesText,
+                onTextChange = ::commit,
+                numberSize = if (isLandscape) 76.sp else 60.sp,
+                suffixSize = if (isLandscape) 26.sp else 20.sp,
+            )
+
+            Spacer(Modifier.height(if (isLandscape) 14.dp else 20.dp))
+
+            PresetRow(
+                presets = presets,
+                selectedMinutes = minutesText.toIntOrNull(),
+                onSelect = { m -> commit(m.toString()) },
+                onLongPress = onLongPressPreset,
+            )
+
+            Spacer(Modifier.height(if (isLandscape) 18.dp else 24.dp))
+
+            StartButton(onClick = onStart, enabled = validMinutes)
         }
     }
 }
@@ -516,22 +529,27 @@ private fun EditPresetDialog(initialMinutes: Int, onDismiss: () -> Unit, onSave:
     )
 }
 
+/** Full-width primary action, anchored to the bottom of the pre-start card. */
 @Composable
-private fun StartCircle(onClick: () -> Unit, enabled: Boolean, size: Dp) {
-    Box(
+private fun StartButton(onClick: () -> Unit, enabled: Boolean) {
+    Row(
         Modifier
-            .size(size)
-            .clip(CircleShape)
+            .fillMaxWidth()
+            .height(56.dp)
+            .clip(RoundedCornerShape(16.dp))
             .background(if (enabled) FocusColors.AccentDeep else FocusColors.AccentDeep.copy(alpha = 0.35f))
             .clickable(enabled = enabled, onClick = onClick),
-        contentAlignment = Alignment.Center,
+        horizontalArrangement = Arrangement.Center,
+        verticalAlignment = Alignment.CenterVertically,
     ) {
         Icon(
             Icons.Filled.PlayArrow,
-            contentDescription = "시작",
+            contentDescription = null,
             tint = FocusColors.Paper,
-            modifier = Modifier.size(size * 0.42f),
+            modifier = Modifier.size(22.dp),
         )
+        Spacer(Modifier.width(8.dp))
+        Text("시작", color = FocusColors.Paper, fontSize = 16.sp, fontWeight = FontWeight.Bold)
     }
 }
 
@@ -564,12 +582,12 @@ private fun RunningContent(displayMs: Long, progress: Float, isLandscape: Boolea
 }
 
 @Composable
-private fun TaskField(value: String, onValueChange: (String) -> Unit, big: Boolean) {
-    val fontSize = if (big) 28.sp else 20.sp
+private fun TaskField(value: String, onValueChange: (String) -> Unit, big: Boolean, onDone: () -> Unit) {
+    val fontSize = if (big) 26.sp else 19.sp
     Box(contentAlignment = Alignment.Center) {
         if (value.isBlank()) {
             Text(
-                "할 일 한 줄 (선택)",
+                "할 일 + 분 (예: 빨래 20)",
                 color = FocusColors.Muted2,
                 fontFamily = GothicFamily,
                 fontSize = fontSize,
@@ -580,6 +598,8 @@ private fun TaskField(value: String, onValueChange: (String) -> Unit, big: Boole
             value = value,
             onValueChange = onValueChange,
             singleLine = true,
+            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+            keyboardActions = KeyboardActions(onDone = { onDone() }),
             cursorBrush = SolidColor(FocusColors.AccentBlue),
             textStyle = TextStyle(
                 color = FocusColors.Ink,

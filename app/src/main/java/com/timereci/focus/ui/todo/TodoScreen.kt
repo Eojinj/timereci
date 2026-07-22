@@ -27,7 +27,6 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.Check
@@ -63,16 +62,7 @@ import com.timereci.focus.ui.components.IconActionButton
 import com.timereci.focus.ui.components.grainyBackground
 import com.timereci.focus.ui.theme.FocusColors
 import com.timereci.focus.ui.theme.MonoFamily
-
-/** Matches "빨래 20" or "빨래 20분" → label "빨래", minutes 20 — typed shorthand for quick-add. */
-private val QUICK_ENTRY_REGEX = Regex("""^(.*\S)\s+(\d{1,3})\s*분?$""")
-
-private fun parseQuickEntry(raw: String): Pair<String, Int?> {
-    val trimmed = raw.trim()
-    val match = QUICK_ENTRY_REGEX.find(trimmed) ?: return trimmed to null
-    val minutes = match.groupValues[2].toIntOrNull()?.takeIf { it in 1..300 } ?: return trimmed to null
-    return match.groupValues[1] to minutes
-}
+import com.timereci.focus.ui.util.QuickEntry
 
 /**
  * A dedicated page for the todo queue ("오늘 할 집중"): a scrollable list up top, and an
@@ -82,7 +72,6 @@ private fun parseQuickEntry(raw: String): Pair<String, Int?> {
  */
 @Composable
 fun TodoScreen(
-    onBack: () -> Unit,
     onStartPlanned: (String, Int) -> Unit,
     viewModel: TodoViewModel = hiltViewModel(),
 ) {
@@ -95,7 +84,7 @@ fun TodoScreen(
     val focusRequester = remember { FocusRequester() }
     val keyboard = LocalSoftwareKeyboardController.current
 
-    val (previewLabel, previewMinutes) = remember(label) { parseQuickEntry(label) }
+    val (previewLabel, previewMinutes) = remember(label) { QuickEntry.parse(label) }
 
     fun submit() {
         val finalLabel = previewLabel.ifBlank { label.trim() }
@@ -120,11 +109,9 @@ fun TodoScreen(
         Row(
             Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 12.dp, vertical = 12.dp),
+                .padding(horizontal = 20.dp, vertical = 16.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            IconActionButton(icon = Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = "뒤로", onClick = onBack, size = 38.dp)
-            Spacer(Modifier.width(10.dp))
             Text("할 일", color = FocusColors.Ink, fontSize = 20.sp, fontWeight = FontWeight.Bold)
             Spacer(Modifier.width(8.dp))
             Text("${planned.size}개", color = FocusColors.Muted, fontFamily = MonoFamily, fontSize = 12.sp)
@@ -172,7 +159,7 @@ fun TodoScreen(
             Modifier
                 .fillMaxWidth()
                 .imePadding()
-                .padding(horizontal = 20.dp, vertical = 12.dp),
+                .padding(horizontal = 20.dp, top = 12.dp, bottom = 100.dp),
         ) {
             if (previewMinutes != null) {
                 Text(

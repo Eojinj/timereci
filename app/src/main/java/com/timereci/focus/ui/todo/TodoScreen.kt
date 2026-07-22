@@ -159,7 +159,7 @@ fun TodoScreen(
             Modifier
                 .fillMaxWidth()
                 .imePadding()
-                .padding(horizontal = 20.dp, top = 12.dp, bottom = 100.dp),
+                .padding(start = 20.dp, top = 12.dp, end = 20.dp, bottom = 100.dp),
         ) {
             if (previewMinutes != null) {
                 Text(

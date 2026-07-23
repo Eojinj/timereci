@@ -2,8 +2,11 @@ package com.timereci.focus.timer
 
 import android.content.Context
 import android.content.Intent
+import android.media.Ringtone
 import android.media.RingtoneManager
+import android.os.Build
 import android.os.SystemClock
+import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import com.timereci.focus.data.ActiveSessionEntity
 import com.timereci.focus.data.FocusRepository
@@ -46,6 +49,9 @@ class FocusTimerController @Inject constructor(
     private var endsAtElapsed: Long? = null
     private var ticker: Job? = null
 
+    /** The currently ringing completion alarm, kept so [stopAlarm] can silence it. */
+    @Volatile private var ringtone: Ringtone? = null
+
     /** Rebuilds timer state from persistence. Call once on app start. */
     fun restore() {
         scope.launch {
@@ -77,6 +83,7 @@ class FocusTimerController @Inject constructor(
     }
 
     fun start(plannedMs: Long, taskLabel: String, backdropFileName: String?) {
+        stopAlarm()
         val now = SystemClock.elapsedRealtime()
         endsAtElapsed = now + plannedMs
         _state.value = TimerState(
@@ -133,6 +140,7 @@ class FocusTimerController @Inject constructor(
     fun abandon() {
         endsAtElapsed = null
         stopTicker()
+        stopAlarm()
         alarms.cancel()
         stopService()
         _state.value = TimerState(plannedMs = _state.value.plannedMs, remainingMs = _state.value.plannedMs)
@@ -143,6 +151,7 @@ class FocusTimerController @Inject constructor(
     fun reset() {
         endsAtElapsed = null
         stopTicker()
+        stopAlarm()
         stopService()
         _state.value = TimerState()
         scope.launch { repository.clearActiveSession() }
@@ -159,15 +168,42 @@ class FocusTimerController @Inject constructor(
             focusedMs = focusedMs,
         )
         // Keep ActiveSession persisted so the publish screen can be rebuilt after a crash.
-        if (playAlarm) playCompletionSound()
+        if (playAlarm) {
+            playCompletionSound()
+            postCompletionNotification()
+        }
     }
 
-    /** Rings the device's default alarm tone once when the countdown runs out on its own. */
+    /**
+     * Rings the device's default alarm tone when the countdown runs out on its own. The tone
+     * loops (like a real alarm) and the [ringtone] reference is kept so [stopAlarm] — reached
+     * from the notification's 알림 끄기 button or from opening the receipt — can silence it.
+     */
     private fun playCompletionSound() {
         runCatching {
+            stopAlarm()
             val uri = RingtoneManager.getActualDefaultRingtoneUri(context, RingtoneManager.TYPE_ALARM)
                 ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
-            RingtoneManager.getRingtone(context, uri)?.play()
+            ringtone = RingtoneManager.getRingtone(context, uri)?.apply {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) isLooping = true
+                play()
+            }
+        }
+    }
+
+    private fun postCompletionNotification() {
+        runCatching {
+            NotificationManagerCompat.from(context)
+                .notify(FocusTimerService.DONE_NOTIFICATION_ID, TimerNotifications.completion(context))
+        }
+    }
+
+    /** Silences the completion alarm and clears its notification. Safe to call when nothing rings. */
+    fun stopAlarm() {
+        runCatching { ringtone?.stop() }
+        ringtone = null
+        runCatching {
+            NotificationManagerCompat.from(context).cancel(FocusTimerService.DONE_NOTIFICATION_ID)
         }
     }
 

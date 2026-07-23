@@ -7,4 +7,9 @@
     <string name="timer_notification_title">집중 중</string>
     <string name="timer_done_channel_name">집중 완료 알림</string>
     <string name="timer_done_channel_desc">집중 타이머가 끝나면 알람이 울립니다.</string>
+
+    <!-- Notification action buttons -->
+    <string name="timer_action_quit">그만두기</string>
+    <string name="timer_action_finish">완주</string>
+    <string name="timer_action_stop_alarm">알림 끄기</string>
 </resources>

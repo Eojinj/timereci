@@ -43,6 +43,11 @@ class PublishViewModel @Inject constructor(
     private val completed = controller.state.value
     private val issuedAt = System.currentTimeMillis()
 
+    init {
+        // Opening the receipt counts as acknowledging the alarm — silence any ringing.
+        controller.stopAlarm()
+    }
+
     val photoAspect: StateFlow<PhotoAspect> = settingsRepository.settings
         .map { it.photoAspect }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), PhotoAspect.PORTRAIT)

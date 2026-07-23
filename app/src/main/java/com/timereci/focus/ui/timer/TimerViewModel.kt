@@ -10,6 +10,7 @@ import com.timereci.focus.data.SettingsRepository
 import com.timereci.focus.timer.FocusTimerController
 import com.timereci.focus.timer.TimerState
 import com.timereci.focus.ui.Routes
+import com.timereci.focus.ui.util.QuickEntry
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -87,9 +88,16 @@ class TimerViewModel @Inject constructor(
     fun clearBackdrop() { _backdrop.value = null }
 
     fun start() {
+        // "할 일 20"처럼 뒤에 숫자를 붙이면 그 숫자를 분(分)으로 해석한다.
+        // 숫자가 없으면 기본값(설정/큐에서 온 값)을 그대로 쓴다.
+        val (label, minutes) = QuickEntry.parse(_taskLabel.value)
+        val cleanLabel = label.trim()
+        val plannedMs = minutes?.let { it * 60_000L } ?: _durationMs.value
+        _taskLabel.value = cleanLabel // 달리는 화면엔 숫자 없이 할 일만 표시
+        _durationMs.value = plannedMs
         controller.start(
-            plannedMs = _durationMs.value,
-            taskLabel = _taskLabel.value.trim(),
+            plannedMs = plannedMs,
+            taskLabel = cleanLabel,
             backdropFileName = _backdrop.value?.fileName,
         )
     }

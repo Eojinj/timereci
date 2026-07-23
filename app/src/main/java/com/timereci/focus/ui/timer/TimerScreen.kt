@@ -208,6 +208,7 @@ fun TimerScreen(
                 displayMs = displayMs,
                 progress = state.progress,
                 isLandscape = isLandscape,
+                task = task,
             )
 
             // Bottom controls while running.
@@ -342,7 +343,16 @@ private fun PreStartContent(
 
             TaskField(value = task, onValueChange = onTaskChange, big = !isLandscape)
 
-            Spacer(Modifier.height(if (isLandscape) 18.dp else 24.dp))
+            Spacer(Modifier.height(8.dp))
+
+            Text(
+                "뒤에 숫자를 붙이면 그 시간(분)으로 시작 · 예) 빨래 20",
+                color = FocusColors.Muted2,
+                fontFamily = MonoFamily,
+                fontSize = 10.5.sp,
+            )
+
+            Spacer(Modifier.height(if (isLandscape) 16.dp else 22.dp))
 
             StartButton(onClick = onStart, enabled = true)
         }
@@ -373,9 +383,9 @@ private fun StartButton(onClick: () -> Unit, enabled: Boolean) {
     }
 }
 
-/** Countdown while a session is running: big digits, breathing progress line. */
+/** Countdown while a session is running: the task, big digits, breathing progress line. */
 @Composable
-private fun RunningContent(displayMs: Long, progress: Float, isLandscape: Boolean) {
+private fun RunningContent(displayMs: Long, progress: Float, isLandscape: Boolean, task: String) {
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -383,6 +393,17 @@ private fun RunningContent(displayMs: Long, progress: Float, isLandscape: Boolea
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
     ) {
+        if (task.isNotBlank()) {
+            Text(
+                task,
+                color = FocusColors.Ink2,
+                fontFamily = GothicFamily,
+                fontSize = if (isLandscape) 30.sp else 22.sp,
+                fontWeight = FontWeight.Bold,
+                textAlign = TextAlign.Center,
+            )
+            Spacer(Modifier.height(if (isLandscape) 20.dp else 14.dp))
+        }
         Text(
             Formatters.clock(displayMs),
             color = FocusColors.Ink,
@@ -403,8 +424,25 @@ private fun RunningContent(displayMs: Long, progress: Float, isLandscape: Boolea
 
 @Composable
 private fun TaskField(value: String, onValueChange: (String) -> Unit, big: Boolean) {
-    val fontSize = if (big) 26.sp else 19.sp
-    Box(contentAlignment = Alignment.Center) {
+    val fontSize = if (big) 22.sp else 18.sp
+    // A filled, rounded box so it's obviously a tap-to-type field even when empty.
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(14.dp))
+            .background(FocusColors.Mist)
+            .padding(horizontal = 16.dp, vertical = 15.dp),
+        contentAlignment = Alignment.CenterStart,
+    ) {
+        if (value.isBlank()) {
+            Text(
+                "할 일",
+                color = FocusColors.Muted2,
+                fontFamily = GothicFamily,
+                fontSize = fontSize,
+                fontWeight = FontWeight.Medium,
+            )
+        }
         BasicTextField(
             value = value,
             onValueChange = onValueChange,
@@ -414,9 +452,9 @@ private fun TaskField(value: String, onValueChange: (String) -> Unit, big: Boole
                 color = FocusColors.Ink,
                 fontFamily = GothicFamily,
                 fontSize = fontSize,
-                fontWeight = FontWeight.Bold,
-                textAlign = TextAlign.Center,
+                fontWeight = FontWeight.Medium,
             ),
+            modifier = Modifier.fillMaxWidth(),
         )
     }
 }

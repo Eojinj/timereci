@@ -220,7 +220,11 @@ fun FocusApp(root: RootViewModel = hiltViewModel()) {
             }
         }
 
-        if (currentRoute in TAB_ROUTES && !timerActive) {
+        // Hide the tab bar only on the timer screen while a session runs (so its stop/complete
+        // controls own the bottom). On the other tabs it always shows — a session can keep
+        // running in the background and you must still be able to navigate.
+        val hideForRunningTimer = currentRoute == Routes.TIMER && timerActive
+        if (currentRoute in TAB_ROUTES && !hideForRunningTimer) {
             BottomTabBar(
                 currentRoute = currentRoute,
                 onNavigate = { route -> navController.navigateToTab(route) },

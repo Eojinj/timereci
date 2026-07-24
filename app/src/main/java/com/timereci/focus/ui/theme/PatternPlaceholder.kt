@@ -12,7 +12,7 @@ import kotlin.math.sin
 
 /**
  * Decorative fill for a card that has no photo, used instead of a flat neutral grey: one of
- * the existing gradient tones with a light pattern (dots / stars / hearts) scattered over it.
+ * the existing gradient tones with a light pattern (dots / stars) scattered over it.
  * Both the colour and the pattern kind are derived from [toneIndex], so the same session
  * always renders the same way but different sessions read as varied, not blank.
  */
@@ -21,10 +21,9 @@ fun Modifier.patternPlaceholder(toneIndex: Int): Modifier = this.drawWithCache {
     val ink = Color.White.copy(alpha = 0.4f)
     onDrawBehind {
         drawRect(brush)
-        when (((toneIndex % 3) + 3) % 3) {
+        when (((toneIndex % 2) + 2) % 2) {
             0 -> drawDots(ink)
-            1 -> drawStars(ink)
-            else -> drawHearts(ink)
+            else -> drawStars(ink)
         }
     }
 }
@@ -46,7 +45,7 @@ private fun DrawScope.drawDots(color: Color) {
     }
 }
 
-/** Normalized (0..1) scatter positions shared by the star and heart patterns. */
+/** Normalized (0..1) scatter positions for the star pattern. */
 private val SCATTER = listOf(
     0.14f to 0.18f, 0.5f to 0.1f, 0.84f to 0.2f,
     0.26f to 0.46f, 0.7f to 0.44f, 0.1f to 0.72f,
@@ -64,17 +63,6 @@ private fun DrawScope.drawStars(color: Color) {
     }
 }
 
-private fun DrawScope.drawHearts(color: Color) {
-    val base = size.minDimension * 0.055f
-    SCATTER.forEachIndexed { i, (fx, fy) ->
-        val scale = if (i % 3 == 1) 1.2f else 0.8f
-        drawPath(
-            heartPath(size.width * fx, size.height * fy, base * scale),
-            color = color,
-        )
-    }
-}
-
 private fun starPath(cx: Float, cy: Float, outerR: Float, innerR: Float): Path {
     val path = Path()
     val points = 5
@@ -86,15 +74,6 @@ private fun starPath(cx: Float, cy: Float, outerR: Float, innerR: Float): Path {
         val y = cy + (r * sin(angle)).toFloat()
         if (i == 0) path.moveTo(x, y) else path.lineTo(x, y)
     }
-    path.close()
-    return path
-}
-
-private fun heartPath(cx: Float, cy: Float, s: Float): Path {
-    val path = Path()
-    path.moveTo(cx, cy + s * 0.35f)
-    path.cubicTo(cx - s * 1.1f, cy - s * 0.35f, cx - s * 0.55f, cy - s * 1.05f, cx, cy - s * 0.35f)
-    path.cubicTo(cx + s * 0.55f, cy - s * 1.05f, cx + s * 1.1f, cy - s * 0.35f, cx, cy + s * 0.35f)
     path.close()
     return path
 }

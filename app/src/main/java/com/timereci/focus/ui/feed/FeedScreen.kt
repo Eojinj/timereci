@@ -298,7 +298,7 @@ private fun DayStripRow(day: FeedDay, onOpenDay: () -> Unit) {
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onOpenDay)
-            .padding(horizontal = 20.dp, vertical = 9.dp),
+            .padding(horizontal = 14.dp, vertical = 9.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
@@ -307,7 +307,7 @@ private fun DayStripRow(day: FeedDay, onOpenDay: () -> Unit) {
             fontFamily = MonoFamily,
             fontSize = 12.5.sp,
             fontWeight = FontWeight.Medium,
-            modifier = Modifier.width(50.dp),
+            modifier = Modifier.width(44.dp),
         )
         Box(
             Modifier
@@ -349,14 +349,14 @@ private fun DayStripRow(day: FeedDay, onOpenDay: () -> Unit) {
                 }
             }
         }
-        Spacer(Modifier.width(10.dp))
+        Spacer(Modifier.width(8.dp))
         Text(
             day.focusText,
             color = FocusColors.Muted,
             fontFamily = MonoFamily,
             fontSize = 11.sp,
             textAlign = TextAlign.End,
-            modifier = Modifier.width(48.dp),
+            modifier = Modifier.width(42.dp),
         )
     }
 }

@@ -63,6 +63,7 @@ private val TAB_ROUTES = setOf(Routes.TIMER, Routes.FEED, Routes.TODO, Routes.SE
 fun FocusApp(root: RootViewModel = hiltViewModel()) {
     val navController = rememberNavController()
     val resume by root.resume.collectAsStateWithLifecycle()
+    val timerActive by root.timerActive.collectAsStateWithLifecycle()
     val currentRoute = navController.currentBackStackEntryAsState().value?.destination?.route
 
     LaunchedEffect(resume) {
@@ -219,7 +220,7 @@ fun FocusApp(root: RootViewModel = hiltViewModel()) {
             }
         }
 
-        if (currentRoute in TAB_ROUTES) {
+        if (currentRoute in TAB_ROUTES && !timerActive) {
             BottomTabBar(
                 currentRoute = currentRoute,
                 onNavigate = { route -> navController.navigateToTab(route) },

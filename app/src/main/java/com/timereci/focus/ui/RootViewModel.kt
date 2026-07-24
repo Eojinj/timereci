@@ -6,7 +6,11 @@ import com.timereci.focus.timer.FocusTimerController
 import com.timereci.focus.timer.TimerPhase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -25,6 +29,12 @@ class RootViewModel @Inject constructor(
     private val _resume = MutableStateFlow<ResumeTarget?>(null)
     val resume = _resume.asStateFlow()
     private var consumed = false
+
+    /** True while a session is running/paused — the bottom tab bar hides so the timer's own
+     * stop/complete controls own the bottom of the screen (and you can't tab away mid-session). */
+    val timerActive: StateFlow<Boolean> = controller.state
+        .map { it.phase == TimerPhase.RUNNING || it.phase == TimerPhase.PAUSED }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
 
     init {
         controller.restore()

@@ -6,6 +6,7 @@ import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
@@ -146,6 +147,11 @@ fun TimerScreen(
     }
 
     val isPreStart = state.phase == TimerPhase.IDLE
+
+    // A stopped/finished session shouldn't leave the phone stuck forced into landscape.
+    LaunchedEffect(isPreStart) {
+        if (isPreStart) forcedLandscape = false
+    }
     val displayMs = if (isPreStart) duration else state.remainingMs
 
     Box(
@@ -206,32 +212,36 @@ fun TimerScreen(
                 .padding(16.dp),
         )
 
-        if (isPreStart) {
-            PreStartContent(
-                task = task,
-                onTaskChange = viewModel::setTask,
-                isLandscape = isLandscape,
-                hasBackdrop = backdrop != null,
-                onPickBackdrop = {
-                    if (recentPhotos.isEmpty()) launchSystemBackdropPicker() else showBackdropPicker = true
-                },
-                onStart = viewModel::start,
-                cameFromQueue = viewModel.cameFromQueue,
-            )
-        } else {
-            RunningContent(
-                displayMs = displayMs,
-                progress = state.progress,
-                isLandscape = isLandscape,
-                task = task,
-                comment = state.draftComment,
-                onComment = {
-                    if (!keepRunning) viewModel.pause()
-                    viewModel.openComment()
-                },
-                onStop = { confirmStop = true },
-                onComplete = viewModel::completeNow,
-            )
+        // Crossfade instead of a hard cut, so stopping/starting a session reads as a
+        // deliberate transition rather than the screen just snapping to a different state.
+        Crossfade(targetState = isPreStart, label = "timer-phase") { preStart ->
+            if (preStart) {
+                PreStartContent(
+                    task = task,
+                    onTaskChange = viewModel::setTask,
+                    isLandscape = isLandscape,
+                    hasBackdrop = backdrop != null,
+                    onPickBackdrop = {
+                        if (recentPhotos.isEmpty()) launchSystemBackdropPicker() else showBackdropPicker = true
+                    },
+                    onStart = viewModel::start,
+                    cameFromQueue = viewModel.cameFromQueue,
+                )
+            } else {
+                RunningContent(
+                    displayMs = displayMs,
+                    progress = state.progress,
+                    isLandscape = isLandscape,
+                    task = task,
+                    comment = state.draftComment,
+                    onComment = {
+                        if (!keepRunning) viewModel.pause()
+                        viewModel.openComment()
+                    },
+                    onStop = { confirmStop = true },
+                    onComplete = viewModel::completeNow,
+                )
+            }
         }
 
         if (commentOpen) {

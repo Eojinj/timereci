@@ -1,5 +1,6 @@
 package com.timereci.focus.ui
 
+import android.content.pm.ActivityInfo
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -32,6 +33,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -55,6 +57,7 @@ import com.timereci.focus.ui.theme.FocusColors
 import com.timereci.focus.ui.theme.MonoFamily
 import com.timereci.focus.ui.timer.TimerScreen
 import com.timereci.focus.ui.todo.TodoScreen
+import com.timereci.focus.ui.util.findActivity
 
 /** The four top-level areas — everything else (publish, day, detail, …) is a drill-down. */
 private val TAB_ROUTES = setOf(Routes.TIMER, Routes.FEED, Routes.TODO, Routes.SETTINGS)
@@ -65,6 +68,16 @@ fun FocusApp(root: RootViewModel = hiltViewModel()) {
     val resume by root.resume.collectAsStateWithLifecycle()
     val timerActive by root.timerActive.collectAsStateWithLifecycle()
     val currentRoute = navController.currentBackStackEntryAsState().value?.destination?.route
+
+    // Only the timer screen ever unlocks rotation. Enforcing that here — not just inside the
+    // timer screen itself — guarantees every other screen is portrait the moment it becomes
+    // current, regardless of whatever orientation state the timer screen leaves behind.
+    val context = LocalContext.current
+    LaunchedEffect(currentRoute) {
+        if (currentRoute != null && currentRoute != Routes.TIMER) {
+            context.findActivity()?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+        }
+    }
 
     LaunchedEffect(resume) {
         when (resume) {

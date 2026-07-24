@@ -9,6 +9,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
@@ -41,6 +42,7 @@ import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.EditNote
 import androidx.compose.material.icons.outlined.PhotoCamera
 import androidx.compose.material.icons.outlined.ScreenRotation
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -53,6 +55,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -96,6 +99,7 @@ fun TimerScreen(
     val commentOpen by viewModel.commentSheetOpen.collectAsStateWithLifecycle()
     val recentPhotos by viewModel.recentPhotos.collectAsStateWithLifecycle()
     var showBackdropPicker by remember { mutableStateOf(false) }
+    var confirmStop by remember { mutableStateOf(false) }
     val emptyBackdropTone = remember { PhotoTones.indexFor(java.time.LocalDate.now().toEpochDay()) }
 
     val context = LocalContext.current
@@ -155,9 +159,13 @@ fun TimerScreen(
     ) {
         // Backdrop: chosen photo, else a neutral ground (no plastic blue).
         backdrop?.fileName?.let { name ->
+            // Built once per photo (not on every 250ms tick) so the running screen stays smooth.
+            val backdropRequest = remember(name) {
+                ImageRequest.Builder(context)
+                    .data(PhotoStorage.fileIn(context, name)).crossfade(true).build()
+            }
             AsyncImage(
-                model = ImageRequest.Builder(context)
-                    .data(PhotoStorage.fileIn(context, name)).crossfade(true).build(),
+                model = backdropRequest,
                 contentDescription = null,
                 contentScale = ContentScale.Crop,
                 modifier = Modifier.fillMaxSize(),
@@ -209,14 +217,12 @@ fun TimerScreen(
                 progress = state.progress,
                 isLandscape = isLandscape,
                 task = task,
+                comment = state.draftComment,
                 onComment = {
                     if (!keepRunning) viewModel.pause()
                     viewModel.openComment()
                 },
-                onStop = {
-                    viewModel.abandon()
-                    onAbandon()
-                },
+                onStop = { confirmStop = true },
                 onComplete = viewModel::completeNow,
             )
         }
@@ -246,6 +252,42 @@ fun TimerScreen(
                 launchSystemBackdropPicker()
             },
             onDismiss = { showBackdropPicker = false },
+        )
+    }
+
+    if (confirmStop) {
+        AlertDialog(
+            onDismissRequest = { confirmStop = false },
+            title = { Text("집중을 정지할까요?", fontWeight = FontWeight.Bold, color = FocusColors.Ink) },
+            text = {
+                Text(
+                    "정지하면 이번 세션은 기록에 남지 않아요.\n지금까지 집중한 만큼 남기려면 완주(✓)를 눌러 주세요.",
+                    color = FocusColors.Muted,
+                    fontSize = 13.5.sp,
+                    lineHeight = 20.sp,
+                )
+            },
+            confirmButton = {
+                IconActionButton(
+                    icon = Icons.Outlined.Close,
+                    contentDescription = "정지",
+                    onClick = {
+                        confirmStop = false
+                        viewModel.abandon()
+                        onAbandon()
+                    },
+                    size = 40.dp,
+                )
+            },
+            dismissButton = {
+                IconActionButton(
+                    icon = Icons.Filled.PlayArrow,
+                    contentDescription = "계속",
+                    onClick = { confirmStop = false },
+                    accent = true,
+                    size = 40.dp,
+                )
+            },
         )
     }
 }
@@ -356,14 +398,15 @@ private fun StartButton(onClick: () -> Unit, enabled: Boolean) {
     }
 }
 
-/** Countdown while a session is running: the task, big digits, progress line, and the
- * comment/stop/complete controls sitting right beneath it. */
+/** Countdown while a session is running: the task, big digits, progress line, the live comment
+ * surfacing like a lyric, and the comment/stop/complete controls sitting right beneath it. */
 @Composable
 private fun RunningContent(
     displayMs: Long,
     progress: Float,
     isLandscape: Boolean,
     task: String,
+    comment: String,
     onComment: () -> Unit,
     onStop: () -> Unit,
     onComplete: () -> Unit,
@@ -402,6 +445,10 @@ private fun RunningContent(
 
         ProgressLine(progress = progress, isLandscape = isLandscape)
 
+        // The comment appears on screen right away, softly, like a line of lyrics —
+        // not tucked away in the sheet.
+        LyricComment(comment = comment, isLandscape = isLandscape)
+
         Spacer(Modifier.height(if (isLandscape) 24.dp else 36.dp))
 
         // Controls, grouped just under the timer instead of pinned to the screen bottom.
@@ -427,6 +474,30 @@ private fun RunningContent(
             )
         }
     }
+}
+
+/** The in-session comment, surfaced on screen with a gentle fade-in when it first appears. */
+@Composable
+private fun LyricComment(comment: String, isLandscape: Boolean) {
+    val alpha by animateFloatAsState(
+        targetValue = if (comment.isBlank()) 0f else 1f,
+        animationSpec = tween(600),
+        label = "lyric",
+    )
+    if (comment.isBlank()) return
+    Spacer(Modifier.height(if (isLandscape) 16.dp else 22.dp))
+    Text(
+        comment,
+        color = FocusColors.InkSoft,
+        fontFamily = GothicFamily,
+        fontSize = if (isLandscape) 18.sp else 16.sp,
+        fontWeight = FontWeight.Medium,
+        lineHeight = if (isLandscape) 27.sp else 24.sp,
+        textAlign = TextAlign.Center,
+        modifier = Modifier
+            .fillMaxWidth()
+            .alpha(alpha),
+    )
 }
 
 @Composable

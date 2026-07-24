@@ -209,43 +209,16 @@ fun TimerScreen(
                 progress = state.progress,
                 isLandscape = isLandscape,
                 task = task,
+                onComment = {
+                    if (!keepRunning) viewModel.pause()
+                    viewModel.openComment()
+                },
+                onStop = {
+                    viewModel.abandon()
+                    onAbandon()
+                },
+                onComplete = viewModel::completeNow,
             )
-
-            // Bottom controls while running.
-            Row(
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .fillMaxWidth()
-                    .windowInsetsPadding(WindowInsets.safeDrawing)
-                    .padding(horizontal = 30.dp, vertical = 16.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween,
-            ) {
-                IconActionButton(
-                    icon = Icons.Outlined.EditNote,
-                    contentDescription = "코멘트",
-                    onClick = {
-                        if (!keepRunning) viewModel.pause()
-                        viewModel.openComment()
-                    },
-                )
-                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    IconActionButton(
-                        icon = Icons.Outlined.Close,
-                        contentDescription = "정지",
-                        onClick = {
-                            viewModel.abandon()
-                            onAbandon()
-                        },
-                    )
-                    IconActionButton(
-                        icon = Icons.Outlined.Check,
-                        contentDescription = "완주",
-                        onClick = viewModel::completeNow,
-                        accent = true,
-                    )
-                }
-            }
         }
 
         if (commentOpen) {
@@ -383,9 +356,18 @@ private fun StartButton(onClick: () -> Unit, enabled: Boolean) {
     }
 }
 
-/** Countdown while a session is running: the task, big digits, breathing progress line. */
+/** Countdown while a session is running: the task, big digits, progress line, and the
+ * comment/stop/complete controls sitting right beneath it. */
 @Composable
-private fun RunningContent(displayMs: Long, progress: Float, isLandscape: Boolean, task: String) {
+private fun RunningContent(
+    displayMs: Long,
+    progress: Float,
+    isLandscape: Boolean,
+    task: String,
+    onComment: () -> Unit,
+    onStop: () -> Unit,
+    onComplete: () -> Unit,
+) {
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -419,6 +401,31 @@ private fun RunningContent(displayMs: Long, progress: Float, isLandscape: Boolea
         Spacer(Modifier.height(20.dp))
 
         ProgressLine(progress = progress, isLandscape = isLandscape)
+
+        Spacer(Modifier.height(if (isLandscape) 24.dp else 36.dp))
+
+        // Controls, grouped just under the timer instead of pinned to the screen bottom.
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(14.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            IconActionButton(
+                icon = Icons.Outlined.EditNote,
+                contentDescription = "코멘트",
+                onClick = onComment,
+            )
+            IconActionButton(
+                icon = Icons.Outlined.Close,
+                contentDescription = "정지",
+                onClick = onStop,
+            )
+            IconActionButton(
+                icon = Icons.Outlined.Check,
+                contentDescription = "완주",
+                onClick = onComplete,
+                accent = true,
+            )
+        }
     }
 }
 

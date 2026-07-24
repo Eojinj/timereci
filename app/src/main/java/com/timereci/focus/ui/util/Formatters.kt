@@ -38,6 +38,10 @@ object Formatters {
     fun weekday(date: LocalDate): String =
         date.dayOfWeek.getDisplayName(TextStyle.FULL, korean)
 
+    /** Todo screen subtitle, e.g. "7월 24일 금요일". */
+    fun monthDayWeekday(date: LocalDate): String =
+        "${date.monthValue}월 ${date.dayOfMonth}일 ${weekday(date)}"
+
     /** Card stamp, e.g. "07.19 · 14:20". */
     fun stamp(epochMs: Long): String {
         val t = Instant.ofEpochMilli(epochMs).atZone(zone)

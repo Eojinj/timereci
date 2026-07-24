@@ -1,5 +1,8 @@
 package com.timereci.focus.ui.todo
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -33,6 +36,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.outlined.Add
+import androidx.compose.material.icons.outlined.AddPhotoAlternate
 import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material3.AlertDialog
@@ -50,7 +54,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.TextStyle
@@ -62,12 +70,17 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import coil.compose.AsyncImage
+import coil.request.ImageRequest
+import com.timereci.focus.data.PhotoStorage
 import com.timereci.focus.data.PlannedFocusEntity
 import com.timereci.focus.ui.components.IconActionButton
 import com.timereci.focus.ui.components.grainyBackground
 import com.timereci.focus.ui.theme.FocusColors
 import com.timereci.focus.ui.theme.MonoFamily
+import com.timereci.focus.ui.util.Formatters
 import com.timereci.focus.ui.util.QuickEntry
+import java.time.LocalDate
 
 /**
  * A dedicated page for the todo queue ("오늘 할 집중"): a scrollable list up top, and an
@@ -82,6 +95,11 @@ fun TodoScreen(
 ) {
     val planned by viewModel.planned.collectAsStateWithLifecycle()
     val presets by viewModel.durationPresets.collectAsStateWithLifecycle()
+    val background by viewModel.background.collectAsStateWithLifecycle()
+
+    val backgroundPicker = rememberLauncherForActivityResult(
+        ActivityResultContracts.PickVisualMedia(),
+    ) { uri -> uri?.let(viewModel::setBackground) }
 
     var label by remember { mutableStateOf("") }
     var minutes by remember(presets) { mutableStateOf(presets.getOrElse(1) { 25 }) }
@@ -109,19 +127,17 @@ fun TodoScreen(
                 base = FocusColors.BaseLight,
                 blob = FocusColors.AccentDeep.copy(alpha = 0.12f),
             )
-            // Only top/sides here — the add bar handles the bottom (keyboard + nav bar) itself.
-            .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal)),
+            // Only sides here — the header handles the top inset, the add bar the bottom.
+            .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal)),
     ) {
-        Row(
-            Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 20.dp, vertical = 16.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text("할 일", color = FocusColors.Ink, fontSize = 20.sp, fontWeight = FontWeight.Bold)
-            Spacer(Modifier.width(8.dp))
-            Text("${planned.size}개", color = FocusColors.Muted, fontFamily = MonoFamily, fontSize = 12.sp)
-        }
+        TodoHeader(
+            backgroundFileName = background,
+            count = planned.size,
+            onPickBackground = {
+                backgroundPicker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+            },
+            onClearBackground = viewModel::clearBackground,
+        )
 
         if (planned.isEmpty()) {
             Column(
@@ -263,6 +279,128 @@ fun TodoScreen(
             onSave = { m ->
                 minutes = m
                 showCustomMinutes = false
+            },
+        )
+    }
+}
+
+/**
+ * Big title + today's date over a full-bleed header photo — the user's own picked photo when
+ * set, otherwise the app's usual soft gradient. The small button lets them set/change/clear it.
+ */
+@Composable
+private fun TodoHeader(
+    backgroundFileName: String?,
+    count: Int,
+    onPickBackground: () -> Unit,
+    onClearBackground: () -> Unit,
+) {
+    val context = LocalContext.current
+    var showBackgroundMenu by remember { mutableStateOf(false) }
+    val today = remember { LocalDate.now() }
+
+    Box(
+        Modifier
+            .fillMaxWidth()
+            .height(220.dp),
+    ) {
+        if (backgroundFileName != null) {
+            val request = remember(backgroundFileName) {
+                ImageRequest.Builder(context)
+                    .data(PhotoStorage.fileIn(context, backgroundFileName))
+                    .crossfade(true)
+                    .build()
+            }
+            AsyncImage(
+                model = request,
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize(),
+            )
+            // Scrim so the white title stays legible over any photo.
+            Box(
+                Modifier
+                    .fillMaxSize()
+                    .background(
+                        Brush.verticalGradient(
+                            colors = listOf(Color(0x00000000), Color(0x99101820)),
+                        ),
+                    ),
+            )
+        }
+
+        Column(
+            Modifier
+                .align(Alignment.BottomStart)
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp, vertical = 18.dp),
+        ) {
+            Text(
+                "오늘 할 일",
+                color = if (backgroundFileName != null) Color.White else FocusColors.Ink,
+                fontSize = 28.sp,
+                fontWeight = FontWeight.Bold,
+            )
+            Spacer(Modifier.height(4.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    Formatters.monthDayWeekday(today),
+                    color = if (backgroundFileName != null) Color(0xE6FFFFFF) else FocusColors.Muted,
+                    fontSize = 13.5.sp,
+                )
+                Spacer(Modifier.width(8.dp))
+                Text(
+                    "${count}개",
+                    color = if (backgroundFileName != null) Color(0xB3FFFFFF) else FocusColors.Muted,
+                    fontFamily = MonoFamily,
+                    fontSize = 12.sp,
+                )
+            }
+        }
+
+        IconActionButton(
+            icon = Icons.Outlined.AddPhotoAlternate,
+            contentDescription = "배경 사진",
+            onClick = { showBackgroundMenu = true },
+            onDark = backgroundFileName != null,
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Top))
+                .padding(16.dp),
+        )
+    }
+
+    if (showBackgroundMenu) {
+        AlertDialog(
+            onDismissRequest = { showBackgroundMenu = false },
+            title = { Text("배경 사진", fontWeight = FontWeight.Bold) },
+            text = { Text("할 일 화면 위쪽 배경으로 쓸 사진을 골라주세요.", color = FocusColors.Muted, fontSize = 13.5.sp) },
+            confirmButton = {
+                IconActionButton(
+                    icon = Icons.Outlined.AddPhotoAlternate,
+                    contentDescription = "사진 선택",
+                    onClick = {
+                        showBackgroundMenu = false
+                        onPickBackground()
+                    },
+                    accent = true,
+                    size = 40.dp,
+                )
+            },
+            dismissButton = {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    if (backgroundFileName != null) {
+                        IconActionButton(
+                            icon = Icons.Outlined.Close,
+                            contentDescription = "기본으로",
+                            onClick = {
+                                showBackgroundMenu = false
+                                onClearBackground()
+                            },
+                            size = 40.dp,
+                        )
+                    }
+                }
             },
         )
     }

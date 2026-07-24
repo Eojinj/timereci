@@ -44,6 +44,8 @@ data class FocusSettings(
     val photoAspect: PhotoAspect = PhotoAspect.PORTRAIT,
     /** Quick-pick minute presets shown on the timer, settings and todo screens. */
     val durationPresets: List<Int> = DEFAULT_DURATION_PRESETS,
+    /** File name (in PhotoStorage) of the todo screen's custom background photo, or null. */
+    val todoBackgroundFileName: String? = null,
 )
 
 @Singleton
@@ -57,6 +59,7 @@ class SettingsRepository @Inject constructor(
             keepRunningWhileCommenting = prefs[KEY_KEEP_RUNNING] ?: true,
             photoAspect = PhotoAspect.from(prefs[KEY_PHOTO_ASPECT]),
             durationPresets = parsePresets(prefs[KEY_DURATION_PRESETS]),
+            todoBackgroundFileName = prefs[KEY_TODO_BG]?.ifBlank { null },
         )
     }
 
@@ -64,6 +67,11 @@ class SettingsRepository @Inject constructor(
     suspend fun setProportionalLength(value: Boolean) = edit { it[KEY_PROPORTIONAL] = value }
     suspend fun setKeepRunningWhileCommenting(value: Boolean) = edit { it[KEY_KEEP_RUNNING] = value }
     suspend fun setPhotoAspect(value: PhotoAspect) = edit { it[KEY_PHOTO_ASPECT] = value.name }
+
+    /** Sets (or clears, with null) the todo screen's custom background photo. */
+    suspend fun setTodoBackground(fileName: String?) = edit {
+        if (fileName == null) it.remove(KEY_TODO_BG) else it[KEY_TODO_BG] = fileName
+    }
 
     private fun parsePresets(raw: String?): List<Int> {
         val parsed = raw?.split(",")?.mapNotNull { it.toIntOrNull() }
@@ -80,5 +88,6 @@ class SettingsRepository @Inject constructor(
         val KEY_KEEP_RUNNING = booleanPreferencesKey("keep_running_commenting")
         val KEY_PHOTO_ASPECT = stringPreferencesKey("photo_aspect")
         val KEY_DURATION_PRESETS = stringPreferencesKey("duration_presets")
+        val KEY_TODO_BG = stringPreferencesKey("todo_background")
     }
 }

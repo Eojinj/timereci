@@ -185,7 +185,9 @@ fun TimerScreen(
                     .fillMaxSize()
                     .background(
                         Brush.radialGradient(
-                            colors = listOf(Color(0xFFB9D8F0), Color(0xFFE6F1FB), Color(0xFFFFFFFF)),
+                            0f to Color(0xFF6FA8DE),
+                            0.5f to Color(0xFFBEE0F5),
+                            1f to Color(0xFFFFFFFF),
                         ),
                     ),
             )

@@ -4,7 +4,6 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -18,6 +17,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.ime
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
@@ -82,6 +82,9 @@ import com.timereci.focus.ui.util.Formatters
 import com.timereci.focus.ui.util.QuickEntry
 import java.time.LocalDate
 
+/** How much the rounded list sheet overlaps the header photo below it. */
+private val SHEET_OVERLAP = 24.dp
+
 /**
  * A dedicated page for the todo queue ("오늘 할 집중"): a scrollable list up top, and an
  * add bar pinned to the bottom (like a chat compose bar) so it's always in thumb reach. Typing
@@ -139,135 +142,145 @@ fun TodoScreen(
             onClearBackground = viewModel::clearBackground,
         )
 
-        if (planned.isEmpty()) {
-            Column(
-                Modifier
-                    .weight(1f)
-                    .fillMaxWidth()
-                    .padding(40.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center,
-            ) {
-                Text(
-                    "아직 할 일이 없어요.\n아래에 적고 엔터를 누르면 바로 쌓여요.\n\"빨래 20\"처럼 뒤에 숫자를 붙이면 분까지 한 번에 설정돼요.",
-                    color = FocusColors.Muted,
-                    fontSize = 14.sp,
-                    lineHeight = 22.sp,
-                    textAlign = TextAlign.Center,
-                )
-            }
-        } else {
-            LazyColumn(
-                modifier = Modifier
-                    .weight(1f)
-                    .fillMaxWidth(),
-                contentPadding = PaddingValues(horizontal = 20.dp, vertical = 4.dp),
-            ) {
-                items(planned, key = { it.id }) { item ->
-                    TodoRow(
-                        item = item,
-                        onStart = {
-                            viewModel.remove(item.id)
-                            onStartPlanned(item.label, (item.plannedMs / 60_000L).toInt().coerceAtLeast(1))
-                        },
-                        onDelete = { viewModel.remove(item.id) },
-                    )
-                }
-            }
-        }
-
-        // Add bar, pinned to the bottom. It sits just above the keyboard while typing, and
-        // above the floating tab bar when the keyboard is closed.
-        val keyboardOpen = WindowInsets.ime.getBottom(LocalDensity.current) > 0
+        // The list + add bar live in a rounded "sheet" that overlaps the header photo by a
+        // little, so the seam reads as a deliberate layer instead of a flat photo-to-grey cut.
         Column(
             Modifier
+                .weight(1f)
                 .fillMaxWidth()
-                .windowInsetsPadding(WindowInsets.systemBars.union(WindowInsets.ime).only(WindowInsetsSides.Bottom))
-                .padding(start = 20.dp, top = 12.dp, end = 20.dp, bottom = if (keyboardOpen) 12.dp else 92.dp),
+                .offset(y = (-SHEET_OVERLAP))
+                .clip(RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp))
+                .background(FocusColors.Paper),
         ) {
-            if (previewMinutes != null) {
-                Text(
-                    "→ ${previewLabel.ifBlank { "집중" }} · ${previewMinutes}분",
-                    color = FocusColors.AccentBlue,
-                    fontFamily = MonoFamily,
-                    fontSize = 11.5.sp,
-                    modifier = Modifier.padding(bottom = 6.dp),
-                )
+            if (planned.isEmpty()) {
+                Column(
+                    Modifier
+                        .weight(1f)
+                        .fillMaxWidth()
+                        .padding(40.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center,
+                ) {
+                    Text(
+                        "아직 할 일이 없어요.\n아래에 적고 엔터를 누르면 바로 쌓여요.\n\"빨래 20\"처럼 뒤에 숫자를 붙이면 분까지 한 번에 설정돼요.",
+                        color = FocusColors.Muted,
+                        fontSize = 14.sp,
+                        lineHeight = 22.sp,
+                        textAlign = TextAlign.Center,
+                    )
+                }
+            } else {
+                LazyColumn(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxWidth(),
+                    contentPadding = PaddingValues(start = 20.dp, top = SHEET_OVERLAP + 4.dp, end = 20.dp, bottom = 4.dp),
+                ) {
+                    items(planned, key = { it.id }) { item ->
+                        TodoRow(
+                            item = item,
+                            onStart = {
+                                viewModel.remove(item.id)
+                                onStartPlanned(item.label, (item.plannedMs / 60_000L).toInt().coerceAtLeast(1))
+                            },
+                            onDelete = { viewModel.remove(item.id) },
+                        )
+                    }
+                }
             }
 
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                presets.forEach { m ->
-                    val active = m == minutes && previewMinutes == null
+            // Add bar, pinned to the bottom. It sits just above the keyboard while typing, and
+            // above the floating tab bar when the keyboard is closed.
+            val keyboardOpen = WindowInsets.ime.getBottom(LocalDensity.current) > 0
+            Column(
+                Modifier
+                    .fillMaxWidth()
+                    .windowInsetsPadding(WindowInsets.systemBars.union(WindowInsets.ime).only(WindowInsetsSides.Bottom))
+                    .padding(start = 20.dp, top = 12.dp, end = 20.dp, bottom = if (keyboardOpen) 12.dp else 92.dp),
+            ) {
+                if (previewMinutes != null) {
+                    Text(
+                        "→ ${previewLabel.ifBlank { "집중" }} · ${previewMinutes}분",
+                        color = FocusColors.AccentBlue,
+                        fontFamily = MonoFamily,
+                        fontSize = 11.5.sp,
+                        modifier = Modifier.padding(bottom = 6.dp),
+                    )
+                }
+
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    presets.forEach { m ->
+                        val active = m == minutes && previewMinutes == null
+                        Box(
+                            Modifier
+                                .clip(RoundedCornerShape(20.dp))
+                                .background(if (active) FocusColors.AccentDeep else FocusColors.Mist)
+                                .clickable { minutes = m }
+                                .padding(horizontal = 14.dp, vertical = 8.dp),
+                        ) {
+                            Text(
+                                "${m}분",
+                                color = if (active) FocusColors.Paper else FocusColors.Ink2,
+                                fontFamily = MonoFamily,
+                                fontSize = 12.5.sp,
+                            )
+                        }
+                    }
+                    val customActive = previewMinutes == null && minutes !in presets
                     Box(
                         Modifier
                             .clip(RoundedCornerShape(20.dp))
-                            .background(if (active) FocusColors.AccentDeep else FocusColors.Mist)
-                            .clickable { minutes = m }
+                            .background(if (customActive) FocusColors.AccentDeep else FocusColors.Mist)
+                            .clickable { showCustomMinutes = true }
                             .padding(horizontal = 14.dp, vertical = 8.dp),
                     ) {
                         Text(
-                            "${m}분",
-                            color = if (active) FocusColors.Paper else FocusColors.Ink2,
+                            if (customActive) "${minutes}분" else "직접",
+                            color = if (customActive) FocusColors.Paper else FocusColors.Ink2,
                             fontFamily = MonoFamily,
                             fontSize = 12.5.sp,
                         )
                     }
                 }
-                val customActive = previewMinutes == null && minutes !in presets
-                Box(
-                    Modifier
-                        .clip(RoundedCornerShape(20.dp))
-                        .background(if (customActive) FocusColors.AccentDeep else FocusColors.Mist)
-                        .clickable { showCustomMinutes = true }
-                        .padding(horizontal = 14.dp, vertical = 8.dp),
+
+                Spacer(Modifier.height(10.dp))
+
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
-                    Text(
-                        if (customActive) "${minutes}분" else "직접",
-                        color = if (customActive) FocusColors.Paper else FocusColors.Ink2,
-                        fontFamily = MonoFamily,
-                        fontSize = 12.5.sp,
+                    Box(
+                        Modifier
+                            .weight(1f)
+                            .clip(RoundedCornerShape(14.dp))
+                            .background(FocusColors.Mist)
+                            .padding(horizontal = 16.dp, vertical = 14.dp),
+                    ) {
+                        BasicTextField(
+                            value = label,
+                            onValueChange = { label = it },
+                            singleLine = true,
+                            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                            keyboardActions = KeyboardActions(onDone = { submit() }),
+                            cursorBrush = SolidColor(FocusColors.AccentBlue),
+                            textStyle = TextStyle(color = FocusColors.Ink, fontSize = 15.sp),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .focusRequester(focusRequester),
+                            decorationBox = { inner ->
+                                if (label.isEmpty()) Text("무엇에 집중할까요? (예: 빨래 20)", color = FocusColors.Muted2, fontSize = 15.sp)
+                                inner()
+                            },
+                        )
+                    }
+                    IconActionButton(
+                        icon = Icons.Outlined.Add,
+                        contentDescription = "추가",
+                        onClick = ::submit,
+                        accent = true,
+                        size = 48.dp,
                     )
                 }
-            }
-
-            Spacer(Modifier.height(10.dp))
-
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
-            ) {
-                Box(
-                    Modifier
-                        .weight(1f)
-                        .clip(RoundedCornerShape(14.dp))
-                        .background(FocusColors.Paper)
-                        .border(1.dp, FocusColors.LineStrong, RoundedCornerShape(14.dp))
-                        .padding(horizontal = 16.dp, vertical = 14.dp),
-                ) {
-                    BasicTextField(
-                        value = label,
-                        onValueChange = { label = it },
-                        singleLine = true,
-                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-                        keyboardActions = KeyboardActions(onDone = { submit() }),
-                        cursorBrush = SolidColor(FocusColors.AccentBlue),
-                        textStyle = TextStyle(color = FocusColors.Ink, fontSize = 15.sp),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .focusRequester(focusRequester),
-                        decorationBox = { inner ->
-                            if (label.isEmpty()) Text("무엇에 집중할까요? (예: 빨래 20)", color = FocusColors.Muted2, fontSize = 15.sp)
-                            inner()
-                        },
-                    )
-                }
-                IconActionButton(
-                    icon = Icons.Outlined.Add,
-                    contentDescription = "추가",
-                    onClick = ::submit,
-                    accent = true,
-                    size = 48.dp,
-                )
             }
         }
     }
@@ -302,7 +315,7 @@ private fun TodoHeader(
     Box(
         Modifier
             .fillMaxWidth()
-            .height(220.dp),
+            .height(250.dp),
     ) {
         if (backgroundFileName != null) {
             val request = remember(backgroundFileName) {
@@ -333,7 +346,7 @@ private fun TodoHeader(
             Modifier
                 .align(Alignment.BottomStart)
                 .fillMaxWidth()
-                .padding(horizontal = 20.dp, vertical = 18.dp),
+                .padding(start = 20.dp, end = 20.dp, top = 18.dp, bottom = SHEET_OVERLAP + 20.dp),
         ) {
             Text(
                 "오늘 할 일",
@@ -456,44 +469,43 @@ private fun TodoRow(item: PlannedFocusEntity, onStart: () -> Unit, onDelete: () 
     Row(
         Modifier
             .fillMaxWidth()
-            .padding(vertical = 6.dp)
-            .clip(RoundedCornerShape(14.dp))
-            .background(FocusColors.Paper)
-            .border(1.dp, FocusColors.LineSoft, RoundedCornerShape(14.dp))
-            .padding(horizontal = 16.dp, vertical = 12.dp),
+            .padding(vertical = 4.dp)
+            .clip(RoundedCornerShape(12.dp))
+            .background(FocusColors.Mist)
+            .padding(horizontal = 14.dp, vertical = 9.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Column(Modifier.weight(1f)) {
             Text(
                 item.label.ifBlank { "집중" },
                 color = FocusColors.Ink,
-                fontSize = 15.sp,
+                fontSize = 14.5.sp,
                 fontWeight = FontWeight.SemiBold,
             )
-            Spacer(Modifier.height(2.dp))
+            Spacer(Modifier.height(1.dp))
             Text(
                 "${(item.plannedMs / 60_000L).toInt()}분",
                 color = FocusColors.Muted,
                 fontFamily = MonoFamily,
-                fontSize = 12.sp,
+                fontSize = 11.5.sp,
             )
         }
         Box(
             Modifier
-                .size(22.dp)
+                .size(20.dp)
                 .clip(CircleShape)
                 .clickable(onClick = onDelete),
             contentAlignment = Alignment.Center,
         ) {
-            Icon(Icons.Outlined.Close, contentDescription = "삭제", tint = FocusColors.Muted2, modifier = Modifier.size(15.dp))
+            Icon(Icons.Outlined.Close, contentDescription = "삭제", tint = FocusColors.Muted2, modifier = Modifier.size(14.dp))
         }
-        Spacer(Modifier.width(10.dp))
+        Spacer(Modifier.width(8.dp))
         IconActionButton(
             icon = Icons.Filled.PlayArrow,
             contentDescription = "시작",
             onClick = onStart,
             accent = true,
-            size = 38.dp,
+            size = 34.dp,
         )
     }
 }

@@ -80,8 +80,6 @@ import com.timereci.focus.ui.components.grain
 import com.timereci.focus.ui.theme.FocusColors
 import com.timereci.focus.ui.theme.GothicFamily
 import com.timereci.focus.ui.theme.MonoFamily
-import com.timereci.focus.ui.theme.PhotoTones
-import com.timereci.focus.ui.theme.patternPlaceholder
 import com.timereci.focus.ui.util.Formatters
 import com.timereci.focus.ui.util.findActivity
 
@@ -100,7 +98,6 @@ fun TimerScreen(
     val recentPhotos by viewModel.recentPhotos.collectAsStateWithLifecycle()
     var showBackdropPicker by remember { mutableStateOf(false) }
     var confirmStop by remember { mutableStateOf(false) }
-    val emptyBackdropTone = remember { PhotoTones.indexFor(java.time.LocalDate.now().toEpochDay()) }
 
     val context = LocalContext.current
     val sensorLandscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
@@ -157,12 +154,14 @@ fun TimerScreen(
             .background(FocusColors.BaseLight)
             .grain(0.07f),
     ) {
-        // Backdrop: chosen photo, else a neutral ground (no plastic blue).
-        backdrop?.fileName?.let { name ->
+        // Backdrop: chosen photo (with a neutral wash for readability), else a soft blue centre
+        // fading out to white at the edges.
+        val backdropName = backdrop?.fileName
+        if (backdropName != null) {
             // Built once per photo (not on every 250ms tick) so the running screen stays smooth.
-            val backdropRequest = remember(name) {
+            val backdropRequest = remember(backdropName) {
                 ImageRequest.Builder(context)
-                    .data(PhotoStorage.fileIn(context, name)).crossfade(true).build()
+                    .data(PhotoStorage.fileIn(context, backdropName)).crossfade(true).build()
             }
             AsyncImage(
                 model = backdropRequest,
@@ -170,21 +169,27 @@ fun TimerScreen(
                 contentScale = ContentScale.Crop,
                 modifier = Modifier.fillMaxSize(),
             )
-        } ?: Box(
-            Modifier
-                .fillMaxSize()
-                .patternPlaceholder(emptyBackdropTone),
-        )
-        // Wash so the digits stay readable over any photo (neutral, not blue).
-        Box(
-            Modifier
-                .fillMaxSize()
-                .background(
-                    Brush.radialGradient(
-                        colors = listOf(Color(0xE6F6F7F9), Color(0xB8E6E9ED), Color(0x8FD4D8DE)),
+            // Wash so the digits stay readable over any photo.
+            Box(
+                Modifier
+                    .fillMaxSize()
+                    .background(
+                        Brush.radialGradient(
+                            colors = listOf(Color(0xE6F6F7F9), Color(0xB8E6E9ED), Color(0x8FD4D8DE)),
+                        ),
                     ),
-                ),
-        )
+            )
+        } else {
+            Box(
+                Modifier
+                    .fillMaxSize()
+                    .background(
+                        Brush.radialGradient(
+                            colors = listOf(Color(0xFFB9D8F0), Color(0xFFE6F1FB), Color(0xFFFFFFFF)),
+                        ),
+                    ),
+            )
+        }
 
         // Manual landscape toggle, top-right (always available).
         IconActionButton(

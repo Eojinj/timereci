@@ -10,13 +10,17 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.ime
+import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.systemBars
+import androidx.compose.foundation.layout.union
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
@@ -47,6 +51,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -104,7 +109,8 @@ fun TodoScreen(
                 base = FocusColors.BaseLight,
                 blob = FocusColors.AccentDeep.copy(alpha = 0.12f),
             )
-            .windowInsetsPadding(WindowInsets.safeDrawing),
+            // Only top/sides here — the add bar handles the bottom (keyboard + nav bar) itself.
+            .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal)),
     ) {
         Row(
             Modifier
@@ -154,12 +160,14 @@ fun TodoScreen(
             }
         }
 
-        // Add bar, pinned to the bottom and lifted above the keyboard while typing.
+        // Add bar, pinned to the bottom. It sits just above the keyboard while typing, and
+        // above the floating tab bar when the keyboard is closed.
+        val keyboardOpen = WindowInsets.ime.getBottom(LocalDensity.current) > 0
         Column(
             Modifier
                 .fillMaxWidth()
-                .imePadding()
-                .padding(start = 20.dp, top = 12.dp, end = 20.dp, bottom = 100.dp),
+                .windowInsetsPadding(WindowInsets.systemBars.union(WindowInsets.ime).only(WindowInsetsSides.Bottom))
+                .padding(start = 20.dp, top = 12.dp, end = 20.dp, bottom = if (keyboardOpen) 12.dp else 92.dp),
         ) {
             if (previewMinutes != null) {
                 Text(

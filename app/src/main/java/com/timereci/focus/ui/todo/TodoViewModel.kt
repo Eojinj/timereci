@@ -3,11 +3,11 @@ package com.timereci.focus.ui.todo
 import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.timereci.focus.data.DEFAULT_DURATION_PRESETS
 import com.timereci.focus.data.FocusRepository
 import com.timereci.focus.data.PlannedFocusEntity
 import com.timereci.focus.data.SettingsRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
@@ -28,31 +28,36 @@ class TodoViewModel @Inject constructor(
     val planned: StateFlow<List<PlannedFocusEntity>> = repository.observePlannedFocus()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
-    val durationPresets: StateFlow<List<Int>> = settingsRepository.settings
-        .map { it.durationPresets }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), DEFAULT_DURATION_PRESETS)
-
     /** File name of the custom background photo for this screen, or null for the default. */
     val background: StateFlow<String?> = settingsRepository.settings
         .map { it.todoBackgroundFileName }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
+    /** Labels the user has dismissed from the "다시 할까요?" row — in-memory only, so a fresh
+     * app launch offers everything again. */
+    private val dismissedRecent = MutableStateFlow<Set<String>>(emptySet())
+
     /** Recently completed tasks (most recent per distinct label), offered as "add it again"
-     * chips — skips anything already sitting in today's queue. */
+     * chips — skips anything already sitting in today's queue or dismissed by the user. */
     val recentCompleted: StateFlow<List<RecentTask>> = combine(
         repository.observeReceipts(),
         planned,
-    ) { receipts, queued ->
+        dismissedRecent,
+    ) { receipts, queued, dismissed ->
         val queuedLabels = queued.map { it.label }.toSet()
         receipts
             .asSequence()
             .filter { it.taskLabel.isNotBlank() }
             .distinctBy { it.taskLabel }
-            .filterNot { it.taskLabel in queuedLabels }
+            .filterNot { it.taskLabel in queuedLabels || it.taskLabel in dismissed }
             .take(6)
             .map { RecentTask(it.taskLabel, (it.plannedMs / 60_000L).toInt().coerceAtLeast(1)) }
             .toList()
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    fun dismissRecent(label: String) {
+        dismissedRecent.value = dismissedRecent.value + label
+    }
 
     fun add(label: String, minutes: Int) {
         viewModelScope.launch {

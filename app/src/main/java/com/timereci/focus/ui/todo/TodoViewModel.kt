@@ -10,10 +10,14 @@ import com.timereci.focus.data.SettingsRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+
+/** A previously done task, offered as a quick "add it again" chip. */
+data class RecentTask(val label: String, val minutes: Int)
 
 @HiltViewModel
 class TodoViewModel @Inject constructor(
@@ -32,6 +36,23 @@ class TodoViewModel @Inject constructor(
     val background: StateFlow<String?> = settingsRepository.settings
         .map { it.todoBackgroundFileName }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
+    /** Recently completed tasks (most recent per distinct label), offered as "add it again"
+     * chips — skips anything already sitting in today's queue. */
+    val recentCompleted: StateFlow<List<RecentTask>> = combine(
+        repository.observeReceipts(),
+        planned,
+    ) { receipts, queued ->
+        val queuedLabels = queued.map { it.label }.toSet()
+        receipts
+            .asSequence()
+            .filter { it.taskLabel.isNotBlank() }
+            .distinctBy { it.taskLabel }
+            .filterNot { it.taskLabel in queuedLabels }
+            .take(6)
+            .map { RecentTask(it.taskLabel, (it.plannedMs / 60_000L).toInt().coerceAtLeast(1)) }
+            .toList()
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     fun add(label: String, minutes: Int) {
         viewModelScope.launch {

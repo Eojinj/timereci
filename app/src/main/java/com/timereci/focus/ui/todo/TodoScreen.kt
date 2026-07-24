@@ -5,6 +5,8 @@ import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -27,6 +29,7 @@ import androidx.compose.foundation.layout.union
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -99,6 +102,7 @@ fun TodoScreen(
     val planned by viewModel.planned.collectAsStateWithLifecycle()
     val presets by viewModel.durationPresets.collectAsStateWithLifecycle()
     val background by viewModel.background.collectAsStateWithLifecycle()
+    val recentCompleted by viewModel.recentCompleted.collectAsStateWithLifecycle()
 
     val backgroundPicker = rememberLauncherForActivityResult(
         ActivityResultContracts.PickVisualMedia(),
@@ -157,17 +161,30 @@ fun TodoScreen(
                     Modifier
                         .weight(1f)
                         .fillMaxWidth()
-                        .padding(40.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center,
+                        .verticalScroll(rememberScrollState())
+                        .padding(top = SHEET_OVERLAP + 20.dp, bottom = 20.dp),
                 ) {
-                    Text(
-                        "아직 할 일이 없어요.\n아래에 적고 엔터를 누르면 바로 쌓여요.\n\"빨래 20\"처럼 뒤에 숫자를 붙이면 분까지 한 번에 설정돼요.",
-                        color = FocusColors.Muted,
-                        fontSize = 14.sp,
-                        lineHeight = 22.sp,
-                        textAlign = TextAlign.Center,
-                    )
+                    if (recentCompleted.isNotEmpty()) {
+                        RecentTaskChips(
+                            tasks = recentCompleted,
+                            onAdd = { task -> viewModel.add(task.label, task.minutes) },
+                        )
+                        Spacer(Modifier.height(8.dp))
+                    }
+                    Column(
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 20.dp, vertical = 20.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                    ) {
+                        Text(
+                            "아직 할 일이 없어요.\n아래에 적고 엔터를 누르면 바로 쌓여요.\n\"빨래 20\"처럼 뒤에 숫자를 붙이면 분까지 한 번에 설정돼요.",
+                            color = FocusColors.Muted,
+                            fontSize = 14.sp,
+                            lineHeight = 22.sp,
+                            textAlign = TextAlign.Center,
+                        )
+                    }
                 }
             } else {
                 LazyColumn(
@@ -176,6 +193,15 @@ fun TodoScreen(
                         .fillMaxWidth(),
                     contentPadding = PaddingValues(start = 20.dp, top = SHEET_OVERLAP + 4.dp, end = 20.dp, bottom = 4.dp),
                 ) {
+                    if (recentCompleted.isNotEmpty()) {
+                        item {
+                            RecentTaskChips(
+                                tasks = recentCompleted,
+                                onAdd = { task -> viewModel.add(task.label, task.minutes) },
+                            )
+                            Spacer(Modifier.height(6.dp))
+                        }
+                    }
                     items(planned, key = { it.id }) { item ->
                         TodoRow(
                             item = item,
@@ -462,6 +488,45 @@ private fun CustomMinutesDialog(initialMinutes: Int, onDismiss: () -> Unit, onSa
             IconActionButton(icon = Icons.Outlined.Close, contentDescription = "취소", onClick = onDismiss, size = 40.dp)
         },
     )
+}
+
+/** "Add it again" chips for recently completed tasks — tap to drop one back into today's queue. */
+@Composable
+private fun RecentTaskChips(tasks: List<RecentTask>, onAdd: (RecentTask) -> Unit) {
+    Column(Modifier.padding(top = 4.dp, bottom = 2.dp)) {
+        Text(
+            "다시 할까요?",
+            color = FocusColors.Muted,
+            fontFamily = MonoFamily,
+            fontSize = 11.sp,
+            modifier = Modifier.padding(horizontal = 20.dp, vertical = 6.dp),
+        )
+        LazyRow(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            contentPadding = PaddingValues(horizontal = 20.dp),
+        ) {
+            items(tasks, key = { it.label }) { task ->
+                Row(
+                    Modifier
+                        .clip(RoundedCornerShape(20.dp))
+                        .background(FocusColors.Mist)
+                        .clickable { onAdd(task) }
+                        .padding(horizontal = 12.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
+                    Icon(Icons.Outlined.Add, contentDescription = null, tint = FocusColors.Ink2, modifier = Modifier.size(13.dp))
+                    Text(task.label, color = FocusColors.Ink2, fontSize = 12.5.sp, fontWeight = FontWeight.Medium)
+                    Text(
+                        "${task.minutes}분",
+                        color = FocusColors.Muted,
+                        fontFamily = MonoFamily,
+                        fontSize = 11.sp,
+                    )
+                }
+            }
+        }
+    }
 }
 
 @Composable

@@ -2,6 +2,7 @@ package com.timereci.focus.timer
 
 import android.content.Context
 import android.content.Intent
+import android.media.Ringtone
 import android.media.RingtoneManager
 import android.os.SystemClock
 import androidx.core.content.ContextCompat
@@ -162,12 +163,26 @@ class FocusTimerController @Inject constructor(
         if (playAlarm) playCompletionSound()
     }
 
-    /** Rings the device's default alarm tone once when the countdown runs out on its own. */
+    private var completionRingtone: Ringtone? = null
+
+    /**
+     * Rings the device's default alarm tone when the countdown runs out on its own, then stops
+     * it after [ALARM_SOUND_MS] — many devices' default alarm tone loops indefinitely by design
+     * (that's the point of an alarm), and [Ringtone.play] has no built-in stop, so left alone it
+     * would ring until the app process was killed.
+     */
     private fun playCompletionSound() {
         runCatching {
+            completionRingtone?.stop()
             val uri = RingtoneManager.getActualDefaultRingtoneUri(context, RingtoneManager.TYPE_ALARM)
                 ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
-            RingtoneManager.getRingtone(context, uri)?.play()
+            val ringtone = RingtoneManager.getRingtone(context, uri) ?: return
+            completionRingtone = ringtone
+            ringtone.play()
+            scope.launch {
+                delay(ALARM_SOUND_MS)
+                ringtone.stop()
+            }
         }
     }
 
@@ -237,5 +252,6 @@ class FocusTimerController @Inject constructor(
 
     private companion object {
         const val TICK_MS = 250L
+        const val ALARM_SOUND_MS = 6_000L
     }
 }

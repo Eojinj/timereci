@@ -67,6 +67,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -310,9 +311,10 @@ fun TimerScreen(
 }
 
 /**
- * The pre-start setup, presented as a single card floating over the backdrop: just a task
- * field and a full-width start button anchored to the bottom of the card. Duration isn't set
- * here — it's whatever the default (Settings) or queued item already supplied.
+ * The pre-start setup, floating directly over the backdrop (no opaque card, so the gradient
+ * stays visible): a ring in the middle — echoing the app icon — that you tap to reveal the
+ * task field and start button. Duration isn't set here — it's whatever the default (Settings)
+ * or queued item already supplied.
  */
 @Composable
 private fun PreStartContent(
@@ -324,74 +326,109 @@ private fun PreStartContent(
     onStart: () -> Unit,
     cameFromQueue: Boolean,
 ) {
+    // Already-queued sessions (task prefilled) skip straight to the revealed form.
+    var revealed by remember { mutableStateOf(cameFromQueue) }
+
     Box(
         modifier = Modifier
             .fillMaxSize()
             .windowInsetsPadding(WindowInsets.safeDrawing)
             .padding(horizontal = 22.dp, vertical = 16.dp),
-        contentAlignment = Alignment.Center,
     ) {
-        Column(
-            modifier = Modifier
-                .then(if (isLandscape) Modifier.widthIn(max = 420.dp) else Modifier.fillMaxWidth())
-                .clip(RoundedCornerShape(28.dp))
-                .background(FocusColors.Paper)
-                .border(1.dp, FocusColors.LineSoft, RoundedCornerShape(28.dp))
-                .padding(horizontal = 22.dp, vertical = 22.dp),
+        Row(
+            Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-            Row(
-                Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                if (cameFromQueue) {
-                    Row(
-                        Modifier
-                            .clip(RoundedCornerShape(20.dp))
-                            .background(FocusColors.Mist)
-                            .padding(horizontal = 12.dp, vertical = 6.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(6.dp),
-                    ) {
-                        Icon(
-                            Icons.Outlined.Checklist,
-                            contentDescription = null,
-                            tint = FocusColors.AccentBlue,
-                            modifier = Modifier.size(13.dp),
-                        )
-                        Text("할 일 큐에서", color = FocusColors.AccentBlue, fontFamily = MonoFamily, fontSize = 11.sp)
-                    }
+            if (cameFromQueue) {
+                Row(
+                    Modifier
+                        .clip(RoundedCornerShape(20.dp))
+                        .background(Color(0xB3FFFFFF))
+                        .padding(horizontal = 12.dp, vertical = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    Icon(
+                        Icons.Outlined.Checklist,
+                        contentDescription = null,
+                        tint = FocusColors.AccentBlue,
+                        modifier = Modifier.size(13.dp),
+                    )
+                    Text("할 일 큐에서", color = FocusColors.AccentBlue, fontFamily = MonoFamily, fontSize = 11.sp)
                 }
-                Spacer(Modifier.weight(1f))
-                IconActionButton(
-                    icon = Icons.Outlined.PhotoCamera,
-                    contentDescription = "배경 사진 지정",
-                    onClick = onPickBackdrop,
-                    size = 42.dp,
-                    accent = hasBackdrop,
-                )
             }
-
-            Spacer(Modifier.height(if (isLandscape) 10.dp else 18.dp))
-
-            TaskField(value = task, onValueChange = onTaskChange, big = !isLandscape)
-
-            Spacer(Modifier.height(8.dp))
-
-            Text(
-                "뒤에 숫자를 붙이면 그 시간(분)으로 시작 · 예) 빨래 20",
-                color = FocusColors.Muted2,
-                fontFamily = MonoFamily,
-                fontSize = 10.5.sp,
+            Spacer(Modifier.weight(1f))
+            IconActionButton(
+                icon = Icons.Outlined.PhotoCamera,
+                contentDescription = "배경 사진 지정",
+                onClick = onPickBackdrop,
+                size = 42.dp,
+                accent = hasBackdrop,
             )
+        }
 
-            Spacer(Modifier.height(if (isLandscape) 16.dp else 22.dp))
+        Crossfade(
+            targetState = revealed,
+            modifier = Modifier.align(Alignment.Center),
+            label = "reveal",
+        ) { isRevealed ->
+            if (isRevealed) {
+                Column(
+                    modifier = Modifier.then(if (isLandscape) Modifier.widthIn(max = 380.dp) else Modifier.fillMaxWidth()),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    TaskField(value = task, onValueChange = onTaskChange, big = !isLandscape)
 
-            StartButton(onClick = onStart, enabled = true)
+                    Spacer(Modifier.height(8.dp))
+
+                    Text(
+                        "뒤에 숫자를 붙이면 그 시간(분)으로 시작 · 예) 빨래 20",
+                        color = FocusColors.Muted2,
+                        fontFamily = MonoFamily,
+                        fontSize = 10.5.sp,
+                    )
+
+                    Spacer(Modifier.height(if (isLandscape) 16.dp else 22.dp))
+
+                    StartButton(onClick = onStart, enabled = true)
+                }
+            } else {
+                RevealRing(diameter = if (isLandscape) 190.dp else 220.dp, onTap = { revealed = true })
+            }
         }
     }
 }
 
-/** Full-width primary action, anchored to the bottom of the pre-start card. */
+/** The closed state of the pre-start setup: a hollow ring (echoing the app icon) that opens
+ * into the task field and start button when tapped. */
+@Composable
+private fun RevealRing(diameter: Dp, onTap: () -> Unit) {
+    Box(
+        Modifier
+            .size(diameter)
+            .clip(CircleShape)
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                onClick = onTap,
+            )
+            .border(3.dp, FocusColors.AccentDeep.copy(alpha = 0.5f), CircleShape),
+        contentAlignment = Alignment.Center,
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Icon(
+                Icons.Filled.PlayArrow,
+                contentDescription = null,
+                tint = FocusColors.AccentDeep,
+                modifier = Modifier.size(30.dp),
+            )
+            Spacer(Modifier.height(6.dp))
+            Text("탭해서 시작", color = FocusColors.Ink2, fontFamily = MonoFamily, fontSize = 12.sp)
+        }
+    }
+}
+
+/** Full-width primary action, shown once the pre-start ring has been tapped open. */
 @Composable
 private fun StartButton(onClick: () -> Unit, enabled: Boolean) {
     Row(

@@ -57,13 +57,16 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.BiasAlignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.BlurredEdgeTreatment
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
@@ -193,16 +196,20 @@ fun TimerScreen(
                     ),
             )
         } else {
+            // Centered a little above the true middle, to match where the star/cursor sits.
             Box(
                 Modifier
                     .fillMaxSize()
-                    .background(
-                        Brush.radialGradient(
+                    .drawWithCache {
+                        val brush = Brush.radialGradient(
                             0f to Color(0xFF6FA8DE),
                             0.5f to Color(0xFFBEE0F5),
                             1f to Color(0xFFFFFFFF),
-                        ),
-                    ),
+                            center = Offset(size.width / 2f, size.height * 0.42f),
+                            radius = size.maxDimension * 0.7f,
+                        )
+                        onDrawBehind { drawRect(brush) }
+                    },
             )
         }
 
@@ -344,10 +351,11 @@ private fun PreStartContent(
             )
         }
 
-        val diameter = if (isLandscape) 240.dp else 280.dp
+        val diameter = if (isLandscape) 310.dp else 365.dp
         Crossfade(
             targetState = revealed,
-            modifier = Modifier.align(Alignment.Center),
+            // A little above dead-center, matching the backdrop gradient's own center.
+            modifier = Modifier.align(BiasAlignment(0f, -0.16f)),
             label = "reveal",
         ) { isRevealed ->
             if (isRevealed) {

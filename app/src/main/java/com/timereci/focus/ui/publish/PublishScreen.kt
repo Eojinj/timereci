@@ -4,6 +4,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -18,6 +19,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -27,6 +29,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.AddPhotoAlternate
 import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.DeleteOutline
+import androidx.compose.material.icons.outlined.NotificationsOff
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -72,6 +76,7 @@ fun PublishScreen(
     val ui by viewModel.ui.collectAsStateWithLifecycle()
     val aspect by viewModel.photoAspect.collectAsStateWithLifecycle()
     val recentPhotos by viewModel.recentPhotos.collectAsStateWithLifecycle()
+    val alarmActive by viewModel.alarmActive.collectAsStateWithLifecycle()
     val context = LocalContext.current
     var showPhotoPicker by remember { mutableStateOf(false) }
 
@@ -102,6 +107,24 @@ fun PublishScreen(
             letterSpacing = 2.sp,
             modifier = Modifier.padding(top = 14.dp, bottom = 14.dp),
         )
+
+        // Completion alarm (sound + vibration) rings until dismissed — no auto-timeout — so
+        // this stays visible the whole time it's active.
+        if (alarmActive) {
+            Row(
+                Modifier
+                    .clip(RoundedCornerShape(20.dp))
+                    .background(FocusColors.Glass)
+                    .clickable(onClick = viewModel::stopAlarm)
+                    .padding(horizontal = 14.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                Icon(Icons.Outlined.NotificationsOff, contentDescription = null, tint = FocusColors.NightInk, modifier = Modifier.size(15.dp))
+                Text("알람 끄기", color = FocusColors.NightInk, fontFamily = MonoFamily, fontSize = 12.sp)
+            }
+            Spacer(Modifier.height(12.dp))
+        }
 
         // The card: photo (or gradient), with the comment editable right on top of it.
         val photos = ui.photos.ifEmpty { listOf(PhotoRef(toneIndex = ui.placeholderTone)) }

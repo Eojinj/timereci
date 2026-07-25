@@ -47,6 +47,11 @@ class PublishViewModel @Inject constructor(
         .map { it.photoAspect }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), PhotoAspect.PORTRAIT)
 
+    /** True while the completion sound/vibration from finishing this session is still ringing. */
+    val alarmActive: StateFlow<Boolean> = controller.alarmActive
+
+    fun stopAlarm() = controller.stopAlarm()
+
     /** Photos from past sessions, offered as a quick "reuse this one" alternative. */
     val recentPhotos: StateFlow<List<PhotoRef>> = repository.observeRecentPhotos()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())

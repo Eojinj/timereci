@@ -4,7 +4,11 @@ import android.content.Context
 import android.content.Intent
 import android.media.Ringtone
 import android.media.RingtoneManager
+import android.os.Build
 import android.os.SystemClock
+import android.os.VibrationEffect
+import android.os.Vibrator
+import android.os.VibratorManager
 import androidx.core.content.ContextCompat
 import com.timereci.focus.data.ActiveSessionEntity
 import com.timereci.focus.data.FocusRepository
@@ -78,6 +82,7 @@ class FocusTimerController @Inject constructor(
     }
 
     fun start(plannedMs: Long, taskLabel: String, backdropFileName: String?) {
+        stopAlarm() // in case a previous session's completion alarm was still ringing
         val now = SystemClock.elapsedRealtime()
         endsAtElapsed = now + plannedMs
         _state.value = TimerState(
@@ -136,6 +141,7 @@ class FocusTimerController @Inject constructor(
         stopTicker()
         alarms.cancel()
         stopService()
+        stopAlarm()
         _state.value = TimerState(plannedMs = _state.value.plannedMs, remainingMs = _state.value.plannedMs)
         scope.launch { repository.clearActiveSession() }
     }
@@ -145,6 +151,7 @@ class FocusTimerController @Inject constructor(
         endsAtElapsed = null
         stopTicker()
         stopService()
+        stopAlarm()
         _state.value = TimerState()
         scope.launch { repository.clearActiveSession() }
     }
@@ -165,25 +172,47 @@ class FocusTimerController @Inject constructor(
 
     private var completionRingtone: Ringtone? = null
 
+    private val _alarmActive = MutableStateFlow(false)
+
+    /** True while the completion sound/vibration is actively ringing — drives a stop button. */
+    val alarmActive: StateFlow<Boolean> = _alarmActive.asStateFlow()
+
+    @Suppress("DEPRECATION")
+    private val vibrator: Vibrator by lazy {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            (context.getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as VibratorManager).defaultVibrator
+        } else {
+            context.getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
+        }
+    }
+
     /**
-     * Rings the device's default alarm tone when the countdown runs out on its own, then stops
-     * it after [ALARM_SOUND_MS] — many devices' default alarm tone loops indefinitely by design
-     * (that's the point of an alarm), and [Ringtone.play] has no built-in stop, so left alone it
-     * would ring until the app process was killed.
+     * Rings the device's default alarm tone and vibrates when the countdown runs out on its
+     * own. Keeps going — no auto-timeout — until [stopAlarm] is called.
      */
     private fun playCompletionSound() {
+        stopAlarm()
         runCatching {
-            completionRingtone?.stop()
             val uri = RingtoneManager.getActualDefaultRingtoneUri(context, RingtoneManager.TYPE_ALARM)
                 ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
-            val ringtone = RingtoneManager.getRingtone(context, uri) ?: return
-            completionRingtone = ringtone
-            ringtone.play()
-            scope.launch {
-                delay(ALARM_SOUND_MS)
-                ringtone.stop()
+            RingtoneManager.getRingtone(context, uri)?.also { ringtone ->
+                completionRingtone = ringtone
+                ringtone.play()
             }
         }
+        runCatching {
+            // Repeats the pattern (start index 0) until cancelled.
+            vibrator.vibrate(VibrationEffect.createWaveform(longArrayOf(0, 500, 500), 0))
+        }
+        _alarmActive.value = true
+    }
+
+    /** Stops the completion sound and vibration — call from a "끄기" button. */
+    fun stopAlarm() {
+        completionRingtone?.stop()
+        completionRingtone = null
+        runCatching { vibrator.cancel() }
+        _alarmActive.value = false
     }
 
     private fun startTicker() {
@@ -252,6 +281,5 @@ class FocusTimerController @Inject constructor(
 
     private companion object {
         const val TICK_MS = 250L
-        const val ALARM_SOUND_MS = 6_000L
     }
 }

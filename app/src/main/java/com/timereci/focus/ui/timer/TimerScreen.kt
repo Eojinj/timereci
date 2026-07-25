@@ -70,6 +70,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
@@ -206,7 +207,7 @@ fun TimerScreen(
                             0.5f to Color(0xFFBEE0F5),
                             1f to Color(0xFFFFFFFF),
                             center = Offset(size.width / 2f, size.height * 0.42f),
-                            radius = size.maxDimension * 0.7f,
+                            radius = size.minDimension * 0.7f,
                         )
                         onDrawBehind { drawRect(brush) }
                     },
@@ -514,28 +515,38 @@ private fun RunningContent(
 
         Spacer(Modifier.height(if (isLandscape) 24.dp else 36.dp))
 
-        // Controls, grouped just under the timer instead of pinned to the screen bottom.
+        // Controls, grouped just under the timer instead of pinned to the screen bottom —
+        // comment on the left, stop/complete on the right, all plain white like the star
+        // (no circular chip background).
         Row(
-            horizontalArrangement = Arrangement.spacedBy(14.dp),
+            Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            IconActionButton(
-                icon = Icons.Outlined.EditNote,
-                contentDescription = "코멘트",
-                onClick = onComment,
-            )
-            IconActionButton(
-                icon = Icons.Outlined.Close,
-                contentDescription = "정지",
-                onClick = onStop,
-            )
-            IconActionButton(
-                icon = Icons.Outlined.Check,
-                contentDescription = "완주",
-                onClick = onComplete,
-                accent = true,
-            )
+            PlainIconButton(icon = Icons.Outlined.EditNote, contentDescription = "코멘트", onClick = onComment)
+            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                PlainIconButton(icon = Icons.Outlined.Close, contentDescription = "정지", onClick = onStop)
+                PlainIconButton(icon = Icons.Outlined.Check, contentDescription = "완주", onClick = onComplete)
+            }
         }
+    }
+}
+
+/** A bare white icon, no circular chip — matches the pre-start star's plain look. */
+@Composable
+private fun PlainIconButton(icon: ImageVector, contentDescription: String, onClick: () -> Unit) {
+    Box(
+        Modifier
+            .size(44.dp)
+            .clip(CircleShape)
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                onClick = onClick,
+            ),
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(icon, contentDescription = contentDescription, tint = Color.White, modifier = Modifier.size(26.dp))
     }
 }
 

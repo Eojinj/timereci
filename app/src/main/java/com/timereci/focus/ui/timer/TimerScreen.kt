@@ -37,7 +37,6 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.Checklist
@@ -45,7 +44,6 @@ import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.EditNote
 import androidx.compose.material.icons.outlined.PhotoCamera
 import androidx.compose.material.icons.outlined.ScreenRotation
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -58,6 +56,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.BlurredEdgeTreatment
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
@@ -105,7 +104,6 @@ fun TimerScreen(
     val commentOpen by viewModel.commentSheetOpen.collectAsStateWithLifecycle()
     val recentPhotos by viewModel.recentPhotos.collectAsStateWithLifecycle()
     var showBackdropPicker by remember { mutableStateOf(false) }
-    var confirmStop by remember { mutableStateOf(false) }
 
     val context = LocalContext.current
     val sensorLandscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
@@ -245,7 +243,10 @@ fun TimerScreen(
                         if (!keepRunning) viewModel.pause()
                         viewModel.openComment()
                     },
-                    onStop = { confirmStop = true },
+                    onStop = {
+                        viewModel.abandon()
+                        onAbandon()
+                    },
                     onComplete = viewModel::completeNow,
                 )
             }
@@ -276,42 +277,6 @@ fun TimerScreen(
                 launchSystemBackdropPicker()
             },
             onDismiss = { showBackdropPicker = false },
-        )
-    }
-
-    if (confirmStop) {
-        AlertDialog(
-            onDismissRequest = { confirmStop = false },
-            title = { Text("집중을 정지할까요?", fontWeight = FontWeight.Bold, color = FocusColors.Ink) },
-            text = {
-                Text(
-                    "정지하면 이번 세션은 기록에 남지 않아요.\n지금까지 집중한 만큼 남기려면 완주(✓)를 눌러 주세요.",
-                    color = FocusColors.Muted,
-                    fontSize = 13.5.sp,
-                    lineHeight = 20.sp,
-                )
-            },
-            confirmButton = {
-                IconActionButton(
-                    icon = Icons.Outlined.Close,
-                    contentDescription = "정지",
-                    onClick = {
-                        confirmStop = false
-                        viewModel.abandon()
-                        onAbandon()
-                    },
-                    size = 40.dp,
-                )
-            },
-            dismissButton = {
-                IconActionButton(
-                    icon = Icons.Filled.PlayArrow,
-                    contentDescription = "계속",
-                    onClick = { confirmStop = false },
-                    accent = true,
-                    size = 40.dp,
-                )
-            },
         )
     }
 }
@@ -394,7 +359,9 @@ private fun PreStartContent(
     }
 }
 
-/** The closed state of the pre-start setup: a single star with a soft blurred glow behind it. */
+/** The closed state of the pre-start setup: a single white star with a soft blurred glow
+ * behind it — [BlurredEdgeTreatment.Unbounded] so the blur fades out instead of hard-clipping
+ * to a visible square. */
 @Composable
 private fun RevealStar(diameter: Dp, onTap: () -> Unit) {
     Box(
@@ -410,14 +377,13 @@ private fun RevealStar(diameter: Dp, onTap: () -> Unit) {
         Box(
             Modifier
                 .size(diameter * 0.5f)
-                .blur(30.dp)
-                .clip(CircleShape)
-                .background(FocusColors.AccentBlue.copy(alpha = 0.45f)),
+                .blur(radius = 30.dp, edgeTreatment = BlurredEdgeTreatment.Unbounded)
+                .background(FocusColors.AccentBlue.copy(alpha = 0.45f), CircleShape),
         )
         Icon(
             Icons.Filled.Star,
             contentDescription = "탭해서 시작",
-            tint = FocusColors.AccentDeep,
+            tint = Color.White,
             modifier = Modifier.size(diameter * 0.24f),
         )
     }

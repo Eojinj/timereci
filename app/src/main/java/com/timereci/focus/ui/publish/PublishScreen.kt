@@ -108,24 +108,6 @@ fun PublishScreen(
             modifier = Modifier.padding(top = 14.dp, bottom = 14.dp),
         )
 
-        // Completion alarm (sound + vibration) rings until dismissed — no auto-timeout — so
-        // this stays visible the whole time it's active.
-        if (alarmActive) {
-            Row(
-                Modifier
-                    .clip(RoundedCornerShape(20.dp))
-                    .background(FocusColors.Glass)
-                    .clickable(onClick = viewModel::stopAlarm)
-                    .padding(horizontal = 14.dp, vertical = 8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
-            ) {
-                Icon(Icons.Outlined.NotificationsOff, contentDescription = null, tint = FocusColors.NightInk, modifier = Modifier.size(15.dp))
-                Text("알람 끄기", color = FocusColors.NightInk, fontFamily = MonoFamily, fontSize = 12.sp)
-            }
-            Spacer(Modifier.height(12.dp))
-        }
-
         // The card: photo (or gradient), with the comment editable right on top of it.
         val photos = ui.photos.ifEmpty { listOf(PhotoRef(toneIndex = ui.placeholderTone)) }
         val current = photos.first()
@@ -257,6 +239,25 @@ fun PublishScreen(
                 enabled = !ui.saving,
                 size = 62.dp,
             )
+        }
+
+        // Completion alarm (sound + vibration) rings until dismissed — no auto-timeout — so
+        // this stays visible the whole time it's active. Lives below the main actions rather
+        // than up top, so it doesn't compete with the card for attention.
+        if (alarmActive) {
+            Spacer(Modifier.height(16.dp))
+            Row(
+                Modifier
+                    .clip(RoundedCornerShape(20.dp))
+                    .background(FocusColors.Glass)
+                    .clickable(onClick = viewModel::stopAlarm)
+                    .padding(horizontal = 14.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                Icon(Icons.Outlined.NotificationsOff, contentDescription = null, tint = FocusColors.NightInk, modifier = Modifier.size(15.dp))
+                Text("알람 끄기", color = FocusColors.NightInk, fontFamily = MonoFamily, fontSize = 12.sp)
+            }
         }
 
         Spacer(Modifier.height(20.dp))

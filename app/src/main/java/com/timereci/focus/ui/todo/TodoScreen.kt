@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.only
@@ -173,122 +174,217 @@ fun TodoScreen(
                 onClearBackground = viewModel::clearBackground,
             )
 
-            // The list + add bar live in a rounded "sheet" that overlaps the header photo by a
-            // little, so the seam reads as a deliberate layer instead of a flat photo-to-grey
-            // cut. Translucent (not solid) when there's a custom photo, so it keeps showing
-            // through behind the list too instead of only in the header strip.
-            Column(
-                Modifier
-                    .weight(1f)
-                    .fillMaxWidth()
-                    .offset(y = (-SHEET_OVERLAP))
-                    .clip(RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp))
-                    .background(if (background != null) Color(0xE6FFFFFF) else FocusColors.Paper),
-            ) {
-                if (planned.isEmpty()) {
+            // The list lives in a rounded "sheet" that overlaps the header photo by a little,
+            // so the seam reads as a deliberate layer instead of a flat photo-to-grey cut. With
+            // no custom photo it still fills all the way down like before. With a custom photo,
+            // it only wraps its own content (scrolling past a cap) and the add bar floats as
+            // its own glass card pinned to the bottom — so the photo shows through fully in the
+            // gap below the todo items instead of being hidden behind a solid sheet.
+            Box(Modifier.weight(1f).fillMaxWidth()) {
+                if (background == null) {
                     Column(
                         Modifier
-                            .weight(1f)
-                            .fillMaxWidth()
-                            .padding(horizontal = 20.dp, vertical = SHEET_OVERLAP + 20.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.Center,
+                            .fillMaxSize()
+                            .offset(y = (-SHEET_OVERLAP))
+                            .clip(RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp))
+                            .background(FocusColors.Paper),
                     ) {
-                        Text(
-                            "아직 할 일이 없어요.\n아래에 적고 엔터를 누르면 바로 쌓여요.\n\"빨래 20\"처럼 뒤에 숫자를 붙이면 분까지 한 번에 설정돼요.",
-                            color = FocusColors.Muted,
-                            fontSize = 14.sp,
-                            lineHeight = 22.sp,
-                            textAlign = TextAlign.Center,
-                        )
-                    }
-                } else {
-                    LazyColumn(
-                        modifier = Modifier
-                            .weight(1f)
-                            .fillMaxWidth(),
-                        contentPadding = PaddingValues(start = 20.dp, top = SHEET_OVERLAP + 4.dp, end = 20.dp, bottom = 4.dp),
-                    ) {
-                        items(planned, key = { it.id }) { item ->
-                            TodoRow(
-                                item = item,
-                                onStart = {
+                        if (planned.isEmpty()) {
+                            EmptyState(Modifier.weight(1f))
+                        } else {
+                            TodoList(
+                                planned = planned,
+                                onStart = { item ->
                                     viewModel.remove(item.id)
                                     onStartPlanned(item.label, (item.plannedMs / 60_000L).toInt().coerceAtLeast(1))
                                 },
-                                onDelete = { viewModel.remove(item.id) },
+                                onDelete = viewModel::remove,
+                                modifier = Modifier.weight(1f),
                             )
                         }
-                    }
-                }
-
-                // Add bar, pinned to the bottom. It sits just above the keyboard while typing,
-                // and above the floating tab bar when the keyboard is closed.
-                val keyboardOpen = WindowInsets.ime.getBottom(LocalDensity.current) > 0
-                Column(
-                    Modifier
-                        .fillMaxWidth()
-                        .windowInsetsPadding(WindowInsets.systemBars.union(WindowInsets.ime).only(WindowInsetsSides.Bottom))
-                        .padding(start = 20.dp, top = 12.dp, end = 20.dp, bottom = if (keyboardOpen) 12.dp else 92.dp),
-                ) {
-                    if (previewMinutes != null) {
-                        Text(
-                            "→ ${previewLabel.ifBlank { "집중" }} · ${previewMinutes}분",
-                            color = FocusColors.AccentBlue,
-                            fontFamily = MonoFamily,
-                            fontSize = 11.5.sp,
-                            modifier = Modifier.padding(bottom = 6.dp),
-                        )
-                    }
-
-                    if (recentCompleted.isNotEmpty()) {
-                        RecentTaskChips(
-                            tasks = recentCompleted,
+                        AddBar(
+                            label = label,
+                            onLabelChange = { label = it },
+                            previewLabel = previewLabel,
+                            previewMinutes = previewMinutes,
+                            recentCompleted = recentCompleted,
                             accentColor = accentColor,
-                            onAdd = { task -> viewModel.add(task.label, task.minutes) },
-                            onDismiss = { task -> viewModel.dismissRecent(task.label) },
+                            focusRequester = focusRequester,
+                            onSubmit = ::submit,
+                            onAddRecent = { task -> viewModel.add(task.label, task.minutes) },
+                            onDismissRecent = { task -> viewModel.dismissRecent(task.label) },
                         )
-                        Spacer(Modifier.height(10.dp))
                     }
-
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                } else {
+                    Column(
+                        Modifier
+                            .align(Alignment.TopCenter)
+                            .fillMaxWidth()
+                            .offset(y = (-SHEET_OVERLAP))
+                            .clip(RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp))
+                            .background(Color(0xCCFFFFFF)),
                     ) {
-                        Box(
-                            Modifier
-                                .weight(1f)
-                                .clip(RoundedCornerShape(14.dp))
-                                .background(FocusColors.Mist)
-                                .padding(horizontal = 16.dp, vertical = 14.dp),
-                        ) {
-                            BasicTextField(
-                                value = label,
-                                onValueChange = { label = it },
-                                singleLine = true,
-                                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-                                keyboardActions = KeyboardActions(onDone = { submit() }),
-                                cursorBrush = SolidColor(FocusColors.AccentBlue),
-                                textStyle = TextStyle(color = FocusColors.Ink, fontSize = 15.sp),
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .focusRequester(focusRequester),
-                                decorationBox = { inner ->
-                                    if (label.isEmpty()) Text("무엇에 집중할까요? (예: 빨래 20)", color = FocusColors.Muted2, fontSize = 15.sp)
-                                    inner()
+                        if (planned.isEmpty()) {
+                            EmptyState(Modifier)
+                        } else {
+                            TodoList(
+                                planned = planned,
+                                onStart = { item ->
+                                    viewModel.remove(item.id)
+                                    onStartPlanned(item.label, (item.plannedMs / 60_000L).toInt().coerceAtLeast(1))
                                 },
+                                onDelete = viewModel::remove,
+                                modifier = Modifier.heightIn(max = 380.dp),
                             )
                         }
-                        IconActionButton(
-                            icon = Icons.Outlined.Add,
-                            contentDescription = "추가",
-                            onClick = ::submit,
-                            accent = true,
-                            size = 48.dp,
+                    }
+
+                    Column(
+                        Modifier
+                            .align(Alignment.BottomCenter)
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp))
+                            .background(Color(0xCCFFFFFF)),
+                    ) {
+                        AddBar(
+                            label = label,
+                            onLabelChange = { label = it },
+                            previewLabel = previewLabel,
+                            previewMinutes = previewMinutes,
+                            recentCompleted = recentCompleted,
+                            accentColor = accentColor,
+                            focusRequester = focusRequester,
+                            onSubmit = ::submit,
+                            onAddRecent = { task -> viewModel.add(task.label, task.minutes) },
+                            onDismissRecent = { task -> viewModel.dismissRecent(task.label) },
                         )
                     }
                 }
             }
+        }
+    }
+}
+
+/** The empty-queue hint, centered within whatever space [modifier] gives it. */
+@Composable
+private fun EmptyState(modifier: Modifier) {
+    Column(
+        modifier
+            .fillMaxWidth()
+            .padding(horizontal = 20.dp, vertical = SHEET_OVERLAP + 20.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
+    ) {
+        Text(
+            "아직 할 일이 없어요.\n아래에 적고 엔터를 누르면 바로 쌓여요.\n\"빨래 20\"처럼 뒤에 숫자를 붙이면 분까지 한 번에 설정돼요.",
+            color = FocusColors.Muted,
+            fontSize = 14.sp,
+            lineHeight = 22.sp,
+            textAlign = TextAlign.Center,
+        )
+    }
+}
+
+@Composable
+private fun TodoList(
+    planned: List<PlannedFocusEntity>,
+    onStart: (PlannedFocusEntity) -> Unit,
+    onDelete: (Long) -> Unit,
+    modifier: Modifier,
+) {
+    LazyColumn(
+        modifier = modifier.fillMaxWidth(),
+        contentPadding = PaddingValues(start = 20.dp, top = SHEET_OVERLAP + 4.dp, end = 20.dp, bottom = 4.dp),
+    ) {
+        items(planned, key = { it.id }) { item ->
+            TodoRow(
+                item = item,
+                onStart = { onStart(item) },
+                onDelete = { onDelete(item.id) },
+            )
+        }
+    }
+}
+
+/**
+ * The add bar, pinned to the bottom. It sits just above the keyboard while typing, and above
+ * the floating tab bar when the keyboard is closed.
+ */
+@Composable
+private fun AddBar(
+    label: String,
+    onLabelChange: (String) -> Unit,
+    previewLabel: String,
+    previewMinutes: Int?,
+    recentCompleted: List<RecentTask>,
+    accentColor: Color?,
+    focusRequester: FocusRequester,
+    onSubmit: () -> Unit,
+    onAddRecent: (RecentTask) -> Unit,
+    onDismissRecent: (RecentTask) -> Unit,
+) {
+    val keyboardOpen = WindowInsets.ime.getBottom(LocalDensity.current) > 0
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .windowInsetsPadding(WindowInsets.systemBars.union(WindowInsets.ime).only(WindowInsetsSides.Bottom))
+            .padding(start = 20.dp, top = 12.dp, end = 20.dp, bottom = if (keyboardOpen) 12.dp else 92.dp),
+    ) {
+        if (previewMinutes != null) {
+            Text(
+                "→ ${previewLabel.ifBlank { "집중" }} · ${previewMinutes}분",
+                color = FocusColors.AccentBlue,
+                fontFamily = MonoFamily,
+                fontSize = 11.5.sp,
+                modifier = Modifier.padding(bottom = 6.dp),
+            )
+        }
+
+        if (recentCompleted.isNotEmpty()) {
+            RecentTaskChips(
+                tasks = recentCompleted,
+                accentColor = accentColor,
+                onAdd = onAddRecent,
+                onDismiss = onDismissRecent,
+            )
+            Spacer(Modifier.height(10.dp))
+        }
+
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            Box(
+                Modifier
+                    .weight(1f)
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(FocusColors.Mist)
+                    .padding(horizontal = 16.dp, vertical = 14.dp),
+            ) {
+                BasicTextField(
+                    value = label,
+                    onValueChange = onLabelChange,
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                    keyboardActions = KeyboardActions(onDone = { onSubmit() }),
+                    cursorBrush = SolidColor(FocusColors.AccentBlue),
+                    textStyle = TextStyle(color = FocusColors.Ink, fontSize = 15.sp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .focusRequester(focusRequester),
+                    decorationBox = { inner ->
+                        if (label.isEmpty()) Text("무엇에 집중할까요? (예: 빨래 20)", color = FocusColors.Muted2, fontSize = 15.sp)
+                        inner()
+                    },
+                )
+            }
+            IconActionButton(
+                icon = Icons.Outlined.Add,
+                contentDescription = "추가",
+                onClick = onSubmit,
+                accent = true,
+                size = 48.dp,
+            )
         }
     }
 }

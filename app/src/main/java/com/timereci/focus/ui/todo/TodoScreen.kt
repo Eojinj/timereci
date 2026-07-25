@@ -130,136 +130,162 @@ fun TodoScreen(
 
     LaunchedEffect(Unit) { focusRequester.requestFocus() }
 
-    Column(
-        Modifier
-            .fillMaxSize()
-            .grainyBackground(
-                base = FocusColors.BaseLight,
-                blob = FocusColors.AccentDeep.copy(alpha = 0.12f),
+    Box(Modifier.fillMaxSize()) {
+        // Full-bleed background behind the whole screen — the custom photo when set, not just
+        // the header strip — or the app's usual gradient.
+        if (background != null) {
+            val request = remember(background) {
+                ImageRequest.Builder(context)
+                    .data(PhotoStorage.fileIn(context, background))
+                    .crossfade(true)
+                    .build()
+            }
+            AsyncImage(
+                model = request,
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize(),
             )
-            // Only sides here — the header handles the top inset, the add bar the bottom.
-            .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal)),
-    ) {
-        TodoHeader(
-            backgroundFileName = background,
-            accentColor = accentColor,
-            onPickBackground = {
-                backgroundPicker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
-            },
-            onClearBackground = viewModel::clearBackground,
-        )
+        } else {
+            Box(
+                Modifier
+                    .fillMaxSize()
+                    .grainyBackground(
+                        base = FocusColors.BaseLight,
+                        blob = FocusColors.AccentDeep.copy(alpha = 0.12f),
+                    ),
+            )
+        }
 
-        // The list + add bar live in a rounded "sheet" that overlaps the header photo by a
-        // little, so the seam reads as a deliberate layer instead of a flat photo-to-grey cut.
         Column(
             Modifier
-                .weight(1f)
-                .fillMaxWidth()
-                .offset(y = (-SHEET_OVERLAP))
-                .clip(RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp))
-                .background(FocusColors.Paper),
+                .fillMaxSize()
+                // Only sides here — the header handles the top inset, the add bar the bottom.
+                .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal)),
         ) {
-            if (planned.isEmpty()) {
-                Column(
-                    Modifier
-                        .weight(1f)
-                        .fillMaxWidth()
-                        .padding(horizontal = 20.dp, vertical = SHEET_OVERLAP + 20.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center,
-                ) {
-                    Text(
-                        "아직 할 일이 없어요.\n아래에 적고 엔터를 누르면 바로 쌓여요.\n\"빨래 20\"처럼 뒤에 숫자를 붙이면 분까지 한 번에 설정돼요.",
-                        color = FocusColors.Muted,
-                        fontSize = 14.sp,
-                        lineHeight = 22.sp,
-                        textAlign = TextAlign.Center,
-                    )
-                }
-            } else {
-                LazyColumn(
-                    modifier = Modifier
-                        .weight(1f)
-                        .fillMaxWidth(),
-                    contentPadding = PaddingValues(start = 20.dp, top = SHEET_OVERLAP + 4.dp, end = 20.dp, bottom = 4.dp),
-                ) {
-                    items(planned, key = { it.id }) { item ->
-                        TodoRow(
-                            item = item,
-                            onStart = {
-                                viewModel.remove(item.id)
-                                onStartPlanned(item.label, (item.plannedMs / 60_000L).toInt().coerceAtLeast(1))
-                            },
-                            onDelete = { viewModel.remove(item.id) },
-                        )
-                    }
-                }
-            }
+            TodoHeader(
+                hasBackground = background != null,
+                accentColor = accentColor,
+                onPickBackground = {
+                    backgroundPicker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+                },
+                onClearBackground = viewModel::clearBackground,
+            )
 
-            // Add bar, pinned to the bottom. It sits just above the keyboard while typing, and
-            // above the floating tab bar when the keyboard is closed.
-            val keyboardOpen = WindowInsets.ime.getBottom(LocalDensity.current) > 0
+            // The list + add bar live in a rounded "sheet" that overlaps the header photo by a
+            // little, so the seam reads as a deliberate layer instead of a flat photo-to-grey
+            // cut. Translucent (not solid) when there's a custom photo, so it keeps showing
+            // through behind the list too instead of only in the header strip.
             Column(
                 Modifier
+                    .weight(1f)
                     .fillMaxWidth()
-                    .windowInsetsPadding(WindowInsets.systemBars.union(WindowInsets.ime).only(WindowInsetsSides.Bottom))
-                    .padding(start = 20.dp, top = 12.dp, end = 20.dp, bottom = if (keyboardOpen) 12.dp else 92.dp),
+                    .offset(y = (-SHEET_OVERLAP))
+                    .clip(RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp))
+                    .background(if (background != null) Color(0xE6FFFFFF) else FocusColors.Paper),
             ) {
-                if (previewMinutes != null) {
-                    Text(
-                        "→ ${previewLabel.ifBlank { "집중" }} · ${previewMinutes}분",
-                        color = FocusColors.AccentBlue,
-                        fontFamily = MonoFamily,
-                        fontSize = 11.5.sp,
-                        modifier = Modifier.padding(bottom = 6.dp),
-                    )
-                }
-
-                if (recentCompleted.isNotEmpty()) {
-                    RecentTaskChips(
-                        tasks = recentCompleted,
-                        accentColor = accentColor,
-                        onAdd = { task -> viewModel.add(task.label, task.minutes) },
-                        onDismiss = { task -> viewModel.dismissRecent(task.label) },
-                    )
-                    Spacer(Modifier.height(10.dp))
-                }
-
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(10.dp),
-                ) {
-                    Box(
+                if (planned.isEmpty()) {
+                    Column(
                         Modifier
                             .weight(1f)
-                            .clip(RoundedCornerShape(14.dp))
-                            .background(FocusColors.Mist)
-                            .padding(horizontal = 16.dp, vertical = 14.dp),
+                            .fillMaxWidth()
+                            .padding(horizontal = 20.dp, vertical = SHEET_OVERLAP + 20.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center,
                     ) {
-                        BasicTextField(
-                            value = label,
-                            onValueChange = { label = it },
-                            singleLine = true,
-                            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-                            keyboardActions = KeyboardActions(onDone = { submit() }),
-                            cursorBrush = SolidColor(FocusColors.AccentBlue),
-                            textStyle = TextStyle(color = FocusColors.Ink, fontSize = 15.sp),
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .focusRequester(focusRequester),
-                            decorationBox = { inner ->
-                                if (label.isEmpty()) Text("무엇에 집중할까요? (예: 빨래 20)", color = FocusColors.Muted2, fontSize = 15.sp)
-                                inner()
-                            },
+                        Text(
+                            "아직 할 일이 없어요.\n아래에 적고 엔터를 누르면 바로 쌓여요.\n\"빨래 20\"처럼 뒤에 숫자를 붙이면 분까지 한 번에 설정돼요.",
+                            color = FocusColors.Muted,
+                            fontSize = 14.sp,
+                            lineHeight = 22.sp,
+                            textAlign = TextAlign.Center,
                         )
                     }
-                    IconActionButton(
-                        icon = Icons.Outlined.Add,
-                        contentDescription = "추가",
-                        onClick = ::submit,
-                        accent = true,
-                        size = 48.dp,
-                    )
+                } else {
+                    LazyColumn(
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxWidth(),
+                        contentPadding = PaddingValues(start = 20.dp, top = SHEET_OVERLAP + 4.dp, end = 20.dp, bottom = 4.dp),
+                    ) {
+                        items(planned, key = { it.id }) { item ->
+                            TodoRow(
+                                item = item,
+                                onStart = {
+                                    viewModel.remove(item.id)
+                                    onStartPlanned(item.label, (item.plannedMs / 60_000L).toInt().coerceAtLeast(1))
+                                },
+                                onDelete = { viewModel.remove(item.id) },
+                            )
+                        }
+                    }
+                }
+
+                // Add bar, pinned to the bottom. It sits just above the keyboard while typing,
+                // and above the floating tab bar when the keyboard is closed.
+                val keyboardOpen = WindowInsets.ime.getBottom(LocalDensity.current) > 0
+                Column(
+                    Modifier
+                        .fillMaxWidth()
+                        .windowInsetsPadding(WindowInsets.systemBars.union(WindowInsets.ime).only(WindowInsetsSides.Bottom))
+                        .padding(start = 20.dp, top = 12.dp, end = 20.dp, bottom = if (keyboardOpen) 12.dp else 92.dp),
+                ) {
+                    if (previewMinutes != null) {
+                        Text(
+                            "→ ${previewLabel.ifBlank { "집중" }} · ${previewMinutes}분",
+                            color = FocusColors.AccentBlue,
+                            fontFamily = MonoFamily,
+                            fontSize = 11.5.sp,
+                            modifier = Modifier.padding(bottom = 6.dp),
+                        )
+                    }
+
+                    if (recentCompleted.isNotEmpty()) {
+                        RecentTaskChips(
+                            tasks = recentCompleted,
+                            accentColor = accentColor,
+                            onAdd = { task -> viewModel.add(task.label, task.minutes) },
+                            onDismiss = { task -> viewModel.dismissRecent(task.label) },
+                        )
+                        Spacer(Modifier.height(10.dp))
+                    }
+
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    ) {
+                        Box(
+                            Modifier
+                                .weight(1f)
+                                .clip(RoundedCornerShape(14.dp))
+                                .background(FocusColors.Mist)
+                                .padding(horizontal = 16.dp, vertical = 14.dp),
+                        ) {
+                            BasicTextField(
+                                value = label,
+                                onValueChange = { label = it },
+                                singleLine = true,
+                                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                                keyboardActions = KeyboardActions(onDone = { submit() }),
+                                cursorBrush = SolidColor(FocusColors.AccentBlue),
+                                textStyle = TextStyle(color = FocusColors.Ink, fontSize = 15.sp),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .focusRequester(focusRequester),
+                                decorationBox = { inner ->
+                                    if (label.isEmpty()) Text("무엇에 집중할까요? (예: 빨래 20)", color = FocusColors.Muted2, fontSize = 15.sp)
+                                    inner()
+                                },
+                            )
+                        }
+                        IconActionButton(
+                            icon = Icons.Outlined.Add,
+                            contentDescription = "추가",
+                            onClick = ::submit,
+                            accent = true,
+                            size = 48.dp,
+                        )
+                    }
                 }
             }
         }
@@ -272,12 +298,11 @@ fun TodoScreen(
  */
 @Composable
 private fun TodoHeader(
-    backgroundFileName: String?,
+    hasBackground: Boolean,
     accentColor: Color?,
     onPickBackground: () -> Unit,
     onClearBackground: () -> Unit,
 ) {
-    val context = LocalContext.current
     var showBackgroundMenu by remember { mutableStateOf(false) }
     val today = remember { LocalDate.now() }
 
@@ -286,21 +311,10 @@ private fun TodoHeader(
             .fillMaxWidth()
             .height(200.dp),
     ) {
-        if (backgroundFileName != null) {
-            val request = remember(backgroundFileName) {
-                ImageRequest.Builder(context)
-                    .data(PhotoStorage.fileIn(context, backgroundFileName))
-                    .crossfade(true)
-                    .build()
-            }
-            AsyncImage(
-                model = request,
-                contentDescription = null,
-                contentScale = ContentScale.Crop,
-                modifier = Modifier.fillMaxSize(),
-            )
-            // Scrim at the top (where the title now sits), tinted from the photo's own accent
+        if (hasBackground) {
+            // Scrim at the top (where the title sits), tinted from the photo's own accent
             // color when we have one so it reads as part of the photo, not a generic overlay.
+            // The photo itself is drawn once behind the whole screen, not here.
             val scrimTop = accentColor?.let { lerp(it, Color.Black, 0.55f) } ?: Color(0xFF101820)
             Box(
                 Modifier
@@ -324,14 +338,14 @@ private fun TodoHeader(
             Column {
                 Text(
                     "오늘 할 일",
-                    color = if (backgroundFileName != null) Color.White else FocusColors.Ink,
+                    color = if (hasBackground) Color.White else FocusColors.Ink,
                     fontSize = 24.sp,
                     fontWeight = FontWeight.Bold,
                 )
                 Spacer(Modifier.height(2.dp))
                 Text(
                     Formatters.monthDayWeekday(today),
-                    color = if (backgroundFileName != null) Color(0xE6FFFFFF) else FocusColors.Muted,
+                    color = if (hasBackground) Color(0xE6FFFFFF) else FocusColors.Muted,
                     fontSize = 12.5.sp,
                 )
             }
@@ -339,7 +353,7 @@ private fun TodoHeader(
                 icon = Icons.Outlined.AddPhotoAlternate,
                 contentDescription = "배경 사진",
                 onClick = { showBackgroundMenu = true },
-                onDark = backgroundFileName != null,
+                onDark = hasBackground,
             )
         }
     }
@@ -348,7 +362,7 @@ private fun TodoHeader(
         AlertDialog(
             onDismissRequest = { showBackgroundMenu = false },
             title = { Text("배경 사진", fontWeight = FontWeight.Bold) },
-            text = { Text("할 일 화면 위쪽 배경으로 쓸 사진을 골라주세요.", color = FocusColors.Muted, fontSize = 13.5.sp) },
+            text = { Text("할 일 화면 배경으로 쓸 사진을 골라주세요.", color = FocusColors.Muted, fontSize = 13.5.sp) },
             confirmButton = {
                 IconActionButton(
                     icon = Icons.Outlined.AddPhotoAlternate,
@@ -363,7 +377,7 @@ private fun TodoHeader(
             },
             dismissButton = {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    if (backgroundFileName != null) {
+                    if (hasBackground) {
                         IconActionButton(
                             icon = Icons.Outlined.Close,
                             contentDescription = "기본으로",

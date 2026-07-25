@@ -250,12 +250,25 @@ fun FocusApp(root: RootViewModel = hiltViewModel()) {
     }
 }
 
-/** Standard bottom-nav pattern: keeps each tab's own back stack and scroll state. */
+/**
+ * Standard bottom-nav pattern: keeps each tab's own back stack and scroll state — except for
+ * Timer, which *is* the start destination. Combining `popUpTo(startDestination){saveState=true}`
+ * with `restoreState=true` while navigating to that same start destination is an edge case
+ * that can silently no-op (the requested back-stack shape already "matches"), which is why the
+ * timer tab could stop responding: tapping it did nothing instead of returning to the timer.
+ * Timer instead gets a plain, unambiguous "clear the stack and go" — nothing worth restoring
+ * lives on its own back-stack entry anyway; the real session state is the singleton
+ * FocusTimerController, not per-entry state.
+ */
 private fun NavHostController.navigateToTab(route: String) {
+    val isTimer = route == Routes.timer()
     navigate(route) {
-        popUpTo(graph.findStartDestination().id) { saveState = true }
+        popUpTo(graph.findStartDestination().id) {
+            inclusive = isTimer
+            saveState = !isTimer
+        }
         launchSingleTop = true
-        restoreState = true
+        restoreState = !isTimer
     }
 }
 

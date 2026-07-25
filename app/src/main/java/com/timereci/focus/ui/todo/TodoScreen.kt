@@ -133,10 +133,11 @@ fun TodoScreen(
     Box(Modifier.fillMaxSize()) {
         // Full-bleed background behind the whole screen — the custom photo when set, not just
         // the header strip — or the app's usual gradient.
-        if (background != null) {
-            val request = remember(background) {
+        val backgroundFileName = background
+        if (backgroundFileName != null) {
+            val request = remember(backgroundFileName) {
                 ImageRequest.Builder(context)
-                    .data(PhotoStorage.fileIn(context, background))
+                    .data(PhotoStorage.fileIn(context, backgroundFileName))
                     .crossfade(true)
                     .build()
             }

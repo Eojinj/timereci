@@ -22,9 +22,11 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
@@ -303,7 +305,11 @@ private fun PreStartContent(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .windowInsetsPadding(WindowInsets.safeDrawing)
+            // Top + horizontal only — NOT the full safeDrawing set, which also folds in the IME
+            // inset. Padding for the keyboard here would shrink this Box's height while it's
+            // open, and Alignment.Center below would recenter into that smaller area, visibly
+            // shifting the star/cursor upward the moment the keyboard rose.
+            .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal))
             .padding(horizontal = 22.dp, vertical = 16.dp),
     ) {
         Row(

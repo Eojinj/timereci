@@ -113,12 +113,9 @@ fun FocusApp(root: RootViewModel = hiltViewModel()) {
                     onCompleted = {
                         navController.navigate(Routes.PUBLISH) { launchSingleTop = true }
                     },
-                    onAbandon = {
-                        // A pushed (planned/queued) timer returns to wherever it was started
-                        // from; the home tab's timer has nothing below it, so this is a no-op
-                        // and it just stays idle.
-                        navController.popBackStack()
-                    },
+                    // Stopping never navigates — it just resets in place, back to the star,
+                    // regardless of whether this session was ad-hoc or pushed from the queue.
+                    onAbandon = {},
                 )
             }
 

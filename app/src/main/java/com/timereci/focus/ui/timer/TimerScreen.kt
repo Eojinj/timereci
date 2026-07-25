@@ -338,7 +338,7 @@ private fun PreStartContent(
             )
         }
 
-        val diameter = if (isLandscape) 190.dp else 220.dp
+        val diameter = if (isLandscape) 240.dp else 280.dp
         Crossfade(
             targetState = revealed,
             modifier = Modifier.align(Alignment.Center),
@@ -359,9 +359,9 @@ private fun PreStartContent(
     }
 }
 
-/** The closed state of the pre-start setup: a single white star with a soft blurred glow
- * behind it — [BlurredEdgeTreatment.Unbounded] so the blur fades out instead of hard-clipping
- * to a visible square. */
+/** The closed state of the pre-start setup: a single white star with a soft, layered blurred
+ * glow behind it — [BlurredEdgeTreatment.Unbounded] on each layer so the blur fades out instead
+ * of hard-clipping to a visible square, building up a gentle bloom rather than one flat disc. */
 @Composable
 private fun RevealStar(diameter: Dp, onTap: () -> Unit) {
     Box(
@@ -376,15 +376,27 @@ private fun RevealStar(diameter: Dp, onTap: () -> Unit) {
     ) {
         Box(
             Modifier
-                .size(diameter * 0.5f)
-                .blur(radius = 30.dp, edgeTreatment = BlurredEdgeTreatment.Unbounded)
-                .background(FocusColors.AccentBlue.copy(alpha = 0.45f), CircleShape),
+                .size(diameter * 0.85f)
+                .blur(radius = 46.dp, edgeTreatment = BlurredEdgeTreatment.Unbounded)
+                .background(FocusColors.AccentBlue.copy(alpha = 0.22f), CircleShape),
+        )
+        Box(
+            Modifier
+                .size(diameter * 0.55f)
+                .blur(radius = 34.dp, edgeTreatment = BlurredEdgeTreatment.Unbounded)
+                .background(FocusColors.AccentBlue.copy(alpha = 0.4f), CircleShape),
+        )
+        Box(
+            Modifier
+                .size(diameter * 0.32f)
+                .blur(radius = 20.dp, edgeTreatment = BlurredEdgeTreatment.Unbounded)
+                .background(Color.White.copy(alpha = 0.6f), CircleShape),
         )
         Icon(
             Icons.Filled.Star,
             contentDescription = "탭해서 시작",
             tint = Color.White,
-            modifier = Modifier.size(diameter * 0.24f),
+            modifier = Modifier.size(diameter * 0.22f),
         )
     }
 }

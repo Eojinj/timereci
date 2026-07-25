@@ -29,7 +29,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.timereci.focus.ui.components.IconActionButton
-import com.timereci.focus.ui.components.grain
+import com.timereci.focus.ui.components.grainyBackground
 import com.timereci.focus.ui.theme.FocusColors
 import com.timereci.focus.ui.theme.GothicFamily
 import com.timereci.focus.ui.theme.MonoFamily
@@ -54,8 +54,10 @@ fun NextUpScreen(
     Box(
         Modifier
             .fillMaxSize()
-            .background(FocusColors.Night)
-            .grain(0.05f)
+            .grainyBackground(
+                base = FocusColors.BaseLight,
+                blob = FocusColors.AccentDeep.copy(alpha = 0.12f),
+            )
             .windowInsetsPadding(WindowInsets.safeDrawing),
     ) {
         Column(
@@ -67,7 +69,7 @@ fun NextUpScreen(
         ) {
             Text(
                 "다음 집중",
-                color = FocusColors.NightMuted,
+                color = FocusColors.Muted,
                 fontFamily = MonoFamily,
                 fontSize = 12.sp,
                 letterSpacing = 2.sp,
@@ -75,7 +77,7 @@ fun NextUpScreen(
             Spacer(Modifier.height(14.dp))
             Text(
                 task.ifBlank { "집중" },
-                color = FocusColors.NightInk,
+                color = FocusColors.Ink,
                 fontFamily = GothicFamily,
                 fontSize = 32.sp,
                 fontWeight = FontWeight.Bold,
@@ -86,11 +88,10 @@ fun NextUpScreen(
             Box(
                 Modifier
                     .clip(RoundedCornerShape(20.dp))
-                    .background(FocusColors.Glass)
-                    .border(1.dp, FocusColors.GlassBorder, RoundedCornerShape(20.dp))
+                    .background(FocusColors.Mist)
                     .padding(horizontal = 14.dp, vertical = 6.dp),
             ) {
-                Text("${minutes}분", color = FocusColors.NightInk, fontFamily = MonoFamily, fontSize = 13.sp)
+                Text("${minutes}분", color = FocusColors.Ink2, fontFamily = MonoFamily, fontSize = 13.sp)
             }
 
             Spacer(Modifier.height(40.dp))
@@ -113,22 +114,22 @@ fun NextUpScreen(
                     Box(
                         Modifier
                             .clip(RoundedCornerShape(20.dp))
-                            .background(FocusColors.Glass)
-                            .border(1.dp, FocusColors.GlassBorder, RoundedCornerShape(20.dp))
+                            .background(FocusColors.Mist)
+                            .border(1.dp, FocusColors.LineStrong, RoundedCornerShape(20.dp))
                             .clickable {
                                 viewModel.consume(plannedId)
                                 onBreak(m)
                             }
                             .padding(horizontal = 16.dp, vertical = 9.dp),
                     ) {
-                        Text("${m}분 휴식", color = FocusColors.NightInk, fontFamily = MonoFamily, fontSize = 12.5.sp)
+                        Text("${m}분 휴식", color = FocusColors.Ink2, fontFamily = MonoFamily, fontSize = 12.5.sp)
                     }
                 }
             }
 
             Spacer(Modifier.height(22.dp))
 
-            IconActionButton(icon = Icons.Outlined.Close, contentDescription = "나중에", onClick = onSkip, onDark = true, size = 42.dp)
+            IconActionButton(icon = Icons.Outlined.Close, contentDescription = "나중에", onClick = onSkip, size = 42.dp)
         }
     }
 }

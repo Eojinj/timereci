@@ -14,7 +14,6 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
@@ -35,8 +34,11 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.Checklist
 import androidx.compose.material.icons.outlined.Close
@@ -57,7 +59,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
@@ -66,6 +71,7 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -312,9 +318,9 @@ fun TimerScreen(
 
 /**
  * The pre-start setup, floating directly over the backdrop (no opaque card, so the gradient
- * stays visible): a ring in the middle — echoing the app icon — that you tap to reveal the
- * task field and start button. Duration isn't set here — it's whatever the default (Settings)
- * or queued item already supplied.
+ * stays visible): a soft, glowing star in the middle that you tap to open — the star disappears,
+ * the keyboard rises over a bare cursor, and tapping again (once something's typed) starts the
+ * session. No card, no button — just the star, then just the text.
  */
 @Composable
 private fun PreStartContent(
@@ -367,88 +373,99 @@ private fun PreStartContent(
             )
         }
 
+        val diameter = if (isLandscape) 190.dp else 220.dp
         Crossfade(
             targetState = revealed,
             modifier = Modifier.align(Alignment.Center),
             label = "reveal",
         ) { isRevealed ->
             if (isRevealed) {
-                Column(
-                    modifier = Modifier.then(if (isLandscape) Modifier.widthIn(max = 380.dp) else Modifier.fillMaxWidth()),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                ) {
-                    TaskField(value = task, onValueChange = onTaskChange, big = !isLandscape)
-
-                    Spacer(Modifier.height(8.dp))
-
-                    Text(
-                        "뒤에 숫자를 붙이면 그 시간(분)으로 시작 · 예) 빨래 20",
-                        color = FocusColors.Muted2,
-                        fontFamily = MonoFamily,
-                        fontSize = 10.5.sp,
-                    )
-
-                    Spacer(Modifier.height(if (isLandscape) 16.dp else 22.dp))
-
-                    StartButton(onClick = onStart, enabled = true)
-                }
+                BareTaskEntry(
+                    diameter = diameter,
+                    value = task,
+                    onValueChange = onTaskChange,
+                    isLandscape = isLandscape,
+                    onStart = onStart,
+                )
             } else {
-                RevealRing(diameter = if (isLandscape) 190.dp else 220.dp, onTap = { revealed = true })
+                RevealStar(diameter = diameter, onTap = { revealed = true })
             }
         }
     }
 }
 
-/** The closed state of the pre-start setup: a hollow ring (echoing the app icon) that opens
- * into the task field and start button when tapped. */
+/** The closed state of the pre-start setup: a single star with a soft blurred glow behind it. */
 @Composable
-private fun RevealRing(diameter: Dp, onTap: () -> Unit) {
+private fun RevealStar(diameter: Dp, onTap: () -> Unit) {
     Box(
         Modifier
             .size(diameter)
-            .clip(CircleShape)
             .clickable(
                 interactionSource = remember { MutableInteractionSource() },
                 indication = null,
                 onClick = onTap,
-            )
-            .border(3.dp, FocusColors.AccentDeep.copy(alpha = 0.5f), CircleShape),
+            ),
         contentAlignment = Alignment.Center,
     ) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Icon(
-                Icons.Filled.PlayArrow,
-                contentDescription = null,
-                tint = FocusColors.AccentDeep,
-                modifier = Modifier.size(30.dp),
-            )
-            Spacer(Modifier.height(6.dp))
-            Text("탭해서 시작", color = FocusColors.Ink2, fontFamily = MonoFamily, fontSize = 12.sp)
-        }
+        Box(
+            Modifier
+                .size(diameter * 0.5f)
+                .blur(30.dp)
+                .clip(CircleShape)
+                .background(FocusColors.AccentBlue.copy(alpha = 0.45f)),
+        )
+        Icon(
+            Icons.Filled.Star,
+            contentDescription = "탭해서 시작",
+            tint = FocusColors.AccentDeep,
+            modifier = Modifier.size(diameter * 0.24f),
+        )
     }
 }
 
-/** Full-width primary action, shown once the pre-start ring has been tapped open. */
+/**
+ * The opened state: nothing but a bare, auto-focused cursor — the keyboard rises the moment
+ * the star is tapped. Typing then tapping anywhere around the text (not needed on the text
+ * itself) starts the session; pressing the keyboard's done key does the same.
+ */
 @Composable
-private fun StartButton(onClick: () -> Unit, enabled: Boolean) {
-    Row(
+private fun BareTaskEntry(
+    diameter: Dp,
+    value: String,
+    onValueChange: (String) -> Unit,
+    isLandscape: Boolean,
+    onStart: () -> Unit,
+) {
+    val focusRequester = remember { FocusRequester() }
+    LaunchedEffect(Unit) { focusRequester.requestFocus() }
+
+    Box(
         Modifier
-            .fillMaxWidth()
-            .height(56.dp)
-            .clip(RoundedCornerShape(16.dp))
-            .background(if (enabled) FocusColors.AccentDeep else FocusColors.AccentDeep.copy(alpha = 0.35f))
-            .clickable(enabled = enabled, onClick = onClick),
-        horizontalArrangement = Arrangement.Center,
-        verticalAlignment = Alignment.CenterVertically,
+            .size(diameter)
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+            ) { if (value.isNotBlank()) onStart() },
+        contentAlignment = Alignment.Center,
     ) {
-        Icon(
-            Icons.Filled.PlayArrow,
-            contentDescription = null,
-            tint = FocusColors.Paper,
-            modifier = Modifier.size(22.dp),
+        BasicTextField(
+            value = value,
+            onValueChange = onValueChange,
+            singleLine = true,
+            cursorBrush = SolidColor(FocusColors.AccentBlue),
+            textStyle = TextStyle(
+                color = FocusColors.Ink,
+                fontFamily = GothicFamily,
+                fontSize = if (isLandscape) 24.sp else 21.sp,
+                fontWeight = FontWeight.Bold,
+                textAlign = TextAlign.Center,
+            ),
+            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+            keyboardActions = KeyboardActions(onDone = { if (value.isNotBlank()) onStart() }),
+            modifier = Modifier
+                .widthIn(max = 180.dp)
+                .focusRequester(focusRequester),
         )
-        Spacer(Modifier.width(8.dp))
-        Text("시작", color = FocusColors.Paper, fontSize = 16.sp, fontWeight = FontWeight.Bold)
     }
 }
 
@@ -554,42 +571,6 @@ private fun LyricComment(comment: String, isLandscape: Boolean) {
     )
 }
 
-@Composable
-private fun TaskField(value: String, onValueChange: (String) -> Unit, big: Boolean) {
-    val fontSize = if (big) 22.sp else 18.sp
-    // A filled, rounded box so it's obviously a tap-to-type field even when empty.
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(14.dp))
-            .background(FocusColors.Mist)
-            .padding(horizontal = 16.dp, vertical = 15.dp),
-        contentAlignment = Alignment.CenterStart,
-    ) {
-        if (value.isBlank()) {
-            Text(
-                "할 일",
-                color = FocusColors.Muted2,
-                fontFamily = GothicFamily,
-                fontSize = fontSize,
-                fontWeight = FontWeight.Medium,
-            )
-        }
-        BasicTextField(
-            value = value,
-            onValueChange = onValueChange,
-            singleLine = true,
-            cursorBrush = SolidColor(FocusColors.AccentBlue),
-            textStyle = TextStyle(
-                color = FocusColors.Ink,
-                fontFamily = GothicFamily,
-                fontSize = fontSize,
-                fontWeight = FontWeight.Medium,
-            ),
-            modifier = Modifier.fillMaxWidth(),
-        )
-    }
-}
 
 @Composable
 private fun ProgressLine(progress: Float, isLandscape: Boolean) {

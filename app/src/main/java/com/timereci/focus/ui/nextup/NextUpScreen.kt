@@ -23,13 +23,14 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.timereci.focus.ui.components.IconActionButton
-import com.timereci.focus.ui.components.grainyBackground
 import com.timereci.focus.ui.theme.FocusColors
 import com.timereci.focus.ui.theme.GothicFamily
 import com.timereci.focus.ui.theme.MonoFamily
@@ -39,7 +40,9 @@ private val BREAK_PRESETS = listOf(5, 10)
 /**
  * Shown after a session ends when the todo queue still has something in it: continue straight
  * into the next task, take a short break first, or leave it for later (queue untouched either
- * way unless actually started).
+ * way unless actually started). Same soft blue-to-white gradient as the timer screen instead of
+ * a flat wash, and "나중에" lives as a close button in the corner rather than floating alone at
+ * the bottom.
  */
 @Composable
 fun NextUpScreen(
@@ -54,12 +57,25 @@ fun NextUpScreen(
     Box(
         Modifier
             .fillMaxSize()
-            .grainyBackground(
-                base = FocusColors.BaseLight,
-                blob = FocusColors.AccentDeep.copy(alpha = 0.12f),
+            .background(
+                Brush.radialGradient(
+                    0f to Color(0xFF6FA8DE),
+                    0.5f to Color(0xFFBEE0F5),
+                    1f to Color(0xFFFFFFFF),
+                ),
             )
             .windowInsetsPadding(WindowInsets.safeDrawing),
     ) {
+        IconActionButton(
+            icon = Icons.Outlined.Close,
+            contentDescription = "나중에",
+            onClick = onSkip,
+            size = 42.dp,
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .padding(16.dp),
+        )
+
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -88,7 +104,7 @@ fun NextUpScreen(
             Box(
                 Modifier
                     .clip(RoundedCornerShape(20.dp))
-                    .background(FocusColors.Mist)
+                    .background(Color(0xCCFFFFFF))
                     .padding(horizontal = 14.dp, vertical = 6.dp),
             ) {
                 Text("${minutes}분", color = FocusColors.Ink2, fontFamily = MonoFamily, fontSize = 13.sp)
@@ -114,8 +130,8 @@ fun NextUpScreen(
                     Box(
                         Modifier
                             .clip(RoundedCornerShape(20.dp))
-                            .background(FocusColors.Mist)
-                            .border(1.dp, FocusColors.LineStrong, RoundedCornerShape(20.dp))
+                            .background(Color(0xCCFFFFFF))
+                            .border(1.dp, Color(0x40FFFFFF), RoundedCornerShape(20.dp))
                             .clickable {
                                 viewModel.consume(plannedId)
                                 onBreak(m)
@@ -126,10 +142,6 @@ fun NextUpScreen(
                     }
                 }
             }
-
-            Spacer(Modifier.height(22.dp))
-
-            IconActionButton(icon = Icons.Outlined.Close, contentDescription = "나중에", onClick = onSkip, size = 42.dp)
         }
     }
 }

@@ -214,18 +214,21 @@ fun TimerScreen(
             )
         }
 
-        // Manual landscape toggle, top-right (always available).
-        IconActionButton(
-            icon = Icons.Outlined.ScreenRotation,
-            contentDescription = "가로 모드 전환",
-            onClick = { forcedLandscape = !forcedLandscape },
-            size = 48.dp,
-            accent = forcedLandscape,
-            modifier = Modifier
-                .align(Alignment.TopEnd)
-                .windowInsetsPadding(WindowInsets.safeDrawing)
-                .padding(16.dp),
-        )
+        // Manual landscape toggle, top-right — only while running (the setup screen has its
+        // own top-right button there for the backdrop photo, and doesn't need rotation anyway).
+        if (!isPreStart) {
+            IconActionButton(
+                icon = Icons.Outlined.ScreenRotation,
+                contentDescription = "가로 모드 전환",
+                onClick = { forcedLandscape = !forcedLandscape },
+                size = 48.dp,
+                accent = forcedLandscape,
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .windowInsetsPadding(WindowInsets.safeDrawing)
+                    .padding(16.dp),
+            )
+        }
 
         // Crossfade instead of a hard cut, so stopping/starting a session reads as a
         // deliberate transition rather than the screen just snapping to a different state.

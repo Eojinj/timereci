@@ -167,6 +167,7 @@ fun FocusApp(root: RootViewModel = hiltViewModel()) {
                             popUpTo(Routes.TIMER) { inclusive = false }
                         }
                     },
+                    onAddMore = { navController.navigate(Routes.TODO) },
                 )
             }
 

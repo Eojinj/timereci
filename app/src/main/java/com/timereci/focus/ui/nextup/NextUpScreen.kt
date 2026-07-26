@@ -1,49 +1,53 @@
 package com.timereci.focus.ui.nextup
 
-import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.tween
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.Close
+import androidx.compose.material.icons.outlined.LocalCafe
+import androidx.compose.material.icons.outlined.North
+import androidx.compose.material.icons.outlined.Schedule
+import androidx.compose.material.icons.outlined.SkipNext
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.BlurredEdgeTreatment
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.rotate
-import androidx.compose.ui.draw.scale
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -53,36 +57,36 @@ import com.timereci.focus.ui.components.IconActionButton
 import com.timereci.focus.ui.theme.FocusColors
 import com.timereci.focus.ui.theme.GothicFamily
 import com.timereci.focus.ui.theme.MonoFamily
-import kotlin.math.roundToInt
-import kotlinx.coroutines.launch
 
 private val BREAK_PRESETS = listOf(5, 10)
-private val CARD_SIZE_W = 230.dp
-private val CARD_SIZE_H = 280.dp
 
 /**
- * Shown after a session ends when the todo queue still has something in it. The whole queue
- * is browsable as a Tinder-style card stack — drag (or tap the buttons below) right to start
- * a task right now, left to set it aside and see the next one. Same soft blue-to-white
- * gradient as the timer screen; "나중에" (leave the whole queue for later) lives as a close
- * button in the corner.
+ * Shown after a session ends when the todo queue still has something in it. The head of the
+ * queue is the "hero" — shown big, front and center, with skip / start / rest controls under
+ * it — and everything else waits in a horizontal, snap-scrolling row below so the whole queue
+ * stays browsable at a glance instead of hiding behind a single "next" pick.
  */
 @Composable
 fun NextUpScreen(
     onContinueNow: (task: String, minutes: Int) -> Unit,
     onBreak: (breakMinutes: Int, task: String, minutes: Int) -> Unit,
     onSkip: () -> Unit,
+    onAddMore: () -> Unit,
     viewModel: NextUpViewModel = hiltViewModel(),
 ) {
     val queue by viewModel.queue.collectAsStateWithLifecycle()
 
-    // How many cards have been passed on so far — rotates the stack rather than deleting
-    // anything, so swiping left just brings the next one up and the passed one comes back
-    // around later.
+    // Rotates which item leads the queue without touching the database — "건너뛰기" and
+    // tapping a waiting card both just move the pointer, nothing is lost or reordered for real
+    // until something actually starts.
     var passIndex by remember { mutableStateOf(0) }
-    val visible = remember(queue, passIndex) {
+    val ordered = remember(queue, passIndex) {
         if (queue.isEmpty()) emptyList() else List(queue.size) { i -> queue[(passIndex + i) % queue.size] }
     }
+    val current = ordered.firstOrNull()
+    val waiting = if (ordered.size > 1) ordered.subList(1, ordered.size) else emptyList()
+
+    var showBreakOptions by remember(current?.id) { mutableStateOf(false) }
 
     fun start(item: PlannedFocusEntity) {
         val minutes = (item.plannedMs / 60_000L).toInt().coerceAtLeast(1)
@@ -91,8 +95,9 @@ fun NextUpScreen(
         onContinueNow(item.label, minutes)
     }
 
-    fun pass() {
-        if (queue.isNotEmpty()) passIndex++
+    fun promote(item: PlannedFocusEntity) {
+        val k = ordered.indexOf(item)
+        if (k > 0) passIndex += k
     }
 
     Box(
@@ -102,102 +107,153 @@ fun NextUpScreen(
                 Brush.radialGradient(
                     0f to Color(0xFF6FA8DE),
                     0.5f to Color(0xFFBEE0F5),
-                    1f to Color(0xFFFFFFFF),
+                    1f to Color(0xFFF7F9FB),
                 ),
-            )
-            .windowInsetsPadding(WindowInsets.safeDrawing),
+            ),
     ) {
-        IconActionButton(
-            icon = Icons.Outlined.Close,
-            contentDescription = "나중에",
-            onClick = onSkip,
-            size = 42.dp,
-            modifier = Modifier
-                .align(Alignment.TopEnd)
-                .padding(16.dp),
-        )
+        DecorativeStars()
 
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(horizontal = 32.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center,
-        ) {
-            Text(
-                "다음 집중",
-                color = FocusColors.Muted,
-                fontFamily = MonoFamily,
-                fontSize = 12.sp,
-                letterSpacing = 2.sp,
-            )
-            Spacer(Modifier.height(18.dp))
-
-            Box(
-                Modifier.size(width = CARD_SIZE_W + 24.dp, height = CARD_SIZE_H + 24.dp),
-                contentAlignment = Alignment.Center,
+        Column(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing)) {
+            Row(
+                Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 10.dp),
+                verticalAlignment = Alignment.CenterVertically,
             ) {
-                if (visible.isEmpty()) {
-                    Text("오늘 할 일을 다 살펴봤어요", color = FocusColors.Muted, fontSize = 14.sp)
+                IconActionButton(
+                    icon = Icons.Outlined.Close,
+                    contentDescription = "나중에",
+                    onClick = onSkip,
+                    size = 42.dp,
+                )
+                Text(
+                    "다음 집중",
+                    color = FocusColors.Ink,
+                    fontFamily = GothicFamily,
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.weight(1f),
+                )
+                Spacer(Modifier.width(42.dp))
+            }
+
+            // Hero: the head of the queue, front and center, with its controls.
+            Column(
+                Modifier
+                    .weight(1f)
+                    .fillMaxWidth()
+                    .padding(horizontal = 28.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center,
+            ) {
+                if (current == null) {
+                    Text(
+                        "오늘 할 일을 다 살펴봤어요",
+                        color = FocusColors.Muted,
+                        fontFamily = MonoFamily,
+                        fontSize = 14.sp,
+                        textAlign = TextAlign.Center,
+                    )
                 } else {
-                    val shown = visible.take(3)
-                    shown.withIndex().toList().asReversed().forEach { (depth, item) ->
-                        if (depth == 0) {
-                            key(item.id) {
-                                TopCard(
-                                    item = item,
-                                    onSwipedRight = { start(item) },
-                                    onSwipedLeft = { pass() },
-                                )
+                    Text(
+                        "지금 시작할 일",
+                        color = FocusColors.AccentBlue,
+                        fontFamily = MonoFamily,
+                        fontSize = 12.sp,
+                        letterSpacing = 3.sp,
+                    )
+                    Spacer(Modifier.height(14.dp))
+                    Text(
+                        current.label.ifBlank { "집중" },
+                        color = FocusColors.Ink,
+                        fontFamily = GothicFamily,
+                        fontSize = 34.sp,
+                        fontWeight = FontWeight.Bold,
+                        lineHeight = 40.sp,
+                        textAlign = TextAlign.Center,
+                    )
+
+                    Spacer(Modifier.height(32.dp))
+
+                    Row(horizontalArrangement = Arrangement.spacedBy(26.dp), verticalAlignment = Alignment.CenterVertically) {
+                        GlassRoundButton(
+                            icon = Icons.Outlined.SkipNext,
+                            label = "건너뛰기",
+                            onClick = { if (ordered.size > 1) passIndex++ },
+                        )
+                        IconActionButton(
+                            icon = Icons.Filled.PlayArrow,
+                            contentDescription = "바로 시작",
+                            onClick = { start(current) },
+                            accent = true,
+                            size = 84.dp,
+                        )
+                        GlassRoundButton(
+                            icon = Icons.Outlined.LocalCafe,
+                            label = "휴식",
+                            onClick = { showBreakOptions = !showBreakOptions },
+                        )
+                    }
+
+                    AnimatedVisibility(visible = showBreakOptions) {
+                        Column {
+                            Spacer(Modifier.height(20.dp))
+                            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                                BREAK_PRESETS.forEach { m ->
+                                    Box(
+                                        Modifier
+                                            .clip(RoundedCornerShape(20.dp))
+                                            .background(Color.White)
+                                            .border(1.dp, FocusColors.Line, RoundedCornerShape(20.dp))
+                                            .clickable {
+                                                val minutes = (current.plannedMs / 60_000L).toInt().coerceAtLeast(1)
+                                                viewModel.consume(current.id)
+                                                passIndex = 0
+                                                onBreak(m, current.label, minutes)
+                                            }
+                                            .padding(horizontal = 16.dp, vertical = 9.dp),
+                                    ) {
+                                        Text("${m}분 휴식", color = FocusColors.Ink2, fontFamily = MonoFamily, fontSize = 12.5.sp)
+                                    }
+                                }
                             }
-                        } else {
-                            StackedCard(item = item, depth = depth)
                         }
                     }
                 }
             }
 
-            Spacer(Modifier.height(28.dp))
-
-            Row(horizontalArrangement = Arrangement.spacedBy(22.dp), verticalAlignment = Alignment.CenterVertically) {
-                IconActionButton(
-                    icon = Icons.Outlined.Close,
-                    contentDescription = "패스",
-                    onClick = { pass() },
-                    enabled = visible.isNotEmpty(),
-                    size = 52.dp,
-                )
-                IconActionButton(
-                    icon = Icons.Filled.PlayArrow,
-                    contentDescription = "바로 시작",
-                    onClick = { visible.firstOrNull()?.let(::start) },
-                    accent = true,
-                    enabled = visible.isNotEmpty(),
-                    size = 84.dp,
-                )
-            }
-
-            if (visible.isNotEmpty()) {
-                Spacer(Modifier.height(24.dp))
-                val top = visible.first()
-                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    BREAK_PRESETS.forEach { m ->
-                        Box(
-                            Modifier
-                                .shadow(4.dp, RoundedCornerShape(20.dp))
-                                .clip(RoundedCornerShape(20.dp))
-                                .background(Color.White)
-                                .border(1.dp, FocusColors.Line, RoundedCornerShape(20.dp))
-                                .clickable {
-                                    val minutes = (top.plannedMs / 60_000L).toInt().coerceAtLeast(1)
-                                    viewModel.consume(top.id)
-                                    passIndex = 0
-                                    onBreak(m, top.label, minutes)
-                                }
-                                .padding(horizontal = 16.dp, vertical = 9.dp),
-                        ) {
-                            Text("${m}분 휴식", color = FocusColors.Ink2, fontFamily = MonoFamily, fontSize = 12.5.sp)
-                        }
+            // Waiting: everything else in the queue, browsable in a horizontal snap-scroll row.
+            Column(Modifier.padding(bottom = 20.dp)) {
+                Row(
+                    Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 10.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        "대기 중인 작업",
+                        color = FocusColors.Ink,
+                        fontFamily = GothicFamily,
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Bold,
+                    )
+                    Box(
+                        Modifier
+                            .clip(RoundedCornerShape(20.dp))
+                            .background(Color(0xB3FFFFFF))
+                            .padding(horizontal = 10.dp, vertical = 4.dp),
+                    ) {
+                        Text("${waiting.size}개", color = FocusColors.AccentBlue, fontFamily = MonoFamily, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                    }
+                }
+                Spacer(Modifier.height(4.dp))
+                LazyRow(
+                    contentPadding = PaddingValues(horizontal = 24.dp),
+                    horizontalArrangement = Arrangement.spacedBy(14.dp),
+                ) {
+                    items(waiting, key = { it.id }) { item ->
+                        WaitingCard(item = item, onClick = { promote(item) })
+                    }
+                    item {
+                        AddMoreCard(onClick = onAddMore)
                     }
                 }
             }
@@ -205,119 +261,112 @@ fun NextUpScreen(
     }
 }
 
-/** A background card peeking out from behind the top of the stack — static, not interactive. */
+/** A translucent circular icon button with a caption underneath — matches the design's glass look. */
 @Composable
-private fun StackedCard(item: PlannedFocusEntity, depth: Int) {
-    val scale = 1f - depth * 0.06f
-    val bg = if (depth == 1) Color(0xE6FFFFFF) else Color(0xB3FFFFFF)
-    Box(
-        Modifier
-            .size(CARD_SIZE_W, CARD_SIZE_H)
-            .scale(scale)
-            .offset(y = 12.dp * depth)
-            .shadow(6.dp, RoundedCornerShape(28.dp))
-            .clip(RoundedCornerShape(28.dp))
-            .background(bg)
-            .border(1.dp, FocusColors.Line, RoundedCornerShape(28.dp)),
-        contentAlignment = Alignment.Center,
-    ) {
-        Text(
-            item.label.ifBlank { "집중" },
-            color = FocusColors.Ink.copy(alpha = 0.6f),
-            fontFamily = GothicFamily,
-            fontSize = 20.sp,
-            fontWeight = FontWeight.Bold,
-            textAlign = TextAlign.Center,
-            modifier = Modifier.padding(horizontal = 20.dp),
-        )
+private fun GlassRoundButton(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String, onClick: () -> Unit) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Box(
+            Modifier
+                .size(54.dp)
+                .clip(CircleShape)
+                .background(Color(0x66FFFFFF))
+                .border(1.dp, Color(0x80FFFFFF), CircleShape)
+                .clickable(onClick = onClick),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(icon, contentDescription = label, tint = FocusColors.AccentDeep, modifier = Modifier.size(24.dp))
+        }
+        Spacer(Modifier.height(6.dp))
+        Text(label, color = FocusColors.Ink2, fontFamily = MonoFamily, fontSize = 10.sp)
     }
 }
 
-/** The interactive top card — drag right to start it, left to pass and see the next one. */
+/** One waiting-queue card. Tapping it brings that task to the front as the new hero. */
 @Composable
-private fun TopCard(item: PlannedFocusEntity, onSwipedRight: () -> Unit, onSwipedLeft: () -> Unit) {
-    val scope = rememberCoroutineScope()
-    val offsetX = remember(item.id) { Animatable(0f) }
-    val density = LocalDensity.current
-    val flyDistancePx = with(density) { 480.dp.toPx() }
-    val thresholdPx = with(density) { 100.dp.toPx() }
+private fun WaitingCard(item: PlannedFocusEntity, onClick: () -> Unit) {
     val minutes = (item.plannedMs / 60_000L).toInt().coerceAtLeast(1)
-    val progress = (offsetX.value / thresholdPx).coerceIn(-1f, 1f)
-
-    Box(
+    Column(
         Modifier
-            .size(CARD_SIZE_W, CARD_SIZE_H)
-            .offset { IntOffset(offsetX.value.roundToInt(), 0) }
-            .rotate((offsetX.value / 28f).coerceIn(-14f, 14f))
-            .pointerInput(item.id) {
-                detectHorizontalDragGestures(
-                    onDragEnd = {
-                        scope.launch {
-                            when {
-                                offsetX.value > thresholdPx -> {
-                                    offsetX.animateTo(flyDistancePx, tween(220))
-                                    onSwipedRight()
-                                }
-                                offsetX.value < -thresholdPx -> {
-                                    offsetX.animateTo(-flyDistancePx, tween(220))
-                                    onSwipedLeft()
-                                }
-                                else -> offsetX.animateTo(0f, tween(220))
-                            }
-                        }
-                    },
-                    onDragCancel = { scope.launch { offsetX.animateTo(0f, tween(220)) } },
-                    onHorizontalDrag = { change, dragAmount ->
-                        change.consume()
-                        scope.launch { offsetX.snapTo(offsetX.value + dragAmount) }
-                    },
-                )
-            }
-            .shadow(10.dp, RoundedCornerShape(28.dp))
-            .clip(RoundedCornerShape(28.dp))
-            .background(Color.White)
-            .border(1.dp, FocusColors.Line, RoundedCornerShape(28.dp)),
-        contentAlignment = Alignment.Center,
+            .width(190.dp)
+            .clip(RoundedCornerShape(24.dp))
+            .background(Color(0xE6FFFFFF))
+            .border(1.dp, FocusColors.Line, RoundedCornerShape(24.dp))
+            .clickable(onClick = onClick)
+            .padding(18.dp),
     ) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            if (progress > 0.15f) {
-                Text(
-                    "시작",
-                    color = FocusColors.AccentBlue.copy(alpha = progress),
-                    fontFamily = MonoFamily,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 13.sp,
-                    modifier = Modifier.padding(bottom = 10.dp),
-                )
-            } else if (progress < -0.15f) {
-                Text(
-                    "나중에",
-                    color = FocusColors.Muted.copy(alpha = -progress),
-                    fontFamily = MonoFamily,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 13.sp,
-                    modifier = Modifier.padding(bottom = 10.dp),
-                )
-            }
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.Top) {
             Text(
                 item.label.ifBlank { "집중" },
                 color = FocusColors.Ink,
                 fontFamily = GothicFamily,
-                fontSize = 26.sp,
+                fontSize = 17.sp,
                 fontWeight = FontWeight.Bold,
-                lineHeight = 34.sp,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.padding(horizontal = 18.dp),
+                lineHeight = 22.sp,
+                modifier = Modifier.weight(1f).padding(end = 8.dp),
             )
-            Spacer(Modifier.height(12.dp))
             Box(
                 Modifier
-                    .clip(RoundedCornerShape(20.dp))
-                    .background(FocusColors.Mist)
-                    .padding(horizontal = 14.dp, vertical = 6.dp),
+                    .size(32.dp)
+                    .clip(CircleShape)
+                    .background(FocusColors.Mist),
+                contentAlignment = Alignment.Center,
             ) {
-                Text("${minutes}분", color = FocusColors.Ink2, fontFamily = MonoFamily, fontSize = 13.sp)
+                Icon(Icons.Outlined.North, contentDescription = "다음으로 올리기", tint = FocusColors.AccentBlue, modifier = Modifier.size(16.dp))
             }
         }
+        Spacer(Modifier.height(18.dp))
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+            Icon(Icons.Outlined.Schedule, contentDescription = null, tint = FocusColors.Muted, modifier = Modifier.size(14.dp))
+            Text("${minutes}분", color = FocusColors.Muted, fontFamily = MonoFamily, fontSize = 12.sp)
+        }
+    }
+}
+
+/** The trailing card in the waiting row — jumps out to the todo screen to add more. */
+@Composable
+private fun AddMoreCard(onClick: () -> Unit) {
+    Column(
+        Modifier
+            .width(150.dp)
+            .clip(RoundedCornerShape(24.dp))
+            .background(Color(0x40FFFFFF))
+            .border(1.dp, Color(0x80FFFFFF), RoundedCornerShape(24.dp))
+            .clickable(onClick = onClick)
+            .padding(18.dp)
+            .height(96.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
+    ) {
+        Icon(Icons.Outlined.Add, contentDescription = "새로운 작업 추가", tint = FocusColors.Ink2, modifier = Modifier.size(24.dp))
+        Spacer(Modifier.height(6.dp))
+        Text("새로운 작업", color = FocusColors.Ink2, fontFamily = MonoFamily, fontSize = 11.sp)
+    }
+}
+
+/** A few soft, blurred stars scattered behind everything — decorative only. */
+@Composable
+private fun DecorativeStars() {
+    val tint = FocusColors.AccentBlue.copy(alpha = 0.35f)
+    Box(Modifier.fillMaxSize()) {
+        Icon(
+            Icons.Filled.Star, contentDescription = null, tint = tint,
+            modifier = Modifier.align(Alignment.TopStart).padding(start = 36.dp, top = 90.dp).size(30.dp)
+                .blur(6.dp, edgeTreatment = BlurredEdgeTreatment.Unbounded),
+        )
+        Icon(
+            Icons.Filled.Star, contentDescription = null, tint = FocusColors.AccentSky.copy(alpha = 0.4f),
+            modifier = Modifier.align(Alignment.TopEnd).padding(end = 48.dp, top = 160.dp).size(46.dp)
+                .blur(8.dp, edgeTreatment = BlurredEdgeTreatment.Unbounded),
+        )
+        Icon(
+            Icons.Filled.Star, contentDescription = null, tint = tint,
+            modifier = Modifier.align(Alignment.BottomStart).padding(start = 24.dp, bottom = 260.dp).size(22.dp)
+                .blur(5.dp, edgeTreatment = BlurredEdgeTreatment.Unbounded),
+        )
+        Icon(
+            Icons.Filled.Star, contentDescription = null, tint = FocusColors.AccentSky.copy(alpha = 0.35f),
+            modifier = Modifier.align(Alignment.BottomEnd).padding(end = 60.dp, bottom = 320.dp).size(34.dp)
+                .blur(7.dp, edgeTreatment = BlurredEdgeTreatment.Unbounded),
+        )
     }
 }

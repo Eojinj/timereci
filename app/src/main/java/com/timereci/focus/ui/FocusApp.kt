@@ -138,9 +138,8 @@ fun FocusApp(root: RootViewModel = hiltViewModel()) {
                 PublishScreen(
                     onFinished = { next ->
                         if (next != null) {
-                            // Queue has more — offer to continue straight into it.
-                            val nextMinutes = (next.plannedMs / 60_000L).toInt().coerceAtLeast(1)
-                            navController.navigate(Routes.nextUp(next.id, next.label, nextMinutes)) {
+                            // Queue has more — offer to browse straight into it.
+                            navController.navigate(Routes.NEXT_UP) {
                                 popUpTo(Routes.TIMER) { inclusive = false }
                             }
                         } else {
@@ -152,29 +151,15 @@ fun FocusApp(root: RootViewModel = hiltViewModel()) {
                 )
             }
 
-            composable(
-                route = Routes.NEXT_UP,
-                arguments = listOf(
-                    navArgument(Routes.ARG_PLANNED_ID) { type = NavType.LongType },
-                    navArgument(Routes.ARG_TASK) { type = NavType.StringType; defaultValue = "" },
-                    navArgument(Routes.ARG_MINUTES) { type = NavType.IntType; defaultValue = 25 },
-                ),
-            ) { backStackEntry ->
-                val args = backStackEntry.arguments
-                val plannedId = args?.getLong(Routes.ARG_PLANNED_ID) ?: 0L
-                val task = args?.getString(Routes.ARG_TASK).orEmpty()
-                val minutes = args?.getInt(Routes.ARG_MINUTES) ?: 25
+            composable(Routes.NEXT_UP) {
                 NextUpScreen(
-                    plannedId = plannedId,
-                    task = task,
-                    minutes = minutes,
-                    onContinueNow = {
+                    onContinueNow = { task, minutes ->
                         navController.navigate(Routes.timer(task, minutes)) {
                             popUpTo(Routes.TIMER) { inclusive = true }
                             launchSingleTop = true
                         }
                     },
-                    onBreak = { breakMinutes ->
+                    onBreak = { breakMinutes, task, minutes ->
                         navController.navigate(Routes.breakScreen(breakMinutes, task, minutes))
                     },
                     onSkip = {

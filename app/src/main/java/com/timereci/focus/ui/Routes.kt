@@ -14,11 +14,9 @@ object Routes {
     fun timer(task: String = "", minutes: Int = 0) =
         "timer?task=${Uri.encode(task)}&minutes=$minutes"
 
-    // Shown after a session ends when the todo queue still has something in it.
-    const val NEXT_UP = "nextup?plannedId={plannedId}&task={task}&minutes={minutes}"
-    const val ARG_PLANNED_ID = "plannedId"
-    fun nextUp(plannedId: Long, task: String, minutes: Int) =
-        "nextup?plannedId=$plannedId&task=${Uri.encode(task)}&minutes=$minutes"
+    // Shown after a session ends when the todo queue still has something in it. Browses the
+    // live queue itself (via NextUpViewModel), so no args are needed to get here.
+    const val NEXT_UP = "nextup"
 
     // A short break before continuing into the next queued task.
     const val BREAK = "break?breakMinutes={breakMinutes}&task={task}&minutes={minutes}"

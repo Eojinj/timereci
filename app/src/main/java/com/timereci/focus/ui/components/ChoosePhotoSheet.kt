@@ -198,7 +198,7 @@ fun ChoosePhotoSheet(
                 color = FocusColors.Muted,
                 fontSize = 12.5.sp,
                 lineHeight = 18.sp,
-                modifier = Modifier.padding(horizontal = 20.dp, top = 12.dp),
+                modifier = Modifier.padding(horizontal = 20.dp).padding(top = 12.dp),
             )
         }
     }

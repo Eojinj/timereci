@@ -164,7 +164,7 @@ fun TodoScreen(
                     color = FocusColors.Muted,
                     fontSize = 12.5.sp,
                     lineHeight = 18.sp,
-                    modifier = Modifier.padding(horizontal = 4.dp, top = 10.dp),
+                    modifier = Modifier.padding(horizontal = 4.dp).padding(top = 10.dp),
                 )
 
                 Spacer(Modifier.height(140.dp))

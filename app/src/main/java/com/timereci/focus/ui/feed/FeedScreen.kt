@@ -130,7 +130,7 @@ private fun relativeDayLabel(date: LocalDate): String = when (date) {
 private fun DayBlock(day: FeedDay, onOpenReceipt: (Long) -> Unit) {
     Column {
         Row(
-            Modifier.fillMaxWidth().padding(horizontal = 22.dp, top = 16.dp, bottom = 8.dp),
+            Modifier.fillMaxWidth().padding(horizontal = 22.dp).padding(top = 16.dp, bottom = 8.dp),
             verticalAlignment = Alignment.Bottom,
         ) {
             Text(relativeDayLabel(day.date), color = FocusColors.Ink, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)

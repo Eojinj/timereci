@@ -126,7 +126,7 @@ fun SettingsScreen(
                 color = FocusColors.Muted,
                 fontSize = 12.5.sp,
                 lineHeight = 18.sp,
-                modifier = Modifier.padding(horizontal = 4.dp, top = 16.dp, bottom = 120.dp),
+                modifier = Modifier.padding(horizontal = 4.dp).padding(top = 16.dp, bottom = 120.dp),
             )
         }
     }

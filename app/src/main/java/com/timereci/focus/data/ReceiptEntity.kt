@@ -31,6 +31,7 @@ data class ReceiptEntity(
     /** Ordered photos; empty means the card shows a gradient placeholder. */
     val photos: List<PhotoRef> = emptyList(),
 
-    /** Theme id — "mono" is the free default; Pro unlocks others. */
+    /** Unused: a leftover column from the original concept. Kept only so the stored schema
+     * stays as-is; dropping it would need another Room migration for no user-visible gain. */
     val themeId: String = "mono",
 )

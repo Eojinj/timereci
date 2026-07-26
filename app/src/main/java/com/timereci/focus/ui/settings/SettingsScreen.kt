@@ -116,17 +116,6 @@ fun SettingsScreen(
         }
 
         ToggleSection(
-            title = "영수증 길이",
-            description = if (settings.proportionalLength) {
-                "길이 ∝ 집중시간 — 오래 집중할수록 길게 발행 (시그니처)"
-            } else {
-                "균일 비율 — 모든 영수증이 같은 크기"
-            },
-            checked = settings.proportionalLength,
-            onCheckedChange = viewModel::setProportionalLength,
-        )
-
-        ToggleSection(
             title = "코멘트 중 타이머",
             description = if (settings.keepRunningWhileCommenting) {
                 "계속 흐름 — 코멘트를 써도 집중시간은 정직하게 흐릅니다"
@@ -136,8 +125,6 @@ fun SettingsScreen(
             checked = settings.keepRunningWhileCommenting,
             onCheckedChange = viewModel::setKeepRunning,
         )
-
-        ProCard()
 
         Text(
             "권한 0 — 시스템 포토 피커만 사용합니다. 저장소 권한이나 추적 요청이 없습니다.",
@@ -190,34 +177,3 @@ private fun ToggleSection(
     }
 }
 
-@Composable
-private fun ProCard() {
-    Column(
-        Modifier
-            .padding(horizontal = 24.dp, vertical = 12.dp)
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(16.dp))
-            .background(FocusColors.AccentInk)
-            .padding(20.dp),
-    ) {
-        Text("집중 영수증 Pro", color = FocusColors.NightInk, fontSize = 17.sp, fontWeight = FontWeight.Bold)
-        Spacer(Modifier.height(8.dp))
-        Text(
-            "테마 팩 · 고해상도 내보내기 · 월간 스프레드 · 홈 위젯.\n타이머와 기본 영수증, 롤 열람은 언제나 무료입니다.",
-            color = FocusColors.NightMuted,
-            fontSize = 12.5.sp,
-            lineHeight = 19.sp,
-        )
-        Spacer(Modifier.height(14.dp))
-        Box(
-            Modifier
-                .fillMaxWidth()
-                .height(46.dp)
-                .clip(RoundedCornerShape(12.dp))
-                .background(FocusColors.AccentSky),
-            contentAlignment = Alignment.Center,
-        ) {
-            Text("월 ₩2,900 · 7일 무료 체험 (곧 제공)", color = FocusColors.Night2, fontSize = 13.5.sp, fontWeight = FontWeight.Bold)
-        }
-    }
-}

@@ -15,7 +15,7 @@ import kotlinx.coroutines.withContext
  */
 object Exporter {
 
-    private const val ALBUM = "집중 영수증"
+    private const val ALBUM = "집중 기록"
 
     suspend fun saveToGallery(context: Context, bitmap: Bitmap, displayName: String): Boolean =
         withContext(Dispatchers.IO) {

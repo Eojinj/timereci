@@ -38,7 +38,7 @@ class TimerAlarmReceiver : BroadcastReceiver() {
         val notification = NotificationCompat.Builder(context, FocusTimerService.DONE_CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_launcher_foreground)
             .setContentTitle("집중 완주")
-            .setContentText("영수증이 준비됐어요. 열어서 담아보세요.")
+            .setContentText("사진과 한 줄을 남겨 기록해보세요.")
             .setAutoCancel(true)
             .setContentIntent(contentIntent)
             .build()

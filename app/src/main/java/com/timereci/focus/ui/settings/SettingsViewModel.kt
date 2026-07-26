@@ -24,10 +24,6 @@ class SettingsViewModel @Inject constructor(
         settingsRepository.setDefaultDuration(ms)
     }
 
-    fun setProportionalLength(value: Boolean) = viewModelScope.launch {
-        settingsRepository.setProportionalLength(value)
-    }
-
     fun setKeepRunning(value: Boolean) = viewModelScope.launch {
         settingsRepository.setKeepRunningWhileCommenting(value)
     }

@@ -32,12 +32,10 @@ enum class PhotoAspect(val ratio: Float, val label: String) {
 /** Preset durations offered before a session starts (minutes). User-editable via long-press. */
 val DEFAULT_DURATION_PRESETS = listOf(15, 25, 45, 60, 90)
 
-/** User-facing behavior settings from PRD §6 & §10, backed by Preferences DataStore. */
+/** User-facing behavior settings, backed by Preferences DataStore. */
 data class FocusSettings(
     /** Default timer duration in ms (settings screen default value). */
     val defaultDurationMs: Long = 25 * 60_000L,
-    /** true = receipt length ∝ focus time (signature); false = uniform ratio. */
-    val proportionalLength: Boolean = true,
     /** true = timer keeps running while the comment sheet is open (honest focus time). */
     val keepRunningWhileCommenting: Boolean = true,
     /** Crop ratio used when displaying photos in the feed and carousel. */
@@ -55,7 +53,6 @@ class SettingsRepository @Inject constructor(
     val settings: Flow<FocusSettings> = context.dataStore.data.map { prefs ->
         FocusSettings(
             defaultDurationMs = prefs[KEY_DEFAULT_MS] ?: (25 * 60_000L),
-            proportionalLength = prefs[KEY_PROPORTIONAL] ?: true,
             keepRunningWhileCommenting = prefs[KEY_KEEP_RUNNING] ?: true,
             photoAspect = PhotoAspect.from(prefs[KEY_PHOTO_ASPECT]),
             durationPresets = parsePresets(prefs[KEY_DURATION_PRESETS]),
@@ -64,7 +61,6 @@ class SettingsRepository @Inject constructor(
     }
 
     suspend fun setDefaultDuration(ms: Long) = edit { it[KEY_DEFAULT_MS] = ms }
-    suspend fun setProportionalLength(value: Boolean) = edit { it[KEY_PROPORTIONAL] = value }
     suspend fun setKeepRunningWhileCommenting(value: Boolean) = edit { it[KEY_KEEP_RUNNING] = value }
     suspend fun setPhotoAspect(value: PhotoAspect) = edit { it[KEY_PHOTO_ASPECT] = value.name }
 
@@ -84,7 +80,6 @@ class SettingsRepository @Inject constructor(
 
     private companion object {
         val KEY_DEFAULT_MS = longPreferencesKey("default_duration_ms")
-        val KEY_PROPORTIONAL = booleanPreferencesKey("proportional_length")
         val KEY_KEEP_RUNNING = booleanPreferencesKey("keep_running_commenting")
         val KEY_PHOTO_ASPECT = stringPreferencesKey("photo_aspect")
         val KEY_DURATION_PRESETS = stringPreferencesKey("duration_presets")

@@ -3,9 +3,8 @@ package com.timereci.focus.ui.theme
 import androidx.compose.ui.graphics.Color
 
 /**
- * Design tokens lifted directly from the handoff prototype (집중영수증.dc.html).
- * A calm blue-grey paper palette for light surfaces and a deep navy for the "night"
- * surfaces (day view, publish) where photos take over.
+ * A calm blue-grey paper palette for light surfaces, and a deep navy for the "night"
+ * surfaces (day carousel, break) where photos take over.
  */
 object FocusColors {
     // Light / paper

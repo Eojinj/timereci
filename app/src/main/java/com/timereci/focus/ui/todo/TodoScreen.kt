@@ -8,7 +8,6 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
@@ -16,9 +15,7 @@ import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.ime
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
@@ -27,19 +24,21 @@ import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.union
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
-import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.AddPhotoAlternate
 import androidx.compose.material.icons.outlined.Close
+import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
@@ -52,12 +51,18 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.drawWithCache
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.SolidColor
-import androidx.compose.ui.graphics.lerp
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
@@ -65,7 +70,6 @@ import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -75,22 +79,21 @@ import coil.request.ImageRequest
 import com.timereci.focus.data.PhotoStorage
 import com.timereci.focus.data.PlannedFocusEntity
 import com.timereci.focus.ui.components.IconActionButton
-import com.timereci.focus.ui.components.grainyBackground
 import com.timereci.focus.ui.theme.FocusColors
+import com.timereci.focus.ui.theme.GothicFamily
 import com.timereci.focus.ui.theme.MonoFamily
 import com.timereci.focus.ui.util.Formatters
 import com.timereci.focus.ui.util.PhotoPalette
 import com.timereci.focus.ui.util.QuickEntry
 import java.time.LocalDate
 
-/** How much the rounded list sheet overlaps the header photo below it. */
-private val SHEET_OVERLAP = 24.dp
-
 /**
- * A dedicated page for the todo queue ("오늘 할 집중"): a scrollable list up top, and an
- * add bar pinned to the bottom (like a chat compose bar) so it's always in thumb reach. Typing
- * "빨래 20" and hitting Enter adds "빨래" at 20 minutes directly — no need to tap a preset —
- * and the field stays focused so several items can be queued back-to-back.
+ * A dedicated page for the todo queue ("오늘 할 집중"): the head of the queue leads as a
+ * "priority focus" card, the rest wait below as their own cards over the same soft-gradient
+ * (or custom-photo) backdrop used everywhere else, and an add bar pinned to the bottom keeps
+ * queuing new items a thumb's reach away. Typing "빨래 20" and hitting Enter adds "빨래" at 20
+ * minutes directly — no need to tap a preset — and the field stays focused so several items
+ * can be queued back-to-back.
  */
 @Composable
 fun TodoScreen(
@@ -112,6 +115,7 @@ fun TodoScreen(
     LaunchedEffect(background) {
         accentColor = background?.let { PhotoPalette.accentColor(context, it) }
     }
+    var showBackgroundMenu by remember { mutableStateOf(false) }
 
     var label by remember { mutableStateOf("") }
     val focusRequester = remember { FocusRequester() }
@@ -129,11 +133,19 @@ fun TodoScreen(
         keyboard?.show()
     }
 
+    fun startItem(item: PlannedFocusEntity) {
+        viewModel.remove(item.id)
+        onStartPlanned(item.label, (item.plannedMs / 60_000L).toInt().coerceAtLeast(1))
+    }
+
     LaunchedEffect(Unit) { focusRequester.requestFocus() }
 
+    val priority = planned.firstOrNull()
+    val pending = if (planned.size > 1) planned.subList(1, planned.size) else emptyList()
+
     Box(Modifier.fillMaxSize()) {
-        // Full-bleed background behind the whole screen — the custom photo when set, not just
-        // the header strip — or the app's usual gradient.
+        // Full-bleed background behind the whole screen — the custom photo when set, or the
+        // same soft blue-to-white gradient used across the timer / next-up / publish screens.
         val backgroundFileName = background
         if (backgroundFileName != null) {
             val request = remember(backgroundFileName) {
@@ -152,163 +164,295 @@ fun TodoScreen(
             Box(
                 Modifier
                     .fillMaxSize()
-                    .grainyBackground(
-                        base = FocusColors.BaseLight,
-                        blob = FocusColors.AccentDeep.copy(alpha = 0.12f),
-                    ),
+                    .drawWithCache {
+                        val brush = Brush.radialGradient(
+                            0f to Color(0xFF6FA8DE),
+                            0.5f to Color(0xFFBEE0F5),
+                            1f to Color(0xFFF7F9FB),
+                            center = Offset(size.width / 2f, size.height * 0.32f),
+                            radius = size.minDimension * 0.9f,
+                        )
+                        onDrawBehind { drawRect(brush) }
+                    },
             )
         }
 
         Column(
             Modifier
                 .fillMaxSize()
-                // Only sides here — the header handles the top inset, the add bar the bottom.
-                .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal)),
+                .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Top)),
         ) {
-            TodoHeader(
-                hasBackground = background != null,
-                accentColor = accentColor,
-                onPickBackground = {
-                    backgroundPicker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
-                },
-                onClearBackground = viewModel::clearBackground,
-            )
+            // Cards read fine directly on either backdrop, so everything just scrolls together
+            // instead of living inside a separate rounded "sheet".
+            Column(
+                Modifier
+                    .weight(1f)
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 20.dp),
+            ) {
+                Spacer(Modifier.height(4.dp))
+                TodoHeader(
+                    taskCount = planned.size,
+                    onPickBackground = { showBackgroundMenu = true },
+                )
+                Spacer(Modifier.height(20.dp))
 
-            // The list lives in a rounded "sheet" that overlaps the header photo by a little,
-            // so the seam reads as a deliberate layer instead of a flat photo-to-grey cut. With
-            // no custom photo it still fills all the way down like before. With a custom photo,
-            // it only wraps its own content (scrolling past a cap) and the add bar floats as
-            // its own glass card pinned to the bottom — so the photo shows through fully in the
-            // gap below the todo items instead of being hidden behind a solid sheet.
-            Box(Modifier.weight(1f).fillMaxWidth()) {
-                if (background == null) {
-                    Column(
-                        Modifier
-                            .fillMaxSize()
-                            .offset(y = (-SHEET_OVERLAP))
-                            .clip(RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp))
-                            .background(FocusColors.Paper),
-                    ) {
-                        if (planned.isEmpty()) {
-                            EmptyState(Modifier.weight(1f))
-                        } else {
-                            TodoList(
-                                planned = planned,
-                                onStart = { item ->
-                                    viewModel.remove(item.id)
-                                    onStartPlanned(item.label, (item.plannedMs / 60_000L).toInt().coerceAtLeast(1))
-                                },
-                                onDelete = viewModel::remove,
-                                modifier = Modifier.weight(1f),
-                            )
-                        }
-                        AddBar(
-                            label = label,
-                            onLabelChange = { label = it },
-                            previewLabel = previewLabel,
-                            previewMinutes = previewMinutes,
-                            recentCompleted = recentCompleted,
-                            accentColor = accentColor,
-                            focusRequester = focusRequester,
-                            onSubmit = ::submit,
-                            onAddRecent = { task -> viewModel.add(task.label, task.minutes) },
-                            onDismissRecent = { task -> viewModel.dismissRecent(task.label) },
-                        )
-                    }
+                if (priority != null) {
+                    PriorityCard(item = priority, onStart = { startItem(priority) })
+                    Spacer(Modifier.height(24.dp))
+                }
+
+                Text(
+                    if (priority != null) "대기 중" else "오늘 할 일",
+                    color = FocusColors.Muted,
+                    fontFamily = MonoFamily,
+                    fontSize = 11.sp,
+                    letterSpacing = 2.sp,
+                    modifier = Modifier.padding(start = 4.dp, bottom = 10.dp),
+                )
+
+                if (priority == null) {
+                    Text(
+                        "아직 할 일이 없어요.\n아래에 적고 엔터를 누르면 바로 쌓여요.\n\"빨래 20\"처럼 뒤에 숫자를 붙이면 분까지 한 번에 설정돼요.",
+                        color = FocusColors.Muted,
+                        fontSize = 13.5.sp,
+                        lineHeight = 20.sp,
+                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 8.dp),
+                    )
                 } else {
-                    Column(
-                        Modifier
-                            .align(Alignment.TopCenter)
-                            .fillMaxWidth()
-                            .offset(y = (-SHEET_OVERLAP))
-                            .clip(RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp))
-                            .background(Color(0xCCFFFFFF)),
-                    ) {
-                        if (planned.isEmpty()) {
-                            EmptyState(Modifier)
-                        } else {
-                            TodoList(
-                                planned = planned,
-                                onStart = { item ->
-                                    viewModel.remove(item.id)
-                                    onStartPlanned(item.label, (item.plannedMs / 60_000L).toInt().coerceAtLeast(1))
-                                },
-                                onDelete = viewModel::remove,
-                                modifier = Modifier.heightIn(max = 380.dp),
-                            )
-                        }
+                    pending.forEach { item ->
+                        PendingCard(
+                            item = item,
+                            onStart = { startItem(item) },
+                            onDelete = { viewModel.remove(item.id) },
+                        )
+                        Spacer(Modifier.height(10.dp))
                     }
+                }
 
-                    Column(
-                        Modifier
-                            .align(Alignment.BottomCenter)
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp))
-                            .background(Color(0xCCFFFFFF)),
-                    ) {
-                        AddBar(
-                            label = label,
-                            onLabelChange = { label = it },
-                            previewLabel = previewLabel,
-                            previewMinutes = previewMinutes,
-                            recentCompleted = recentCompleted,
-                            accentColor = accentColor,
-                            focusRequester = focusRequester,
-                            onSubmit = ::submit,
-                            onAddRecent = { task -> viewModel.add(task.label, task.minutes) },
-                            onDismissRecent = { task -> viewModel.dismissRecent(task.label) },
+                AddTaskCard(onClick = { focusRequester.requestFocus() })
+
+                // Clears the pinned add bar + floating tab bar below.
+                Spacer(Modifier.height(190.dp))
+            }
+        }
+
+        Box(Modifier.align(Alignment.BottomCenter).fillMaxWidth()) {
+            AddBar(
+                label = label,
+                onLabelChange = { label = it },
+                previewLabel = previewLabel,
+                previewMinutes = previewMinutes,
+                recentCompleted = recentCompleted,
+                accentColor = accentColor,
+                focusRequester = focusRequester,
+                onSubmit = ::submit,
+                onAddRecent = { task -> viewModel.add(task.label, task.minutes) },
+                onDismissRecent = { task -> viewModel.dismissRecent(task.label) },
+            )
+        }
+    }
+
+    if (showBackgroundMenu) {
+        AlertDialog(
+            onDismissRequest = { showBackgroundMenu = false },
+            title = { Text("배경 사진", fontWeight = FontWeight.Bold) },
+            text = { Text("할 일 화면 배경으로 쓸 사진을 골라주세요.", color = FocusColors.Muted, fontSize = 13.5.sp) },
+            confirmButton = {
+                IconActionButton(
+                    icon = Icons.Outlined.AddPhotoAlternate,
+                    contentDescription = "사진 선택",
+                    onClick = {
+                        showBackgroundMenu = false
+                        backgroundPicker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+                    },
+                    accent = true,
+                    size = 40.dp,
+                )
+            },
+            dismissButton = {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    if (background != null) {
+                        IconActionButton(
+                            icon = Icons.Outlined.Close,
+                            contentDescription = "기본으로",
+                            onClick = {
+                                showBackgroundMenu = false
+                                viewModel.clearBackground()
+                            },
+                            size = 40.dp,
                         )
                     }
                 }
-            }
-        }
-    }
-}
-
-/** The empty-queue hint, centered within whatever space [modifier] gives it. */
-@Composable
-private fun EmptyState(modifier: Modifier) {
-    Column(
-        modifier
-            .fillMaxWidth()
-            .padding(horizontal = 20.dp, vertical = SHEET_OVERLAP + 20.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center,
-    ) {
-        Text(
-            "아직 할 일이 없어요.\n아래에 적고 엔터를 누르면 바로 쌓여요.\n\"빨래 20\"처럼 뒤에 숫자를 붙이면 분까지 한 번에 설정돼요.",
-            color = FocusColors.Muted,
-            fontSize = 14.sp,
-            lineHeight = 22.sp,
-            textAlign = TextAlign.Center,
+            },
         )
     }
 }
 
+/** Date eyebrow + big headline + a "N개 남음" pill, with the background-photo button up top. */
 @Composable
-private fun TodoList(
-    planned: List<PlannedFocusEntity>,
-    onStart: (PlannedFocusEntity) -> Unit,
-    onDelete: (Long) -> Unit,
-    modifier: Modifier,
-) {
-    LazyColumn(
-        modifier = modifier.fillMaxWidth(),
-        contentPadding = PaddingValues(start = 20.dp, top = SHEET_OVERLAP + 4.dp, end = 20.dp, bottom = 4.dp),
-    ) {
-        items(planned, key = { it.id }) { item ->
-            TodoRow(
-                item = item,
-                onStart = { onStart(item) },
-                onDelete = { onDelete(item.id) },
+private fun TodoHeader(taskCount: Int, onPickBackground: () -> Unit) {
+    val today = remember { LocalDate.now() }
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+        Column {
+            Text(
+                Formatters.monthDayWeekday(today),
+                color = FocusColors.AccentBlue,
+                fontFamily = MonoFamily,
+                fontSize = 11.sp,
+                letterSpacing = 2.sp,
             )
+            Spacer(Modifier.height(6.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    "할 일",
+                    color = FocusColors.Ink,
+                    fontFamily = GothicFamily,
+                    fontSize = 30.sp,
+                    fontWeight = FontWeight.Bold,
+                )
+                Spacer(Modifier.width(10.dp))
+                Box(
+                    Modifier
+                        .clip(RoundedCornerShape(20.dp))
+                        .background(Color(0xB3FFFFFF))
+                        .padding(horizontal = 10.dp, vertical = 4.dp),
+                ) {
+                    Text("${taskCount}개 남음", color = FocusColors.AccentBlue, fontFamily = MonoFamily, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                }
+            }
+        }
+        IconActionButton(
+            icon = Icons.Outlined.AddPhotoAlternate,
+            contentDescription = "배경 사진",
+            onClick = onPickBackground,
+        )
+    }
+}
+
+/** The head of the queue, led big — task name, start button, and its planned duration. */
+@Composable
+private fun PriorityCard(item: PlannedFocusEntity, onStart: () -> Unit) {
+    val minutes = (item.plannedMs / 60_000L).toInt().coerceAtLeast(1)
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .shadow(12.dp, RoundedCornerShape(24.dp))
+            .clip(RoundedCornerShape(24.dp))
+            .background(Color(0xF2FFFFFF))
+            .padding(22.dp),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Box(Modifier.size(6.dp).clip(CircleShape).background(FocusColors.AccentBlue))
+            Spacer(Modifier.width(6.dp))
+            Text("우선 집중", color = FocusColors.AccentBlue, fontFamily = MonoFamily, fontSize = 11.sp, letterSpacing = 2.sp, fontWeight = FontWeight.Bold)
+        }
+        Spacer(Modifier.height(10.dp))
+        Row(verticalAlignment = Alignment.Top) {
+            Text(
+                item.label.ifBlank { "집중" },
+                color = FocusColors.Ink,
+                fontFamily = GothicFamily,
+                fontSize = 23.sp,
+                fontWeight = FontWeight.Bold,
+                lineHeight = 29.sp,
+                modifier = Modifier.weight(1f).padding(end = 12.dp),
+            )
+            Box(
+                Modifier
+                    .size(48.dp)
+                    .clip(CircleShape)
+                    .background(FocusColors.AccentDeep)
+                    .clickable(onClick = onStart),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(Icons.Filled.PlayArrow, contentDescription = "시작", tint = Color.White, modifier = Modifier.size(24.dp))
+            }
+        }
+        Spacer(Modifier.height(16.dp))
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+            Icon(Icons.Outlined.Schedule, contentDescription = null, tint = FocusColors.Muted, modifier = Modifier.size(14.dp))
+            Text("${minutes}분", color = FocusColors.Muted, fontFamily = MonoFamily, fontSize = 12.5.sp)
         }
     }
 }
 
+/** One waiting item — tap the leading circle (or it) to start, the trailing × to drop it. */
+@Composable
+private fun PendingCard(item: PlannedFocusEntity, onStart: () -> Unit, onDelete: () -> Unit) {
+    val minutes = (item.plannedMs / 60_000L).toInt().coerceAtLeast(1)
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .shadow(4.dp, RoundedCornerShape(18.dp))
+            .clip(RoundedCornerShape(18.dp))
+            .background(Color(0xF2FFFFFF))
+            .padding(14.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box(
+            Modifier
+                .size(38.dp)
+                .clip(CircleShape)
+                .background(FocusColors.Mist)
+                .clickable(onClick = onStart),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(Icons.Filled.PlayArrow, contentDescription = "시작", tint = FocusColors.AccentBlue, modifier = Modifier.size(17.dp))
+        }
+        Spacer(Modifier.width(14.dp))
+        Column(Modifier.weight(1f)) {
+            Text(item.label.ifBlank { "집중" }, color = FocusColors.Ink, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+            Spacer(Modifier.height(3.dp))
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                Icon(Icons.Outlined.Schedule, contentDescription = null, tint = FocusColors.Muted, modifier = Modifier.size(12.dp))
+                Text("${minutes}분", color = FocusColors.Muted, fontFamily = MonoFamily, fontSize = 11.5.sp)
+            }
+        }
+        Box(
+            Modifier
+                .size(26.dp)
+                .clip(CircleShape)
+                .clickable(onClick = onDelete),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(Icons.Outlined.Close, contentDescription = "삭제", tint = FocusColors.Muted2, modifier = Modifier.size(14.dp))
+        }
+    }
+}
+
+/** Dashed "new task" affordance — jumps focus down to the pinned add bar. */
+@Composable
+private fun AddTaskCard(onClick: () -> Unit) {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .height(52.dp)
+            .clip(RoundedCornerShape(18.dp))
+            .dashedBorder(FocusColors.Muted2, RoundedCornerShape(18.dp))
+            .clickable(onClick = onClick),
+        horizontalArrangement = Arrangement.Center,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(Icons.Outlined.Add, contentDescription = null, tint = FocusColors.Muted, modifier = Modifier.size(16.dp))
+        Spacer(Modifier.width(6.dp))
+        Text("새로운 작업", color = FocusColors.Muted, fontFamily = MonoFamily, fontSize = 12.5.sp)
+    }
+}
+
+private fun Modifier.dashedBorder(color: Color, shape: RoundedCornerShape, width: androidx.compose.ui.unit.Dp = 1.5.dp) = drawBehind {
+    val radiusPx = shape.topStart.toPx(size, this)
+    drawRoundRect(
+        color = color.copy(alpha = 0.45f),
+        cornerRadius = CornerRadius(radiusPx, radiusPx),
+        style = Stroke(width = width.toPx(), pathEffect = PathEffect.dashPathEffect(floatArrayOf(10f, 8f), 0f)),
+    )
+}
+
 /**
- * The add bar, pinned to the bottom. It sits just above the keyboard while typing, and above
- * the floating tab bar when the keyboard is closed.
+ * The add bar, pinned to the bottom as its own glass card. It sits just above the keyboard
+ * while typing, and above the floating tab bar when the keyboard is closed.
  */
 @Composable
 private fun AddBar(
@@ -327,8 +471,11 @@ private fun AddBar(
     Column(
         Modifier
             .fillMaxWidth()
+            .shadow(10.dp, RoundedCornerShape(topStart = 22.dp, topEnd = 22.dp))
+            .clip(RoundedCornerShape(topStart = 22.dp, topEnd = 22.dp))
+            .background(Color(0xF7FFFFFF))
             .windowInsetsPadding(WindowInsets.systemBars.union(WindowInsets.ime).only(WindowInsetsSides.Bottom))
-            .padding(start = 20.dp, top = 12.dp, end = 20.dp, bottom = if (keyboardOpen) 12.dp else 92.dp),
+            .padding(start = 20.dp, top = 14.dp, end = 20.dp, bottom = if (keyboardOpen) 14.dp else 96.dp),
     ) {
         if (previewMinutes != null) {
             Text(
@@ -390,108 +537,6 @@ private fun AddBar(
 }
 
 /**
- * Big title + today's date over a full-bleed header photo — the user's own picked photo when
- * set, otherwise the app's usual soft gradient. The small button lets them set/change/clear it.
- */
-@Composable
-private fun TodoHeader(
-    hasBackground: Boolean,
-    accentColor: Color?,
-    onPickBackground: () -> Unit,
-    onClearBackground: () -> Unit,
-) {
-    var showBackgroundMenu by remember { mutableStateOf(false) }
-    val today = remember { LocalDate.now() }
-
-    Box(
-        Modifier
-            .fillMaxWidth()
-            .height(200.dp),
-    ) {
-        if (hasBackground) {
-            // Scrim at the top (where the title sits), tinted from the photo's own accent
-            // color when we have one so it reads as part of the photo, not a generic overlay.
-            // The photo itself is drawn once behind the whole screen, not here.
-            val scrimTop = accentColor?.let { lerp(it, Color.Black, 0.55f) } ?: Color(0xFF101820)
-            Box(
-                Modifier
-                    .fillMaxSize()
-                    .background(
-                        Brush.verticalGradient(
-                            colors = listOf(scrimTop.copy(alpha = 0.8f), scrimTop.copy(alpha = 0.05f), Color.Transparent),
-                        ),
-                    ),
-            )
-        }
-
-        Row(
-            Modifier
-                .align(Alignment.TopStart)
-                .fillMaxWidth()
-                .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Top))
-                .padding(start = 20.dp, end = 12.dp, top = 10.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-        ) {
-            Column {
-                Text(
-                    "오늘 할 일",
-                    color = if (hasBackground) Color.White else FocusColors.Ink,
-                    fontSize = 24.sp,
-                    fontWeight = FontWeight.Bold,
-                )
-                Spacer(Modifier.height(2.dp))
-                Text(
-                    Formatters.monthDayWeekday(today),
-                    color = if (hasBackground) Color(0xE6FFFFFF) else FocusColors.Muted,
-                    fontSize = 12.5.sp,
-                )
-            }
-            IconActionButton(
-                icon = Icons.Outlined.AddPhotoAlternate,
-                contentDescription = "배경 사진",
-                onClick = { showBackgroundMenu = true },
-                onDark = hasBackground,
-            )
-        }
-    }
-
-    if (showBackgroundMenu) {
-        AlertDialog(
-            onDismissRequest = { showBackgroundMenu = false },
-            title = { Text("배경 사진", fontWeight = FontWeight.Bold) },
-            text = { Text("할 일 화면 배경으로 쓸 사진을 골라주세요.", color = FocusColors.Muted, fontSize = 13.5.sp) },
-            confirmButton = {
-                IconActionButton(
-                    icon = Icons.Outlined.AddPhotoAlternate,
-                    contentDescription = "사진 선택",
-                    onClick = {
-                        showBackgroundMenu = false
-                        onPickBackground()
-                    },
-                    accent = true,
-                    size = 40.dp,
-                )
-            },
-            dismissButton = {
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    if (hasBackground) {
-                        IconActionButton(
-                            icon = Icons.Outlined.Close,
-                            contentDescription = "기본으로",
-                            onClick = {
-                                showBackgroundMenu = false
-                                onClearBackground()
-                            },
-                            size = 40.dp,
-                        )
-                    }
-                }
-            },
-        )
-    }
-}
-
-/**
  * "Add it again" chips for recently completed tasks — tap the label to drop one back into
  * today's queue, tap the small × to hide it from this row. Tinted from [accentColor] (sampled
  * from the header photo) when there is one, so the chips feel tied to the photo above.
@@ -504,7 +549,7 @@ private fun RecentTaskChips(
     onDismiss: (RecentTask) -> Unit,
 ) {
     val chipBg = accentColor?.copy(alpha = 0.18f) ?: FocusColors.Mist
-    val chipInk = accentColor?.let { lerp(it, FocusColors.Ink, 0.4f) } ?: FocusColors.Ink2
+    val chipInk = accentColor?.let { androidx.compose.ui.graphics.lerp(it, FocusColors.Ink, 0.4f) } ?: FocusColors.Ink2
 
     Column {
         Text(
@@ -550,51 +595,5 @@ private fun RecentTaskChips(
                 }
             }
         }
-    }
-}
-
-@Composable
-private fun TodoRow(item: PlannedFocusEntity, onStart: () -> Unit, onDelete: () -> Unit) {
-    Row(
-        Modifier
-            .fillMaxWidth()
-            .padding(vertical = 4.dp)
-            .clip(RoundedCornerShape(12.dp))
-            .background(FocusColors.Mist)
-            .padding(horizontal = 14.dp, vertical = 9.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Column(Modifier.weight(1f)) {
-            Text(
-                item.label.ifBlank { "집중" },
-                color = FocusColors.Ink,
-                fontSize = 14.5.sp,
-                fontWeight = FontWeight.SemiBold,
-            )
-            Spacer(Modifier.height(1.dp))
-            Text(
-                "${(item.plannedMs / 60_000L).toInt()}분",
-                color = FocusColors.Muted,
-                fontFamily = MonoFamily,
-                fontSize = 11.5.sp,
-            )
-        }
-        Box(
-            Modifier
-                .size(20.dp)
-                .clip(CircleShape)
-                .clickable(onClick = onDelete),
-            contentAlignment = Alignment.Center,
-        ) {
-            Icon(Icons.Outlined.Close, contentDescription = "삭제", tint = FocusColors.Muted2, modifier = Modifier.size(14.dp))
-        }
-        Spacer(Modifier.width(8.dp))
-        IconActionButton(
-            icon = Icons.Filled.PlayArrow,
-            contentDescription = "시작",
-            onClick = onStart,
-            accent = true,
-            size = 34.dp,
-        )
     }
 }

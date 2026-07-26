@@ -212,7 +212,7 @@ private fun StackedCard(item: PlannedFocusEntity, depth: Int) {
         Modifier
             .size(CARD_SIZE_W, CARD_SIZE_H)
             .scale(scale)
-            .offset(y = depth * 12.dp)
+            .offset(y = 12.dp * depth)
             .clip(RoundedCornerShape(28.dp))
             .background(bg)
             .border(1.dp, Color(0x33FFFFFF), RoundedCornerShape(28.dp)),

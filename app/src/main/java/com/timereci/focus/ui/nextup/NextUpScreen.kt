@@ -36,6 +36,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
@@ -183,9 +184,10 @@ fun NextUpScreen(
                     BREAK_PRESETS.forEach { m ->
                         Box(
                             Modifier
+                                .shadow(4.dp, RoundedCornerShape(20.dp))
                                 .clip(RoundedCornerShape(20.dp))
-                                .background(Color(0xCCFFFFFF))
-                                .border(1.dp, Color(0x40FFFFFF), RoundedCornerShape(20.dp))
+                                .background(Color.White)
+                                .border(1.dp, FocusColors.Line, RoundedCornerShape(20.dp))
                                 .clickable {
                                     val minutes = (top.plannedMs / 60_000L).toInt().coerceAtLeast(1)
                                     viewModel.consume(top.id)
@@ -207,20 +209,21 @@ fun NextUpScreen(
 @Composable
 private fun StackedCard(item: PlannedFocusEntity, depth: Int) {
     val scale = 1f - depth * 0.06f
-    val bg = if (depth == 1) Color(0x99FFFFFF) else Color(0x66FFFFFF)
+    val bg = if (depth == 1) Color(0xE6FFFFFF) else Color(0xB3FFFFFF)
     Box(
         Modifier
             .size(CARD_SIZE_W, CARD_SIZE_H)
             .scale(scale)
             .offset(y = 12.dp * depth)
+            .shadow(6.dp, RoundedCornerShape(28.dp))
             .clip(RoundedCornerShape(28.dp))
             .background(bg)
-            .border(1.dp, Color(0x33FFFFFF), RoundedCornerShape(28.dp)),
+            .border(1.dp, FocusColors.Line, RoundedCornerShape(28.dp)),
         contentAlignment = Alignment.Center,
     ) {
         Text(
             item.label.ifBlank { "집중" },
-            color = FocusColors.Ink.copy(alpha = 0.55f),
+            color = FocusColors.Ink.copy(alpha = 0.6f),
             fontFamily = GothicFamily,
             fontSize = 20.sp,
             fontWeight = FontWeight.Bold,
@@ -270,9 +273,10 @@ private fun TopCard(item: PlannedFocusEntity, onSwipedRight: () -> Unit, onSwipe
                     },
                 )
             }
+            .shadow(10.dp, RoundedCornerShape(28.dp))
             .clip(RoundedCornerShape(28.dp))
-            .background(Color(0xE6FFFFFF))
-            .border(1.dp, Color(0x40FFFFFF), RoundedCornerShape(28.dp)),
+            .background(Color.White)
+            .border(1.dp, FocusColors.Line, RoundedCornerShape(28.dp)),
         contentAlignment = Alignment.Center,
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {

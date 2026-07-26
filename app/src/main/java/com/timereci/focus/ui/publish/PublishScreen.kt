@@ -6,6 +6,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.Arrangement
@@ -45,7 +46,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
@@ -99,20 +103,43 @@ fun PublishScreen(
         photoPicker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
     }
 
-    Column(
-        Modifier
-            .fillMaxSize()
-            .background(FocusColors.Night)
-            .grain(0.05f)
-            .windowInsetsPadding(WindowInsets.safeDrawing)
-            .imePadding()
-            .verticalScroll(rememberScrollState())
-            .padding(horizontal = 22.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
+    Box(Modifier.fillMaxSize()) {
+        // Same soft blue-centre-to-white backdrop as the timer and next-up screens, instead of
+        // a flat dark surface — the receipt card (dark navy/photo) now reads as an object
+        // floating on top of it rather than blending into an equally dark background.
+        Box(
+            Modifier
+                .fillMaxSize()
+                .background(FocusColors.BaseLight)
+                .grain(0.07f),
+        )
+        Box(
+            Modifier
+                .fillMaxSize()
+                .drawWithCache {
+                    val brush = Brush.radialGradient(
+                        0f to Color(0xFF6FA8DE),
+                        0.5f to Color(0xFFBEE0F5),
+                        1f to Color(0xFFFFFFFF),
+                        center = Offset(size.width / 2f, size.height * 0.38f),
+                        radius = size.minDimension * 0.75f,
+                    )
+                    onDrawBehind { drawRect(brush) }
+                },
+        )
+
+        Column(
+            Modifier
+                .fillMaxSize()
+                .windowInsetsPadding(WindowInsets.safeDrawing)
+                .imePadding()
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 22.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
         Text(
             "방금 담김",
-            color = FocusColors.NightMuted,
+            color = FocusColors.Muted,
             fontFamily = MonoFamily,
             fontSize = 11.sp,
             letterSpacing = 2.sp,
@@ -161,6 +188,7 @@ fun PublishScreen(
                         },
                     )
                 }
+                .shadow(14.dp, RoundedCornerShape(20.dp))
                 .clip(RoundedCornerShape(20.dp))
                 .then(
                     if (current.fileName == null) {
@@ -301,14 +329,12 @@ fun PublishScreen(
                 onClick = {
                     if (recentPhotos.isEmpty()) launchSystemPicker() else showPhotoPicker = true
                 },
-                onDark = true,
                 size = 50.dp,
             )
             IconActionButton(
                 icon = Icons.Outlined.DeleteOutline,
                 contentDescription = "버리기",
                 onClick = { viewModel.discard(onFinished) },
-                onDark = true,
                 size = 50.dp,
             )
             IconActionButton(
@@ -329,18 +355,20 @@ fun PublishScreen(
             Row(
                 Modifier
                     .clip(RoundedCornerShape(20.dp))
-                    .background(FocusColors.Glass)
+                    .background(Color(0xCCFFFFFF))
+                    .border(1.dp, FocusColors.Line, RoundedCornerShape(20.dp))
                     .clickable(onClick = viewModel::stopAlarm)
                     .padding(horizontal = 14.dp, vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(6.dp),
             ) {
-                Icon(Icons.Outlined.NotificationsOff, contentDescription = null, tint = FocusColors.NightInk, modifier = Modifier.size(15.dp))
-                Text("알람 끄기", color = FocusColors.NightInk, fontFamily = MonoFamily, fontSize = 12.sp)
+                Icon(Icons.Outlined.NotificationsOff, contentDescription = null, tint = FocusColors.Ink2, modifier = Modifier.size(15.dp))
+                Text("알람 끄기", color = FocusColors.Ink2, fontFamily = MonoFamily, fontSize = 12.sp)
             }
         }
 
         Spacer(Modifier.height(20.dp))
+        }
     }
 
     if (showPhotoPicker) {

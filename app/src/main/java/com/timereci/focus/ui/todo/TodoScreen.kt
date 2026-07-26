@@ -19,7 +19,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
@@ -168,21 +167,26 @@ fun TodoScreen(
             }
         }
 
-        // The primary "start something new" action, pinned within thumb's reach at the
-        // bottom — the old top-right nav corner meant reaching across the whole screen.
-        Box(
+        // The primary "start something new" action — wide, centered and within thumb's
+        // reach at the bottom, instead of a small button stuck in the top-right corner.
+        Row(
             Modifier
-                .align(Alignment.BottomEnd)
+                .align(Alignment.BottomCenter)
                 .windowInsetsPadding(WindowInsets.safeDrawing)
-                .padding(end = 22.dp, bottom = 108.dp)
-                .size(58.dp)
-                .shadow(10.dp, CircleShape)
-                .clip(CircleShape)
+                .padding(horizontal = 24.dp)
+                .padding(bottom = 104.dp)
+                .fillMaxWidth()
+                .height(60.dp)
+                .shadow(12.dp, RoundedCornerShape(30.dp))
+                .clip(RoundedCornerShape(30.dp))
                 .background(FocusColors.AccentDeep)
                 .clickable(onClick = onOpenQuickStart),
-            contentAlignment = Alignment.Center,
+            horizontalArrangement = Arrangement.Center,
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-            Icon(Icons.Outlined.Add, contentDescription = "Quick Start", tint = Color.White, modifier = Modifier.size(26.dp))
+            Icon(Icons.Outlined.Add, contentDescription = null, tint = Color.White, modifier = Modifier.size(24.dp))
+            Spacer(Modifier.width(8.dp))
+            Text("Quick Start", color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
         }
     }
 

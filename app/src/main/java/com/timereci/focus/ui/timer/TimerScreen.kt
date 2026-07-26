@@ -2,8 +2,6 @@ package com.timereci.focus.ui.timer
 
 import android.content.pm.ActivityInfo
 import android.content.res.Configuration
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -21,7 +19,6 @@ import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
@@ -41,9 +38,11 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawWithCache
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -52,6 +51,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -80,15 +80,16 @@ fun TimerScreen(
     viewModel: TimerViewModel = hiltViewModel(),
 ) {
     val state by viewModel.timerState.collectAsStateWithLifecycle()
-    val noteOpen by viewModel.noteSheetOpen.collectAsStateWithLifecycle()
     val keepRunning by viewModel.keepRunningWhileCommenting.collectAsStateWithLifecycle()
 
     val context = LocalContext.current
+    val focusManager = LocalFocusManager.current
+    val commentFocusRequester = remember { FocusRequester() }
     val sensorLandscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
     var forcedLandscape by rememberSaveable { mutableStateOf(false) }
     val isLandscape = sensorLandscape || forcedLandscape
-    // Tracks whether opening Note is what paused the session, so closing Note only resumes
-    // that same auto-pause — not a pause the user set deliberately with the Pause button.
+    // Tracks whether focusing the note field is what paused the session, so unfocusing it
+    // only resumes that same auto-pause — not a pause the user set deliberately with Pause.
     var autoPausedByNote by rememberSaveable { mutableStateOf(false) }
 
     androidx.compose.runtime.DisposableEffect(Unit) {
@@ -111,7 +112,12 @@ fun TimerScreen(
     Box(
         Modifier
             .fillMaxSize()
-            .background(FocusColors.BaseLight),
+            .background(FocusColors.BaseLight)
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                onClick = { focusManager.clearFocus() },
+            ),
     ) {
         val backdropName = state.backdropFileName
         if (backdropName != null) {
@@ -169,33 +175,25 @@ fun TimerScreen(
             isLandscape = isLandscape,
             task = state.taskLabel,
             comment = state.draftComment,
-            isPaused = state.phase == com.timereci.focus.timer.TimerPhase.PAUSED,
-            onNote = {
-                if (!keepRunning && state.phase != com.timereci.focus.timer.TimerPhase.PAUSED) {
-                    viewModel.pause()
-                    autoPausedByNote = true
+            onCommentChange = viewModel::updateComment,
+            commentFocusRequester = commentFocusRequester,
+            onCommentFocusChanged = { focused ->
+                if (focused) {
+                    if (!keepRunning && state.phase != com.timereci.focus.timer.TimerPhase.PAUSED) {
+                        viewModel.pause()
+                        autoPausedByNote = true
+                    }
+                } else if (autoPausedByNote) {
+                    viewModel.resume()
+                    autoPausedByNote = false
                 }
-                viewModel.openNote()
             },
+            isPaused = state.phase == com.timereci.focus.timer.TimerPhase.PAUSED,
+            onNote = { commentFocusRequester.requestFocus() },
             onTogglePause = { if (state.phase == com.timereci.focus.timer.TimerPhase.PAUSED) viewModel.resume() else viewModel.pause() },
             onCancel = { viewModel.abandon(); onAbandon() },
             onFinish = viewModel::completeNow,
         )
-
-        if (noteOpen) {
-            NoteSheet(
-                initial = state.draftComment,
-                keepRunning = keepRunning,
-                onChange = viewModel::updateComment,
-                onClose = {
-                    if (autoPausedByNote) {
-                        viewModel.resume()
-                        autoPausedByNote = false
-                    }
-                    viewModel.closeNote()
-                },
-            )
-        }
     }
 }
 
@@ -206,6 +204,9 @@ private fun RunningContent(
     isLandscape: Boolean,
     task: String,
     comment: String,
+    onCommentChange: (String) -> Unit,
+    commentFocusRequester: FocusRequester,
+    onCommentFocusChanged: (Boolean) -> Unit,
     isPaused: Boolean,
     onNote: () -> Unit,
     onTogglePause: () -> Unit,
@@ -249,7 +250,12 @@ private fun RunningContent(
                 color = FocusColors.Muted,
                 fontSize = 14.sp,
             )
-            LyricComment(comment = comment)
+            NoteField(
+                comment = comment,
+                onCommentChange = onCommentChange,
+                focusRequester = commentFocusRequester,
+                onFocusChanged = onCommentFocusChanged,
+            )
         }
 
         // No opaque bar here — the individual pill buttons below already read fine directly
@@ -290,32 +296,61 @@ private fun RunningContent(
 
 @Composable
 private fun DockButton(icon: ImageVector, label: String, onClick: () -> Unit, modifier: Modifier = Modifier, filled: Boolean = false) {
+    // No pill background — just the icon and label sitting directly on the backdrop, like
+    // the pre-start star used to. Finish still reads as the primary action via color alone.
+    val tint = if (filled) FocusColors.AccentBlue else FocusColors.Ink2
     Column(
         modifier
             .clip(RoundedCornerShape(14.dp))
-            .background(if (filled) FocusColors.AccentBlue else Color(0xEBFFFFFF))
-            .clickable(onClick = onClick)
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                onClick = onClick,
+            )
             .padding(vertical = 11.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Icon(icon, contentDescription = label, tint = if (filled) Color.White else FocusColors.AccentBlue, modifier = Modifier.size(22.dp))
+        Icon(icon, contentDescription = label, tint = tint, modifier = Modifier.size(24.dp))
         Spacer(Modifier.height(4.dp))
-        Text(label, color = if (filled) Color.White else FocusColors.AccentBlue, fontSize = 12.sp, fontWeight = FontWeight.Medium)
+        Text(label, color = tint, fontSize = 12.sp, fontWeight = FontWeight.Medium)
     }
 }
 
+/**
+ * The note, editable right where it's shown — no separate popup. It's the same text whether
+ * you're looking at it or typing it, so there's only one place it ever lives.
+ */
 @Composable
-private fun LyricComment(comment: String) {
-    val alpha by animateFloatAsState(targetValue = if (comment.isBlank()) 0f else 1f, animationSpec = tween(600), label = "lyric")
-    if (comment.isBlank()) return
-    Text(
-        comment,
+private fun NoteField(
+    comment: String,
+    onCommentChange: (String) -> Unit,
+    focusRequester: FocusRequester,
+    onFocusChanged: (Boolean) -> Unit,
+) {
+    val textStyle = TextStyle(
         color = FocusColors.InkSoft,
         fontFamily = GothicFamily,
         fontSize = 15.5.sp,
+        fontWeight = FontWeight.Medium,
         lineHeight = 22.sp,
         textAlign = TextAlign.Center,
-        modifier = Modifier.fillMaxWidth().padding(top = 18.dp).alpha(alpha),
+    )
+    BasicTextField(
+        value = comment,
+        onValueChange = onCommentChange,
+        textStyle = textStyle,
+        cursorBrush = SolidColor(FocusColors.AccentBlue),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = 18.dp)
+            .focusRequester(focusRequester)
+            .onFocusChanged { onFocusChanged(it.isFocused) },
+        decorationBox = { inner ->
+            if (comment.isEmpty()) {
+                Text("Add a note about right now…", style = textStyle.copy(color = FocusColors.Muted2), modifier = Modifier.fillMaxWidth())
+            }
+            inner()
+        },
     )
 }
 
@@ -340,78 +375,3 @@ private fun ProgressLine(progress: Float, isLandscape: Boolean) {
     }
 }
 
-@Composable
-private fun NoteSheet(
-    initial: String,
-    keepRunning: Boolean,
-    onChange: (String) -> Unit,
-    onClose: () -> Unit,
-) {
-    Box(
-        Modifier
-            .fillMaxSize()
-            .background(Color(0x3D0F1B26))
-            .clickable(
-                interactionSource = remember { MutableInteractionSource() },
-                indication = null,
-                onClick = onClose,
-            ),
-        contentAlignment = Alignment.BottomCenter,
-    ) {
-        Column(
-            Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(topStart = 22.dp, topEnd = 22.dp))
-                .background(Color.White)
-                .clickable(
-                    interactionSource = remember { MutableInteractionSource() },
-                    indication = null,
-                    enabled = false,
-                ) {}
-                .windowInsetsPadding(WindowInsets.safeDrawing)
-                .padding(horizontal = 26.dp, vertical = 18.dp),
-        ) {
-            Box(
-                Modifier
-                    .align(Alignment.CenterHorizontally)
-                    .width(40.dp)
-                    .height(4.dp)
-                    .clip(RoundedCornerShape(2.dp))
-                    .background(FocusColors.LineStrong),
-            )
-            Spacer(Modifier.height(14.dp))
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text("Note", color = FocusColors.Muted, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
-                Text(
-                    if (keepRunning) "Timer keeps running" else "Timer paused",
-                    color = FocusColors.Muted2,
-                    fontSize = 11.sp,
-                )
-            }
-            Spacer(Modifier.height(12.dp))
-            var text by remember { mutableStateOf(initial) }
-            BasicTextField(
-                value = text,
-                onValueChange = { text = it; onChange(it) },
-                textStyle = TextStyle(color = FocusColors.Ink2, fontSize = 16.sp),
-                modifier = Modifier.fillMaxWidth(),
-                decorationBox = { inner ->
-                    if (text.isEmpty()) Text("Leave a line about right now…", color = FocusColors.Muted2, fontSize = 16.sp)
-                    inner()
-                },
-            )
-            Spacer(Modifier.height(16.dp))
-            Box(
-                Modifier
-                    .align(Alignment.End)
-                    .size(44.dp)
-                    .clip(CircleShape)
-                    .background(FocusColors.AccentDeep)
-                    .clickable(onClick = onClose),
-                contentAlignment = Alignment.Center,
-            ) {
-                Icon(Icons.Outlined.Check, contentDescription = "Done", tint = FocusColors.Paper, modifier = Modifier.size(20.dp))
-            }
-        }
-    }
-}

@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -42,12 +43,17 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import coil.compose.AsyncImage
+import coil.request.ImageRequest
+import com.timereci.focus.data.PhotoStorage
 import com.timereci.focus.data.PlannedFocusEntity
 import com.timereci.focus.ui.components.ChoosePhotoSheet
 import com.timereci.focus.ui.theme.FocusColors
@@ -66,6 +72,7 @@ fun PublishScreen(
     val alarmActive by viewModel.alarmActive.collectAsStateWithLifecycle()
     val askForPhoto by viewModel.askForPhotoAfterSession.collectAsStateWithLifecycle()
     var showPhotoSheet by remember { mutableStateOf(false) }
+    val context = LocalContext.current
 
     val photoPicker = rememberLauncherForActivityResult(
         ActivityResultContracts.PickVisualMedia(),
@@ -145,10 +152,20 @@ fun PublishScreen(
                         .padding(horizontal = 16.dp, vertical = 14.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Icon(Icons.Outlined.Image, contentDescription = null, tint = FocusColors.AccentBlue, modifier = Modifier)
+                    val photoFile = ui.photo?.fileName
+                    if (photoFile != null) {
+                        AsyncImage(
+                            model = ImageRequest.Builder(context).data(PhotoStorage.fileIn(context, photoFile)).crossfade(true).build(),
+                            contentDescription = null,
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier.size(44.dp).clip(RoundedCornerShape(10.dp)),
+                        )
+                    } else {
+                        Icon(Icons.Outlined.Image, contentDescription = null, tint = FocusColors.AccentBlue, modifier = Modifier.size(28.dp))
+                    }
                     Column(Modifier.weight(1f).padding(start = 12.dp)) {
-                        Text(if (ui.photo != null) "Photo added" else "Add Photo", color = FocusColors.Ink, fontSize = 16.sp)
-                        if (ui.photo == null) {
+                        Text(if (photoFile != null) "Change Photo" else "Add Photo", color = FocusColors.Ink, fontSize = 16.sp)
+                        if (photoFile == null) {
                             Text("Optional", color = FocusColors.Muted, fontSize = 12.5.sp)
                         }
                     }

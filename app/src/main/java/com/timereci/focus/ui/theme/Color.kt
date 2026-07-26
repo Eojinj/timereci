@@ -30,8 +30,8 @@ object FocusColors {
     val LineSoft = Color(0xFFD9E7F2)
     val LineStrong = Color(0xFFC7DDEE)
 
-    // Accents
-    val AccentDeep = Color(0xFF22364A)
+    // Accents — a lively primary blue (matches the v5 design's --blue), not a dull navy.
+    val AccentDeep = Color(0xFF3F86F0)
     val AccentInk = Color(0xFF2E4257)
     val AccentBlue = Color(0xFF3E6A94)
     val AccentSky = Color(0xFF99C3E4)

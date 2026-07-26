@@ -24,6 +24,7 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
@@ -31,6 +32,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowForward
+import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -212,7 +214,11 @@ fun QuickStartScreen(
                     SectionLabel("RECENT")
                     LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         items(recentCompleted, key = { it.label }) { task ->
-                            RecentChip(task = task, onClick = { viewModel.fillFromRecent(task) })
+                            RecentChip(
+                                task = task,
+                                onClick = { viewModel.fillFromRecent(task) },
+                                onDismiss = { viewModel.dismissRecent(task.label) },
+                            )
                         }
                     }
                 }
@@ -292,17 +298,32 @@ private fun SectionLabel(text: String, topPadding: androidx.compose.ui.unit.Dp =
 }
 
 @Composable
-private fun RecentChip(task: RecentTask, onClick: () -> Unit) {
+private fun RecentChip(task: RecentTask, onClick: () -> Unit, onDismiss: () -> Unit) {
     Row(
         Modifier
             .clip(RoundedCornerShape(999.dp))
             .background(Color(0xEBFFFFFF))
-            .clickable(onClick = onClick)
-            .padding(horizontal = 14.dp, vertical = 9.dp),
+            .padding(start = 14.dp, end = 8.dp, top = 9.dp, bottom = 9.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(5.dp),
     ) {
-        Text(task.label, color = FocusColors.Ink, fontSize = 14.sp, fontWeight = FontWeight.Medium)
-        Text("${task.minutes}", color = FocusColors.Muted, fontSize = 13.sp)
+        Row(
+            Modifier.clickable(onClick = onClick),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(5.dp),
+        ) {
+            Text(task.label, color = FocusColors.Ink, fontSize = 14.sp, fontWeight = FontWeight.Medium)
+            Text("${task.minutes}", color = FocusColors.Muted, fontSize = 13.sp)
+        }
+        Spacer(Modifier.width(2.dp))
+        Box(
+            Modifier
+                .size(18.dp)
+                .clip(CircleShape)
+                .clickable(onClick = onDismiss),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(Icons.Outlined.Close, contentDescription = "Remove", tint = FocusColors.Muted2, modifier = Modifier.size(12.dp))
+        }
     }
 }

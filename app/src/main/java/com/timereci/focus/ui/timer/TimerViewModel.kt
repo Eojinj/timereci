@@ -6,7 +6,6 @@ import com.timereci.focus.data.SettingsRepository
 import com.timereci.focus.timer.FocusTimerController
 import com.timereci.focus.timer.TimerState
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.map
@@ -30,15 +29,9 @@ class TimerViewModel @Inject constructor(
         .map { it.keepRunningWhileCommenting }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), true)
 
-    private val _noteSheetOpen = MutableStateFlow(false)
-    val noteSheetOpen: StateFlow<Boolean> = _noteSheetOpen
-
     fun pause() = controller.pause()
     fun resume() = controller.resume()
     fun completeNow() = controller.completeNow()
     fun abandon() = controller.abandon()
-
-    fun openNote() { _noteSheetOpen.value = true }
-    fun closeNote() { _noteSheetOpen.value = false }
     fun updateComment(text: String) = controller.updateComment(text)
 }

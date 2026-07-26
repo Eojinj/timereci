@@ -41,6 +41,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithCache
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -56,9 +61,9 @@ import coil.request.ImageRequest
 import com.timereci.focus.data.PhotoStorage
 import com.timereci.focus.ui.components.IconActionButton
 import com.timereci.focus.ui.components.SessionOverlayCard
-import com.timereci.focus.ui.components.grainyBackground
 import com.timereci.focus.ui.model.FeedDay
 import com.timereci.focus.ui.theme.FocusColors
+import com.timereci.focus.ui.theme.GothicFamily
 import com.timereci.focus.ui.theme.MonoFamily
 import com.timereci.focus.ui.theme.PhotoTones
 import com.timereci.focus.ui.theme.patternPlaceholder
@@ -81,10 +86,16 @@ fun FeedScreen(
     Box(
         Modifier
             .fillMaxSize()
-            .grainyBackground(
-                base = FocusColors.BaseLight,
-                blob = FocusColors.AccentDeep.copy(alpha = 0.14f),
-            ),
+            .drawWithCache {
+                val brush = Brush.radialGradient(
+                    0f to Color(0xFF6FA8DE),
+                    0.5f to Color(0xFFBEE0F5),
+                    1f to Color(0xFFF7F9FB),
+                    center = Offset(size.width / 2f, size.height * 0.28f),
+                    radius = size.minDimension * 0.9f,
+                )
+                onDrawBehind { drawRect(brush) }
+            },
     ) {
         Column(Modifier.fillMaxSize()) {
             FeedHeader(
@@ -92,6 +103,14 @@ fun FeedScreen(
                 mode = mode,
                 onToggleMode = { mode = if (mode == FeedViewMode.STRIP) FeedViewMode.ROLL else FeedViewMode.STRIP },
             )
+
+            (state as? FeedUiState.Content)?.let { content ->
+                FeedStatsRow(
+                    efficiencyPercent = content.efficiencyPercent,
+                    weeklyAvgText = content.weeklyAvgText,
+                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp),
+                )
+            }
 
             when {
                 state is FeedUiState.Empty -> EmptyFeed()
@@ -115,8 +134,18 @@ fun FeedScreen(
                 }
                 state is FeedUiState.Content -> LazyColumn(
                     modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(top = 8.dp, bottom = 100.dp),
+                    contentPadding = PaddingValues(top = 4.dp, bottom = 100.dp),
                 ) {
+                    item {
+                        Text(
+                            "세션 기록",
+                            color = FocusColors.Muted,
+                            fontFamily = MonoFamily,
+                            fontSize = 11.sp,
+                            letterSpacing = 2.sp,
+                            modifier = Modifier.padding(start = 20.dp, top = 14.dp, bottom = 10.dp),
+                        )
+                    }
                     items((state as FeedUiState.Content).days, key = { it.epochDay }) { day ->
                         DayStripRow(day = day, onOpenDay = { onOpenDay(day.epochDay) })
                     }
@@ -238,7 +267,7 @@ private fun FeedHeader(
             .padding(start = 20.dp, end = 6.dp, top = 6.dp, bottom = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text("집중", color = FocusColors.Ink, fontSize = 24.sp, fontWeight = FontWeight.Bold, letterSpacing = (-0.4).sp)
+        Text("집중", color = FocusColors.Ink, fontFamily = GothicFamily, fontSize = 26.sp, fontWeight = FontWeight.Bold, letterSpacing = (-0.4).sp)
         Spacer(Modifier.width(10.dp))
         Text(subtitle, color = FocusColors.Muted, fontFamily = MonoFamily, fontSize = 11.5.sp)
         Spacer(Modifier.weight(1f))
@@ -249,6 +278,30 @@ private fun FeedHeader(
                 tint = FocusColors.Ink2,
             )
         }
+    }
+}
+
+/** Two glass stat cards — overall focused-vs-planned efficiency, and the recent daily average. */
+@Composable
+private fun FeedStatsRow(efficiencyPercent: Int, weeklyAvgText: String, modifier: Modifier = Modifier) {
+    Row(modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        StatCard(label = "효율", value = "${efficiencyPercent}%", modifier = Modifier.weight(1f))
+        StatCard(label = "주간 평균", value = weeklyAvgText, modifier = Modifier.weight(1f))
+    }
+}
+
+@Composable
+private fun StatCard(label: String, value: String, modifier: Modifier = Modifier) {
+    Column(
+        modifier
+            .shadow(6.dp, RoundedCornerShape(18.dp))
+            .clip(RoundedCornerShape(18.dp))
+            .background(Color(0xEBFFFFFF))
+            .padding(horizontal = 16.dp, vertical = 14.dp),
+    ) {
+        Text(label, color = FocusColors.AccentBlue, fontFamily = MonoFamily, fontSize = 10.5.sp, letterSpacing = 1.5.sp, fontWeight = FontWeight.Bold)
+        Spacer(Modifier.height(4.dp))
+        Text(value, color = FocusColors.Ink, fontFamily = GothicFamily, fontSize = 24.sp, fontWeight = FontWeight.Bold)
     }
 }
 
@@ -297,8 +350,12 @@ private fun DayStripRow(day: FeedDay, onOpenDay: () -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .padding(horizontal = 20.dp, vertical = 5.dp)
+            .shadow(3.dp, RoundedCornerShape(16.dp))
+            .clip(RoundedCornerShape(16.dp))
+            .background(Color(0xEBFFFFFF))
             .clickable(onClick = onOpenDay)
-            .padding(horizontal = 14.dp, vertical = 9.dp),
+            .padding(horizontal = 14.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
@@ -313,7 +370,7 @@ private fun DayStripRow(day: FeedDay, onOpenDay: () -> Unit) {
             Modifier
                 .weight(1f)
                 .height(22.dp)
-                .clip(RoundedCornerShape(6.dp))
+                .clip(RoundedCornerShape(50)) // fully rounded pill
                 .background(FocusColors.Line),
         ) {
             Row(

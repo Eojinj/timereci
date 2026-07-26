@@ -96,10 +96,11 @@ class QuickStartViewModel @Inject constructor(
      * straight to the (already-running) timer after calling this. */
     fun start() {
         val r = resolved.value
-        val label = r.label.ifBlank { _text.value.trim() }
+        // r.label is already correct as-is: blank for a bare "20" (just a number, no task
+        // name), or the full text when QuickEntry couldn't parse a number out of it at all.
         controller.start(
             plannedMs = r.minutes * 60_000L,
-            taskLabel = label,
+            taskLabel = r.label,
             backdropFileName = _backdrop.value?.fileName,
         )
     }

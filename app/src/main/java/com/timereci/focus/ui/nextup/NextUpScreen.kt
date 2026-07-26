@@ -14,23 +14,39 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawWithCache
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -54,6 +70,8 @@ fun NextUpScreen(
     val justSaved by viewModel.justSaved.collectAsStateWithLifecycle()
     val current = queue.firstOrNull()
     val waitingCount = (queue.size - 1).coerceAtLeast(0)
+    var showBreakInput by remember(current?.id) { mutableStateOf(false) }
+    var breakInput by remember(current?.id) { mutableStateOf("") }
 
     Box(
         Modifier
@@ -133,10 +151,21 @@ fun NextUpScreen(
                 if (current != null) {
                     DockPrimary("Start Next Session") { viewModel.startNow(current); onContinueNow() }
                     Spacer(Modifier.height(9.dp))
-                    DockTint("Take a 5-min Break") {
-                        val minutes = (current.plannedMs / 60_000L).toInt().coerceAtLeast(1)
-                        viewModel.consumeForBreak(current)
-                        onBreak(5, current.label, minutes)
+                    if (showBreakInput) {
+                        BreakInputRow(
+                            value = breakInput,
+                            onValueChange = { breakInput = it.filter(Char::isDigit).take(3) },
+                            onConfirm = {
+                                val breakMinutes = breakInput.toIntOrNull()?.coerceIn(1, 180) ?: 5
+                                val minutes = (current.plannedMs / 60_000L).toInt().coerceAtLeast(1)
+                                viewModel.consumeForBreak(current)
+                                onBreak(breakMinutes, current.label, minutes)
+                            },
+                        )
+                    } else {
+                        // Tapping this doesn't start a fixed break — it just opens the
+                        // "how many minutes" field below, so the length is always chosen.
+                        DockTint("Take a Break") { showBreakInput = true; breakInput = "" }
                     }
                     Spacer(Modifier.height(4.dp))
                 }
@@ -164,6 +193,52 @@ private fun DockPrimary(label: String, onClick: () -> Unit) {
         contentAlignment = Alignment.Center,
     ) {
         Text(label, color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
+    }
+}
+
+/** Revealed when "Take a Break" is tapped — lets the user pick how many minutes, instead of
+ * committing to a fixed length right away. */
+@Composable
+private fun BreakInputRow(value: String, onValueChange: (String) -> Unit, onConfirm: () -> Unit) {
+    val focusRequester = remember { FocusRequester() }
+    LaunchedEffect(Unit) { focusRequester.requestFocus() }
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .height(52.dp)
+            .clip(RoundedCornerShape(14.dp))
+            .background(Color(0xEBFFFFFF))
+            .padding(horizontal = 18.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text("Rest for", color = FocusColors.Ink, fontSize = 16.sp, modifier = Modifier.weight(1f))
+        BasicTextField(
+            value = value,
+            onValueChange = onValueChange,
+            singleLine = true,
+            cursorBrush = SolidColor(FocusColors.AccentBlue),
+            textStyle = TextStyle(color = FocusColors.Ink, fontSize = 17.sp, fontWeight = FontWeight.SemiBold, textAlign = TextAlign.End),
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Done),
+            keyboardActions = KeyboardActions(onDone = { onConfirm() }),
+            modifier = Modifier.width(40.dp).focusRequester(focusRequester),
+            decorationBox = { inner ->
+                if (value.isEmpty()) {
+                    Text("5", color = FocusColors.Muted2, fontSize = 17.sp, fontWeight = FontWeight.SemiBold, textAlign = TextAlign.End, modifier = Modifier.fillMaxWidth())
+                }
+                inner()
+            },
+        )
+        Text(" min", color = FocusColors.Muted, fontSize = 15.sp, modifier = Modifier.padding(end = 10.dp))
+        Box(
+            Modifier
+                .size(34.dp)
+                .clip(CircleShape)
+                .background(FocusColors.AccentBlue)
+                .clickable(onClick = onConfirm),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(Icons.Outlined.Check, contentDescription = "Start Break", tint = Color.White, modifier = Modifier.size(16.dp))
+        }
     }
 }
 

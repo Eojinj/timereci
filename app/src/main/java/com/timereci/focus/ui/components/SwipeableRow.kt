@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.matchParentSize
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -63,7 +64,11 @@ fun SwipeableRow(
             .fillMaxWidth()
             .clip(RoundedCornerShape(cornerRadius)),
     ) {
-        Row(Modifier.fillMaxHeight().align(Alignment.CenterEnd)) {
+        // matchParentSize (not fillMaxHeight, which no-ops to wrap-content under the
+        // unbounded height a scrolling Column gives here) makes this exactly the row's own
+        // height — taller and it peeks out below the content on top, which is what was
+        // bleeding "Edit"/"Delete" into view even at rest.
+        Row(Modifier.matchParentSize(), horizontalArrangement = Arrangement.End) {
             if (onEdit != null) {
                 SwipeAction(
                     label = "Edit",

@@ -99,10 +99,6 @@ fun TodoScreen(
                 .fillMaxSize()
                 .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Top)),
         ) {
-            Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp), horizontalArrangement = Arrangement.End) {
-                IconActionButton(icon = Icons.Outlined.Add, contentDescription = "Quick Start", onClick = onOpenQuickStart)
-            }
-
             Column(
                 Modifier
                     .weight(1f)
@@ -110,6 +106,7 @@ fun TodoScreen(
                     .verticalScroll(rememberScrollState())
                     .padding(horizontal = 20.dp),
             ) {
+                Spacer(Modifier.height(14.dp))
                 Text(
                     "Today",
                     color = FocusColors.Ink,
@@ -169,6 +166,23 @@ fun TodoScreen(
 
                 Spacer(Modifier.height(140.dp))
             }
+        }
+
+        // The primary "start something new" action, pinned within thumb's reach at the
+        // bottom — the old top-right nav corner meant reaching across the whole screen.
+        Box(
+            Modifier
+                .align(Alignment.BottomEnd)
+                .windowInsetsPadding(WindowInsets.safeDrawing)
+                .padding(end = 22.dp, bottom = 108.dp)
+                .size(58.dp)
+                .shadow(10.dp, CircleShape)
+                .clip(CircleShape)
+                .background(FocusColors.AccentDeep)
+                .clickable(onClick = onOpenQuickStart),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(Icons.Outlined.Add, contentDescription = "Quick Start", tint = Color.White, modifier = Modifier.size(26.dp))
         }
     }
 

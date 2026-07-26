@@ -252,10 +252,11 @@ private fun RunningContent(
             LyricComment(comment = comment)
         }
 
+        // No opaque bar here — the individual pill buttons below already read fine directly
+        // over the gradient/backdrop, so the dock stays transparent instead of a solid strip.
         Column(
             Modifier
                 .fillMaxWidth()
-                .background(Color(0xF7FFFFFF))
                 .padding(horizontal = 20.dp, vertical = 16.dp),
         ) {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {

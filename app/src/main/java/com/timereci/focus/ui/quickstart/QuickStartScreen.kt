@@ -141,7 +141,9 @@ fun QuickStartScreen(
                         cursorBrush = SolidColor(FocusColors.AccentBlue),
                         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
                         keyboardActions = KeyboardActions(onDone = {
-                            if (resolved.label.isNotBlank()) { viewModel.start(); onStarted() }
+                            // A bare number ("20") is a valid start too — it just has no
+                            // task label — so gate on the raw text, not the parsed label.
+                            if (text.isNotBlank()) { viewModel.start(); onStarted() }
                         }),
                         modifier = Modifier.weight(1f).focusRequester(focusRequester),
                         decorationBox = { inner ->
@@ -249,8 +251,8 @@ fun QuickStartScreen(
                         .fillMaxWidth()
                         .height(52.dp)
                         .clip(RoundedCornerShape(14.dp))
-                        .background(if (resolved.label.isNotBlank()) FocusColors.AccentDeep else FocusColors.Muted2)
-                        .clickable(enabled = resolved.label.isNotBlank()) { viewModel.start(); onStarted() },
+                        .background(if (text.isNotBlank()) FocusColors.AccentDeep else FocusColors.Muted2)
+                        .clickable(enabled = text.isNotBlank()) { viewModel.start(); onStarted() },
                     horizontalArrangement = Arrangement.Center,
                     verticalAlignment = Alignment.CenterVertically,
                 ) {

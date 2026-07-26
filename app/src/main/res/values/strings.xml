@@ -2,9 +2,9 @@
     <string name="app_name">Merci</string>
 
     <!-- Notification -->
-    <string name="timer_channel_name">집중 타이머</string>
-    <string name="timer_channel_desc">집중 세션이 진행 중일 때 표시됩니다.</string>
-    <string name="timer_notification_title">집중 중</string>
-    <string name="timer_done_channel_name">집중 완료 알림</string>
-    <string name="timer_done_channel_desc">집중 타이머가 끝나면 알람이 울립니다.</string>
+    <string name="timer_channel_name">Focus timer</string>
+    <string name="timer_channel_desc">Shown while a focus session is running.</string>
+    <string name="timer_notification_title">Focusing</string>
+    <string name="timer_done_channel_name">Focus complete alert</string>
+    <string name="timer_done_channel_desc">Rings when the focus timer ends.</string>
 </resources>

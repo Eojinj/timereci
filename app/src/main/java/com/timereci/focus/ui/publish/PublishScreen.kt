@@ -3,85 +3,58 @@ package com.timereci.focus.ui.publish
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.aspectRatio
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.AddPhotoAlternate
-import androidx.compose.material.icons.outlined.Check
-import androidx.compose.material.icons.outlined.DeleteOutline
+import androidx.compose.material.icons.outlined.Image
 import androidx.compose.material.icons.outlined.NotificationsOff
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawWithCache
-import androidx.compose.ui.draw.rotate
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
-import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import coil.compose.AsyncImage
-import coil.request.ImageRequest
-import com.timereci.focus.data.PhotoRef
-import com.timereci.focus.data.PhotoStorage
 import com.timereci.focus.data.PlannedFocusEntity
-import com.timereci.focus.ui.components.IconActionButton
-import com.timereci.focus.ui.components.RecentPhotoPickerDialog
-import com.timereci.focus.ui.components.grain
+import com.timereci.focus.ui.components.ChoosePhotoSheet
 import com.timereci.focus.ui.theme.FocusColors
-import com.timereci.focus.ui.theme.MonoFamily
-import com.timereci.focus.ui.theme.patternPlaceholder
-import kotlin.math.roundToInt
-import kotlinx.coroutines.launch
 
 /**
- * The publish moment: the just-earned card with the comment typed directly onto the photo
- * (task + comment overlaid), plus "add photo" / "discard" and the commit button. The whole
- * column scrolls and honors the keyboard inset so typing doesn't jump the layout around.
+ * Session Complete (Merci v5 screen 5). No swipe card — Discard/Save are labeled nav actions,
+ * and the photo row opens the shared Choose Photo sheet.
  */
 @Composable
 fun PublishScreen(
@@ -89,30 +62,23 @@ fun PublishScreen(
     viewModel: PublishViewModel = hiltViewModel(),
 ) {
     val ui by viewModel.ui.collectAsStateWithLifecycle()
-    val aspect by viewModel.photoAspect.collectAsStateWithLifecycle()
     val recentPhotos by viewModel.recentPhotos.collectAsStateWithLifecycle()
     val alarmActive by viewModel.alarmActive.collectAsStateWithLifecycle()
-    val context = LocalContext.current
-    var showPhotoPicker by remember { mutableStateOf(false) }
+    val askForPhoto by viewModel.askForPhotoAfterSession.collectAsStateWithLifecycle()
+    var showPhotoSheet by remember { mutableStateOf(false) }
 
     val photoPicker = rememberLauncherForActivityResult(
         ActivityResultContracts.PickVisualMedia(),
-    ) { uri -> uri?.let(viewModel::addPhoto) }
-
+    ) { uri -> uri?.let(viewModel::setPhoto) }
     fun launchSystemPicker() {
         photoPicker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
     }
 
+    LaunchedEffect(askForPhoto) {
+        if (askForPhoto && ui.photo == null) launchSystemPicker()
+    }
+
     Box(Modifier.fillMaxSize()) {
-        // Same soft blue-centre-to-white backdrop as the timer and next-up screens, instead of
-        // a flat dark surface — the receipt card (dark navy/photo) now reads as an object
-        // floating on top of it rather than blending into an equally dark background.
-        Box(
-            Modifier
-                .fillMaxSize()
-                .background(FocusColors.BaseLight)
-                .grain(0.07f),
-        )
         Box(
             Modifier
                 .fillMaxSize()
@@ -121,268 +87,146 @@ fun PublishScreen(
                         0f to Color(0xFF6FA8DE),
                         0.5f to Color(0xFFBEE0F5),
                         1f to Color(0xFFFFFFFF),
-                        center = Offset(size.width / 2f, size.height * 0.38f),
-                        radius = size.minDimension * 0.75f,
+                        center = Offset(size.width / 2f, size.height * 0.15f),
+                        radius = size.minDimension * 0.8f,
                     )
                     onDrawBehind { drawRect(brush) }
                 },
         )
 
-        Column(
-            Modifier
-                .fillMaxSize()
-                .windowInsetsPadding(WindowInsets.safeDrawing)
-                .imePadding()
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 22.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
-        Text(
-            "방금 담김",
-            color = FocusColors.Muted,
-            fontFamily = MonoFamily,
-            fontSize = 11.sp,
-            letterSpacing = 2.sp,
-            modifier = Modifier.padding(top = 14.dp, bottom = 14.dp),
-        )
-
-        // The card: photo (or gradient), with the comment editable right on top of it. Also a
-        // Tinder-style swipeable card — drag right to commit it to the feed, left to discard —
-        // matching the same swipe motif used to browse the next-up queue.
-        val photos = ui.photos.ifEmpty { listOf(PhotoRef(toneIndex = ui.placeholderTone)) }
-        val current = photos.first()
-        val scope = rememberCoroutineScope()
-        val cardOffsetX = remember { Animatable(0f) }
-        val density = LocalDensity.current
-        val flyDistancePx = with(density) { 600.dp.toPx() }
-        val swipeThresholdPx = with(density) { 120.dp.toPx() }
-        val swipeProgress = (cardOffsetX.value / swipeThresholdPx).coerceIn(-1f, 1f)
-        Box(
-            Modifier
-                .fillMaxWidth()
-                .aspectRatio(aspect.ratio)
-                .offset { IntOffset(cardOffsetX.value.roundToInt(), 0) }
-                .rotate((cardOffsetX.value / 42f).coerceIn(-10f, 10f))
-                .pointerInput(Unit) {
-                    detectHorizontalDragGestures(
-                        onDragEnd = {
-                            scope.launch {
-                                when {
-                                    ui.saving -> Unit
-                                    cardOffsetX.value > swipeThresholdPx -> {
-                                        cardOffsetX.animateTo(flyDistancePx, tween(220))
-                                        viewModel.store(onFinished)
-                                    }
-                                    cardOffsetX.value < -swipeThresholdPx -> {
-                                        cardOffsetX.animateTo(-flyDistancePx, tween(220))
-                                        viewModel.discard(onFinished)
-                                    }
-                                    else -> cardOffsetX.animateTo(0f, tween(220))
-                                }
-                            }
-                        },
-                        onDragCancel = { scope.launch { cardOffsetX.animateTo(0f, tween(220)) } },
-                        onHorizontalDrag = { change, dragAmount ->
-                            change.consume()
-                            scope.launch { cardOffsetX.snapTo(cardOffsetX.value + dragAmount) }
-                        },
-                    )
-                }
-                .shadow(14.dp, RoundedCornerShape(20.dp))
-                .clip(RoundedCornerShape(20.dp))
-                .then(
-                    if (current.fileName == null) {
-                        Modifier.patternPlaceholder(current.toneIndex)
-                    } else {
-                        Modifier.background(com.timereci.focus.ui.theme.PhotoTones.brush(current.toneIndex))
-                    },
-                ),
-        ) {
-            current.fileName?.let { name ->
-                AsyncImage(
-                    model = ImageRequest.Builder(context)
-                        .data(PhotoStorage.fileIn(context, name)).crossfade(true).build(),
-                    contentDescription = null,
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier.fillMaxSize(),
+        Column(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing)) {
+            Box(Modifier.fillMaxWidth().padding(horizontal = 18.dp).height(46.dp)) {
+                Text(
+                    "Discard",
+                    color = FocusColors.Danger,
+                    fontSize = 16.5.sp,
+                    modifier = Modifier.align(Alignment.CenterStart).clickable { viewModel.discard(onFinished) },
+                )
+                Text("Session Complete", color = FocusColors.Ink, fontSize = 17.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.align(Alignment.Center))
+                Text(
+                    "Save",
+                    color = FocusColors.AccentBlue,
+                    fontSize = 16.5.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.align(Alignment.CenterEnd).clickable(enabled = !ui.saving) { viewModel.store(onFinished) },
                 )
             }
 
-            // Scrims for legibility.
-            Box(
-                Modifier
-                    .fillMaxWidth()
-                    .fillMaxHeight(0.2f)
-                    .align(Alignment.TopCenter)
-                    .background(Brush.verticalGradient(listOf(Color(0x66182630), Color(0x00182630)))),
-            )
-            Box(
-                Modifier
-                    .fillMaxWidth()
-                    .fillMaxHeight(0.6f)
-                    .align(Alignment.BottomCenter)
-                    .background(Brush.verticalGradient(listOf(Color(0x00182630), Color(0xE6111C26)))),
-            )
-
-            // Stamp + minutes badge.
-            Row(
-                Modifier
-                    .align(Alignment.TopCenter)
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 13.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-            ) {
-                Text(ui.stamp, color = Color.White.copy(alpha = 0.9f), fontFamily = MonoFamily, fontSize = 11.5.sp)
-                Box(
-                    Modifier
-                        .clip(RoundedCornerShape(20.dp))
-                        .background(Color.White.copy(alpha = 0.9f))
-                        .padding(horizontal = 10.dp, vertical = 4.dp),
-                ) {
-                    Text(ui.focus, color = Color(0xFF1F3247), fontFamily = MonoFamily, fontSize = 11.sp, fontWeight = FontWeight.Medium)
-                }
-            }
-
-            // Task + editable comment, layered onto the bottom of the photo.
             Column(
                 Modifier
-                    .align(Alignment.BottomStart)
-                    .fillMaxWidth()
-                    .padding(start = 20.dp, end = 20.dp, bottom = 22.dp),
+                    .weight(1f)
+                    .verticalScroll(rememberScrollState())
+                    .imePadding()
+                    .padding(horizontal = 20.dp),
             ) {
-                if (ui.task.isNotBlank()) {
+                Column(Modifier.fillMaxWidth().padding(top = 12.dp, bottom = 6.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(
-                        ui.task,
-                        color = Color.White,
-                        fontSize = 30.sp,
-                        fontWeight = FontWeight.Bold,
-                        lineHeight = 37.sp,
+                        ui.focus,
+                        color = FocusColors.Ink,
+                        fontSize = 50.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        style = TextStyle(fontFeatureSettings = "tnum"),
                     )
-                    Spacer(Modifier.height(10.dp))
+                    Text(
+                        "${ui.task.ifBlank { "Focus" }} · ${ui.stamp}",
+                        color = FocusColors.Muted,
+                        fontSize = 14.5.sp,
+                        modifier = Modifier.padding(top = 4.dp),
+                    )
                 }
-                BasicTextField(
-                    value = ui.comment,
-                    onValueChange = viewModel::setComment,
-                    textStyle = TextStyle(
-                        color = Color.White,
-                        fontSize = 22.sp,
-                        fontWeight = FontWeight.Medium,
-                        lineHeight = 30.sp,
-                    ),
-                    cursorBrush = SolidColor(Color.White),
-                    modifier = Modifier.fillMaxWidth(),
-                    decorationBox = { inner ->
-                        if (ui.comment.isEmpty()) {
-                            Text(
-                                "여기에 코멘트를 남겨보세요",
-                                color = Color.White.copy(alpha = 0.6f),
-                                fontSize = 22.sp,
-                                fontWeight = FontWeight.Medium,
-                            )
+
+                SectionLabel("PHOTO")
+                Row(
+                    Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(Color(0xEBFFFFFF))
+                        .clickable { showPhotoSheet = true }
+                        .padding(horizontal = 16.dp, vertical = 14.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Icon(Icons.Outlined.Image, contentDescription = null, tint = FocusColors.AccentBlue, modifier = Modifier)
+                    Column(Modifier.weight(1f).padding(start = 12.dp)) {
+                        Text(if (ui.photo != null) "Photo added" else "Add Photo", color = FocusColors.Ink, fontSize = 16.sp)
+                        if (ui.photo == null) {
+                            Text("Optional", color = FocusColors.Muted, fontSize = 12.5.sp)
                         }
-                        inner()
-                    },
-                )
-            }
-
-            // Swipe feedback — a color wash + stamp that fades in with drag distance, telling
-            // you which way you're about to commit before you let go.
-            if (swipeProgress > 0.08f) {
-                Box(
-                    Modifier
-                        .fillMaxSize()
-                        .background(FocusColors.AccentSky.copy(alpha = swipeProgress * 0.28f)),
-                )
-                Box(
-                    Modifier
-                        .align(Alignment.Center)
-                        .clip(RoundedCornerShape(14.dp))
-                        .background(Color.White.copy(alpha = swipeProgress))
-                        .padding(horizontal = 18.dp, vertical = 8.dp),
-                ) {
-                    Text("피드에 담기", color = Color(0xFF1F3247), fontFamily = MonoFamily, fontSize = 15.sp, fontWeight = FontWeight.Bold)
+                    }
                 }
-            } else if (swipeProgress < -0.08f) {
+
+                SectionLabel("NOTE")
                 Box(
                     Modifier
-                        .fillMaxSize()
-                        .background(Color(0xFF111C26).copy(alpha = -swipeProgress * 0.45f)),
-                )
-                Box(
-                    Modifier
-                        .align(Alignment.Center)
-                        .clip(RoundedCornerShape(14.dp))
-                        .background(FocusColors.NightInk.copy(alpha = -swipeProgress))
-                        .padding(horizontal = 18.dp, vertical = 8.dp),
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(Color(0xEBFFFFFF))
+                        .padding(horizontal = 16.dp, vertical = 15.dp),
                 ) {
-                    Text("버리기", color = FocusColors.Night, fontFamily = MonoFamily, fontSize = 15.sp, fontWeight = FontWeight.Bold)
+                    BasicTextField(
+                        value = ui.comment,
+                        onValueChange = viewModel::setComment,
+                        textStyle = TextStyle(color = FocusColors.Ink, fontSize = 16.sp, lineHeight = 22.sp),
+                        cursorBrush = SolidColor(FocusColors.AccentBlue),
+                        modifier = Modifier.fillMaxWidth().height(90.dp),
+                        decorationBox = { inner ->
+                            if (ui.comment.isEmpty()) {
+                                Text("Add a note about this session…", color = FocusColors.Muted2, fontSize = 16.sp)
+                            }
+                            inner()
+                        },
+                    )
                 }
+
+                Text(
+                    "Saved sessions appear in History. Discarded sessions are never recorded.",
+                    color = FocusColors.Muted,
+                    fontSize = 12.5.sp,
+                    lineHeight = 18.sp,
+                    modifier = Modifier.padding(top = 12.dp, start = 4.dp, end = 4.dp),
+                )
+
+                if (alarmActive) {
+                    Spacer(Modifier.height(16.dp))
+                    Row(
+                        Modifier
+                            .clip(RoundedCornerShape(20.dp))
+                            .background(Color(0xCCFFFFFF))
+                            .border(1.dp, FocusColors.Line, RoundedCornerShape(20.dp))
+                            .clickable(onClick = viewModel::stopAlarm)
+                            .padding(horizontal = 14.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    ) {
+                        Icon(Icons.Outlined.NotificationsOff, contentDescription = null, tint = FocusColors.Ink2, modifier = Modifier)
+                        Text("Stop Alarm", color = FocusColors.Ink2, fontSize = 12.sp)
+                    }
+                }
+
+                Spacer(Modifier.height(24.dp))
             }
-        }
-
-        Spacer(Modifier.height(18.dp))
-
-        Row(horizontalArrangement = Arrangement.spacedBy(18.dp), verticalAlignment = Alignment.CenterVertically) {
-            IconActionButton(
-                icon = Icons.Outlined.AddPhotoAlternate,
-                contentDescription = "사진 추가",
-                onClick = {
-                    if (recentPhotos.isEmpty()) launchSystemPicker() else showPhotoPicker = true
-                },
-                size = 50.dp,
-            )
-            IconActionButton(
-                icon = Icons.Outlined.DeleteOutline,
-                contentDescription = "버리기",
-                onClick = { viewModel.discard(onFinished) },
-                size = 50.dp,
-            )
-            IconActionButton(
-                icon = Icons.Outlined.Check,
-                contentDescription = "피드에 담기",
-                onClick = { viewModel.store(onFinished) },
-                accent = true,
-                enabled = !ui.saving,
-                size = 62.dp,
-            )
-        }
-
-        // Completion alarm (sound + vibration) rings until dismissed — no auto-timeout — so
-        // this stays visible the whole time it's active. Lives below the main actions rather
-        // than up top, so it doesn't compete with the card for attention.
-        if (alarmActive) {
-            Spacer(Modifier.height(16.dp))
-            Row(
-                Modifier
-                    .clip(RoundedCornerShape(20.dp))
-                    .background(Color(0xCCFFFFFF))
-                    .border(1.dp, FocusColors.Line, RoundedCornerShape(20.dp))
-                    .clickable(onClick = viewModel::stopAlarm)
-                    .padding(horizontal = 14.dp, vertical = 8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
-            ) {
-                Icon(Icons.Outlined.NotificationsOff, contentDescription = null, tint = FocusColors.Ink2, modifier = Modifier.size(15.dp))
-                Text("알람 끄기", color = FocusColors.Ink2, fontFamily = MonoFamily, fontSize = 12.sp)
-            }
-        }
-
-        Spacer(Modifier.height(20.dp))
         }
     }
 
-    if (showPhotoPicker) {
-        RecentPhotoPickerDialog(
+    if (showPhotoSheet) {
+        ChoosePhotoSheet(
             recent = recentPhotos,
-            onPickRecent = { ref ->
-                viewModel.addExistingPhoto(ref)
-                showPhotoPicker = false
-            },
-            onPickNew = {
-                showPhotoPicker = false
-                launchSystemPicker()
-            },
-            onDismiss = { showPhotoPicker = false },
+            selectedFileName = ui.photo?.fileName,
+            onPickRecent = { ref -> viewModel.setExistingPhoto(ref); showPhotoSheet = false },
+            onPickNew = { showPhotoSheet = false; launchSystemPicker() },
+            onRemove = if (ui.photo != null) ({ viewModel.removePhoto(); showPhotoSheet = false }) else null,
+            onDismiss = { showPhotoSheet = false },
         )
     }
+}
+
+@Composable
+private fun SectionLabel(text: String) {
+    Text(
+        text,
+        color = FocusColors.Muted,
+        fontSize = 12.sp,
+        fontWeight = FontWeight.SemiBold,
+        letterSpacing = 1.sp,
+        modifier = Modifier.padding(top = 18.dp, bottom = 8.dp, start = 4.dp),
+    )
 }

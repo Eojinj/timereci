@@ -4,13 +4,11 @@ import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.timereci.focus.data.FocusRepository
-import com.timereci.focus.data.PhotoAspect
 import com.timereci.focus.data.PhotoRef
 import com.timereci.focus.data.PlannedFocusEntity
 import com.timereci.focus.data.ReceiptEntity
 import com.timereci.focus.data.SettingsRepository
 import com.timereci.focus.timer.FocusTimerController
-import com.timereci.focus.ui.theme.PhotoTones
 import com.timereci.focus.ui.util.Formatters
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -27,9 +25,9 @@ data class PublishUiState(
     val task: String = "",
     val focus: String = "",
     val comment: String = "",
-    val photos: List<PhotoRef> = emptyList(),
+    /** At most one photo — Session Complete manages a single optional photo (Merci v5 screen 5). */
+    val photo: PhotoRef? = null,
     val saving: Boolean = false,
-    val placeholderTone: Int = 0,
 )
 
 @HiltViewModel
@@ -43,9 +41,11 @@ class PublishViewModel @Inject constructor(
     private val completed = controller.state.value
     private val issuedAt = System.currentTimeMillis()
 
-    val photoAspect: StateFlow<PhotoAspect> = settingsRepository.settings
-        .map { it.photoAspect }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), PhotoAspect.PORTRAIT)
+    /** True the first time this screen is shown for a session with no photo yet — the caller
+     * opens the Choose Photo sheet automatically then, per the "ask for a photo" setting. */
+    val askForPhotoAfterSession: StateFlow<Boolean> = settingsRepository.settings
+        .map { it.askForPhotoAfterSession }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
 
     /** True while the completion sound/vibration from finishing this session is still ringing. */
     val alarmActive: StateFlow<Boolean> = controller.alarmActive
@@ -62,30 +62,29 @@ class PublishViewModel @Inject constructor(
             task = completed.taskLabel,
             focus = Formatters.focus(completed.focusedMs),
             comment = completed.draftComment,
-            photos = completed.backdropFileName
-                ?.let { listOf(PhotoRef(fileName = it)) }
-                ?: emptyList(),
-            placeholderTone = PhotoTones.indexFor(issuedAt),
+            photo = completed.backdropFileName?.let { PhotoRef(fileName = it) },
         ),
     )
     val ui: StateFlow<PublishUiState> = _ui.asStateFlow()
 
-    fun addPhoto(uri: Uri) {
+    fun setPhoto(uri: Uri) {
         viewModelScope.launch {
-            val tone = _ui.value.photos.size % PhotoTones.count
-            repository.photoStorageRef.import(uri, tone)?.let { added ->
-                _ui.value = _ui.value.copy(photos = _ui.value.photos + added)
+            repository.photoStorageRef.import(uri)?.let { added ->
+                _ui.value = _ui.value.copy(photo = added)
             }
         }
     }
 
-    fun addExistingPhoto(ref: PhotoRef) {
+    fun setExistingPhoto(ref: PhotoRef) {
         viewModelScope.launch {
-            val tone = _ui.value.photos.size % PhotoTones.count
-            repository.reusePhoto(ref, tone)?.let { added ->
-                _ui.value = _ui.value.copy(photos = _ui.value.photos + added)
+            repository.reusePhoto(ref, 0)?.let { added ->
+                _ui.value = _ui.value.copy(photo = added)
             }
         }
+    }
+
+    fun removePhoto() {
+        _ui.value = _ui.value.copy(photo = null)
     }
 
     fun setComment(text: String) {
@@ -93,7 +92,7 @@ class PublishViewModel @Inject constructor(
     }
 
     /**
-     * Commit to the feed, clear the session, then hand back whatever is next in the todo
+     * Commit to History, clear the session, then hand back whatever is next in the todo
      * queue (if anything) so the caller can offer to continue straight into it.
      */
     fun store(onDone: (PlannedFocusEntity?) -> Unit) {
@@ -107,7 +106,7 @@ class PublishViewModel @Inject constructor(
                     plannedMs = completed.plannedMs,
                     taskLabel = completed.taskLabel,
                     comment = _ui.value.comment.ifBlank { null },
-                    photos = _ui.value.photos,
+                    photos = listOfNotNull(_ui.value.photo),
                 ),
             )
             val next = repository.nextPlannedFocus()
@@ -116,7 +115,7 @@ class PublishViewModel @Inject constructor(
         }
     }
 
-    /** Drop the session without publishing (leaves no trace, like an abandon). */
+    /** Discard the session without publishing — leaves no trace, like an abandon. */
     fun discard(onDone: (PlannedFocusEntity?) -> Unit) {
         viewModelScope.launch {
             val next = repository.nextPlannedFocus()

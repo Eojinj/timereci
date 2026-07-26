@@ -86,7 +86,7 @@ fun SessionOverlayCard(
             AsyncImage(
                 model = ImageRequest.Builder(context)
                     .data(PhotoStorage.fileIn(context, name)).crossfade(true).build(),
-                contentDescription = session.task.ifBlank { "집중 사진" },
+                contentDescription = session.task.ifBlank { "Focus photo" },
                 contentScale = ContentScale.Crop,
                 modifier = Modifier.fillMaxSize(),
             )

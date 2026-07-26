@@ -31,4 +31,12 @@ class SettingsViewModel @Inject constructor(
     fun setPhotoAspect(value: PhotoAspect) = viewModelScope.launch {
         settingsRepository.setPhotoAspect(value)
     }
+
+    fun setAskForPhotoAfterSession(value: Boolean) = viewModelScope.launch {
+        settingsRepository.setAskForPhotoAfterSession(value)
+    }
+
+    fun setAlertWhenSessionEnds(value: Boolean) = viewModelScope.launch {
+        settingsRepository.setAlertWhenSessionEnds(value)
+    }
 }

@@ -28,14 +28,12 @@ fun ReceiptEntity.toSessionCard() = SessionCard(
     comment = comment,
 )
 
-/** A day's worth of sessions in the feed. */
+/** A day's worth of sessions in History. */
 data class FeedDay(
     val epochDay: Long,
     val dayLabel: String,   // "07.19"
-    val weekday: String,    // "토요일"
-    val focusMs: Long,       // total focused time, raw — drives the strip view's bar length
+    val focusMs: Long,       // total focused time, raw
     val focusText: String,  // total focused time, "1h 15m"
-    val sessionText: String, // "3 세션"
     val sessions: List<SessionCard>,
 ) {
     val date: LocalDate get() = LocalDate.ofEpochDay(epochDay)
@@ -54,10 +52,8 @@ object FeedBuilder {
                 FeedDay(
                     epochDay = date.toEpochDay(),
                     dayLabel = Formatters.dayLabel(date),
-                    weekday = Formatters.weekday(date),
                     focusMs = totalFocus,
                     focusText = Formatters.focusDuration(totalFocus),
-                    sessionText = "${sorted.size} 세션",
                     sessions = sessions,
                 )
             }

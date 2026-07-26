@@ -33,4 +33,12 @@ class DetailViewModel @Inject constructor(
             onDone()
         }
     }
+
+    fun updateNote(text: String) {
+        viewModelScope.launch {
+            repository.getReceipt(receiptId)?.let { receipt ->
+                repository.updateReceipt(receipt.copy(comment = text.trim().ifBlank { null }))
+            }
+        }
+    }
 }

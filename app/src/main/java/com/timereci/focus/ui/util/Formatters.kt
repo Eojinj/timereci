@@ -3,14 +3,11 @@ package com.timereci.focus.ui.util
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
-import java.time.format.TextStyle
-import java.util.Locale
 
 /** Formatting helpers shared across screens. All wall-clock values use the device zone. */
 object Formatters {
 
     private val zone: ZoneId get() = ZoneId.systemDefault()
-    private val korean = Locale.KOREAN
 
     /** Countdown / clock display, e.g. 1500000ms -> "25:00". Minutes are not wrapped to hours. */
     fun clock(ms: Long): String {
@@ -18,10 +15,10 @@ object Formatters {
         return "%02d:%02d".format(total / 60, total % 60)
     }
 
-    /** Focused-duration badge — simple minutes, e.g. "25분" (rounded, min 1). */
+    /** Focused-duration badge, e.g. "25 min" (rounded, min 1). */
     fun focus(ms: Long): String {
         val minutes = ((ms + 30_000) / 60_000).toInt().coerceAtLeast(1)
-        return "${minutes}분"
+        return "$minutes min"
     }
 
     fun localDate(epochMs: Long): LocalDate =
@@ -29,18 +26,6 @@ object Formatters {
 
     /** Feed day heading, e.g. "07.19". */
     fun dayLabel(date: LocalDate): String = "%02d.%02d".format(date.monthValue, date.dayOfMonth)
-
-    /** Full title with year, e.g. "2026.07.19". */
-    fun dayTitle(date: LocalDate): String =
-        "%d.%02d.%02d".format(date.year, date.monthValue, date.dayOfMonth)
-
-    /** Korean weekday, e.g. "토요일". */
-    fun weekday(date: LocalDate): String =
-        date.dayOfWeek.getDisplayName(TextStyle.FULL, korean)
-
-    /** Todo screen subtitle, e.g. "7월 24일 금요일". */
-    fun monthDayWeekday(date: LocalDate): String =
-        "${date.monthValue}월 ${date.dayOfMonth}일 ${weekday(date)}"
 
     /** Card stamp, e.g. "07.19 · 14:20". */
     fun stamp(epochMs: Long): String {
@@ -61,8 +46,4 @@ object Formatters {
         val m = totalMin % 60
         return if (h > 0) "${h}h ${m}m" else "${m}m"
     }
-
-    /** Day summary line, e.g. "2 세션 · 1h 15m". */
-    fun daySummary(sessionCount: Int, totalFocusMs: Long): String =
-        "$sessionCount 세션 · ${focusDuration(totalFocusMs)}"
 }

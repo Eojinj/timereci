@@ -59,6 +59,8 @@ class FocusRepository @Inject constructor(
 
     suspend fun deletePlannedFocus(id: Long) = plannedFocusDao.deleteById(id)
 
+    suspend fun updatePlannedFocus(item: PlannedFocusEntity) = plannedFocusDao.update(item)
+
     /** Head of the todo queue, if any — used to offer "continue with the next task". */
     suspend fun nextPlannedFocus(): PlannedFocusEntity? = plannedFocusDao.getFirst()
 

@@ -36,6 +36,10 @@ object FocusColors {
     val AccentBlue = Color(0xFF3E6A94)
     val AccentSky = Color(0xFF99C3E4)
 
+    // Status — destructive actions (Delete/Discard/Cancel) and the break/success state.
+    val Danger = Color(0xFFD8465C)
+    val Success = Color(0xFF2FA07B)
+
     // Night surfaces
     val Night = Color(0xFF0F1B26)
     val Night2 = Color(0xFF12222F)

@@ -82,7 +82,7 @@ fun PhotoCard(
                     .data(PhotoStorage.fileIn(context, name))
                     .crossfade(true)
                     .build(),
-                contentDescription = task.ifBlank { "집중 사진" },
+                contentDescription = task.ifBlank { "Focus photo" },
                 contentScale = androidx.compose.ui.layout.ContentScale.Crop,
                 modifier = Modifier.fillMaxSize(),
             )
@@ -213,7 +213,7 @@ fun PhotoCard(
 }
 
 private fun placeholderLabel(tone: Int): String = when (tone % 3) {
-    0 -> "사진 없음"
-    1 -> "기록"
-    else -> "메모"
+    0 -> "No Photo"
+    1 -> "Focus"
+    else -> "Note"
 }

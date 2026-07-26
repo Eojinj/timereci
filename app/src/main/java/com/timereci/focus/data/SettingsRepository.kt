@@ -42,8 +42,10 @@ data class FocusSettings(
     val photoAspect: PhotoAspect = PhotoAspect.PORTRAIT,
     /** Quick-pick minute presets shown on the timer, settings and todo screens. */
     val durationPresets: List<Int> = DEFAULT_DURATION_PRESETS,
-    /** File name (in PhotoStorage) of the todo screen's custom background photo, or null. */
-    val todoBackgroundFileName: String? = null,
+    /** true = Session Complete opens the photo picker automatically instead of waiting for a tap. */
+    val askForPhotoAfterSession: Boolean = false,
+    /** true = a local notification fires when a running session ends. */
+    val alertWhenSessionEnds: Boolean = true,
 )
 
 @Singleton
@@ -56,18 +58,16 @@ class SettingsRepository @Inject constructor(
             keepRunningWhileCommenting = prefs[KEY_KEEP_RUNNING] ?: true,
             photoAspect = PhotoAspect.from(prefs[KEY_PHOTO_ASPECT]),
             durationPresets = parsePresets(prefs[KEY_DURATION_PRESETS]),
-            todoBackgroundFileName = prefs[KEY_TODO_BG]?.ifBlank { null },
+            askForPhotoAfterSession = prefs[KEY_ASK_PHOTO] ?: false,
+            alertWhenSessionEnds = prefs[KEY_ALERT_ON_END] ?: true,
         )
     }
 
     suspend fun setDefaultDuration(ms: Long) = edit { it[KEY_DEFAULT_MS] = ms }
     suspend fun setKeepRunningWhileCommenting(value: Boolean) = edit { it[KEY_KEEP_RUNNING] = value }
     suspend fun setPhotoAspect(value: PhotoAspect) = edit { it[KEY_PHOTO_ASPECT] = value.name }
-
-    /** Sets (or clears, with null) the todo screen's custom background photo. */
-    suspend fun setTodoBackground(fileName: String?) = edit {
-        if (fileName == null) it.remove(KEY_TODO_BG) else it[KEY_TODO_BG] = fileName
-    }
+    suspend fun setAskForPhotoAfterSession(value: Boolean) = edit { it[KEY_ASK_PHOTO] = value }
+    suspend fun setAlertWhenSessionEnds(value: Boolean) = edit { it[KEY_ALERT_ON_END] = value }
 
     private fun parsePresets(raw: String?): List<Int> {
         val parsed = raw?.split(",")?.mapNotNull { it.toIntOrNull() }
@@ -83,6 +83,7 @@ class SettingsRepository @Inject constructor(
         val KEY_KEEP_RUNNING = booleanPreferencesKey("keep_running_commenting")
         val KEY_PHOTO_ASPECT = stringPreferencesKey("photo_aspect")
         val KEY_DURATION_PRESETS = stringPreferencesKey("duration_presets")
-        val KEY_TODO_BG = stringPreferencesKey("todo_background")
+        val KEY_ASK_PHOTO = booleanPreferencesKey("ask_photo_after_session")
+        val KEY_ALERT_ON_END = booleanPreferencesKey("alert_when_session_ends")
     }
 }

@@ -1,32 +1,27 @@
 package com.timereci.focus.ui.timer
 
-import android.net.Uri
-import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.timereci.focus.data.FocusRepository
-import com.timereci.focus.data.PhotoRef
 import com.timereci.focus.data.SettingsRepository
 import com.timereci.focus.timer.FocusTimerController
 import com.timereci.focus.timer.TimerState
-import com.timereci.focus.ui.Routes
-import com.timereci.focus.ui.util.QuickEntry
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
-import kotlinx.coroutines.launch
 import javax.inject.Inject
 
+/**
+ * The Focus screen is running-only now — Today, Quick Start, Up Next and Break all start the
+ * session (via [FocusTimerController]) themselves before ever navigating here, so there's no
+ * pre-start setup state to own.
+ */
 @HiltViewModel
 class TimerViewModel @Inject constructor(
     private val controller: FocusTimerController,
-    private val repository: FocusRepository,
-    private val settingsRepository: SettingsRepository,
-    savedStateHandle: SavedStateHandle,
+    settingsRepository: SettingsRepository,
 ) : ViewModel() {
 
     val timerState: StateFlow<TimerState> = controller.state
@@ -35,79 +30,15 @@ class TimerViewModel @Inject constructor(
         .map { it.keepRunningWhileCommenting }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), true)
 
-    /** Photos from past sessions, offered as a quick "reuse this one" backdrop. */
-    val recentPhotos: StateFlow<List<PhotoRef>> = repository.observeRecentPhotos()
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
-
-    // ---- Pre-start setup ----
-    private val _durationMs = MutableStateFlow(25 * 60_000L)
-    val durationMs: StateFlow<Long> = _durationMs
-
-    private val _taskLabel = MutableStateFlow("")
-    val taskLabel: StateFlow<String> = _taskLabel
-
-    private val _backdrop = MutableStateFlow<PhotoRef?>(null)
-    val backdrop: StateFlow<PhotoRef?> = _backdrop
-
-    private val _commentSheetOpen = MutableStateFlow(false)
-    val commentSheetOpen: StateFlow<Boolean> = _commentSheetOpen
-
-    /** True when this session was pushed from the todo queue (planned/next-up/break-continue),
-     * false for an ad-hoc one-off timer — set once from nav args, unaffected by later edits. */
-    val cameFromQueue: Boolean
-
-    init {
-        // Prefill from a planned focus, if we arrived here by tapping one.
-        val argTask = savedStateHandle.get<String>(Routes.ARG_TASK).orEmpty()
-        val argMinutes = savedStateHandle.get<Int>(Routes.ARG_MINUTES) ?: 0
-        cameFromQueue = argTask.isNotBlank() || argMinutes > 0
-        if (argTask.isNotBlank()) _taskLabel.value = argTask
-        if (argMinutes > 0) {
-            _durationMs.value = argMinutes * 60_000L
-        } else {
-            viewModelScope.launch {
-                _durationMs.value = settingsRepository.settings.first().defaultDurationMs
-            }
-        }
-    }
-
-    fun setTask(text: String) { _taskLabel.value = text }
-
-    fun importBackdrop(uri: Uri) {
-        viewModelScope.launch {
-            repository.photoStorageRef.import(uri)?.let { _backdrop.value = it }
-        }
-    }
-
-    fun useRecentBackdrop(ref: PhotoRef) {
-        viewModelScope.launch {
-            repository.reusePhoto(ref, ref.toneIndex)?.let { _backdrop.value = it }
-        }
-    }
-
-    fun clearBackdrop() { _backdrop.value = null }
-
-    fun start() {
-        // "할 일 20"처럼 뒤에 숫자를 붙이면 그 숫자를 분(分)으로 해석한다.
-        // 숫자가 없으면 기본값(설정/큐에서 온 값)을 그대로 쓴다.
-        val (label, minutes) = QuickEntry.parse(_taskLabel.value)
-        val cleanLabel = label.trim()
-        val plannedMs = minutes?.let { it * 60_000L } ?: _durationMs.value
-        _taskLabel.value = cleanLabel // 달리는 화면엔 숫자 없이 할 일만 표시
-        _durationMs.value = plannedMs
-        controller.start(
-            plannedMs = plannedMs,
-            taskLabel = cleanLabel,
-            backdropFileName = _backdrop.value?.fileName,
-        )
-    }
+    private val _noteSheetOpen = MutableStateFlow(false)
+    val noteSheetOpen: StateFlow<Boolean> = _noteSheetOpen
 
     fun pause() = controller.pause()
     fun resume() = controller.resume()
     fun completeNow() = controller.completeNow()
     fun abandon() = controller.abandon()
 
-    fun openComment() { _commentSheetOpen.value = true }
-    fun closeComment() { _commentSheetOpen.value = false }
+    fun openNote() { _noteSheetOpen.value = true }
+    fun closeNote() { _noteSheetOpen.value = false }
     fun updateComment(text: String) = controller.updateComment(text)
 }

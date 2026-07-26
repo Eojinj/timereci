@@ -3,6 +3,7 @@ package com.timereci.focus.data
 import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.Query
+import androidx.room.Update
 import kotlinx.coroutines.flow.Flow
 
 @Dao
@@ -17,6 +18,9 @@ interface PlannedFocusDao {
 
     @Insert
     suspend fun insert(item: PlannedFocusEntity): Long
+
+    @Update
+    suspend fun update(item: PlannedFocusEntity)
 
     @Query("DELETE FROM planned_focus WHERE id = :id")
     suspend fun deleteById(id: Long)

@@ -1,14 +1,10 @@
 package com.timereci.focus.ui.nextup
 
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
@@ -18,392 +14,170 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
-import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.BasicTextField
-import androidx.compose.foundation.text.KeyboardActions
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.Star
-import androidx.compose.material.icons.outlined.Add
-import androidx.compose.material.icons.outlined.Close
-import androidx.compose.material.icons.outlined.LocalCafe
-import androidx.compose.material.icons.outlined.North
-import androidx.compose.material.icons.outlined.Schedule
-import androidx.compose.material.icons.outlined.SkipNext
+import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.BlurredEdgeTreatment
-import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.draw.drawWithCache
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.SolidColor
-import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.timereci.focus.data.PlannedFocusEntity
-import com.timereci.focus.ui.components.IconActionButton
 import com.timereci.focus.ui.theme.FocusColors
-import com.timereci.focus.ui.theme.GothicFamily
-import com.timereci.focus.ui.theme.MonoFamily
 
 /**
- * Shown after a session ends when the todo queue still has something in it. The head of the
- * queue is the "hero" — shown big, front and center, with skip / start / rest controls under
- * it — and everything else waits in a horizontal, snap-scrolling row below so the whole queue
- * stays browsable at a glance instead of hiding behind a single "next" pick.
+ * Up Next (Merci v5 screen 6): confirmation, plus one decision with three plainly worded
+ * choices. No queue browsing — just whatever is next.
  */
 @Composable
 fun NextUpScreen(
-    onContinueNow: (task: String, minutes: Int) -> Unit,
+    onContinueNow: () -> Unit,
     onBreak: (breakMinutes: Int, task: String, minutes: Int) -> Unit,
     onSkip: () -> Unit,
-    onAddMore: () -> Unit,
     viewModel: NextUpViewModel = hiltViewModel(),
 ) {
     val queue by viewModel.queue.collectAsStateWithLifecycle()
-
-    // Rotates which item leads the queue without touching the database — "건너뛰기" and
-    // tapping a waiting card both just move the pointer, nothing is lost or reordered for real
-    // until something actually starts.
-    var passIndex by remember { mutableStateOf(0) }
-    val ordered = remember(queue, passIndex) {
-        if (queue.isEmpty()) emptyList() else List(queue.size) { i -> queue[(passIndex + i) % queue.size] }
-    }
-    val current = ordered.firstOrNull()
-    val waiting = if (ordered.size > 1) ordered.subList(1, ordered.size) else emptyList()
-
-    var showBreakInput by remember(current?.id) { mutableStateOf(false) }
-    var breakInput by remember(current?.id) { mutableStateOf("") }
-    val breakFocusRequester = remember { FocusRequester() }
-
-    fun start(item: PlannedFocusEntity) {
-        val minutes = (item.plannedMs / 60_000L).toInt().coerceAtLeast(1)
-        viewModel.consume(item.id)
-        passIndex = 0
-        onContinueNow(item.label, minutes)
-    }
-
-    fun promote(item: PlannedFocusEntity) {
-        val k = ordered.indexOf(item)
-        if (k > 0) passIndex += k
-    }
+    val justSaved by viewModel.justSaved.collectAsStateWithLifecycle()
+    val current = queue.firstOrNull()
+    val waitingCount = (queue.size - 1).coerceAtLeast(0)
 
     Box(
         Modifier
             .fillMaxSize()
-            .background(
-                Brush.radialGradient(
-                    0f to Color(0xFF6FA8DE),
+            .drawWithCache {
+                val brush = Brush.radialGradient(
+                    0f to Color(0xFFA0C8FF),
                     0.5f to Color(0xFFBEE0F5),
                     1f to Color(0xFFF7F9FB),
-                ),
-            ),
+                    center = Offset(size.width / 2f, size.height * 0.15f),
+                    radius = size.minDimension * 0.9f,
+                )
+                onDrawBehind { drawRect(brush) }
+            },
     ) {
-        DecorativeStars()
-
         Column(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing)) {
-            Row(
-                Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 10.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                IconActionButton(
-                    icon = Icons.Outlined.Close,
-                    contentDescription = "나중에",
-                    onClick = onSkip,
-                    size = 42.dp,
-                )
-                Text(
-                    "다음 집중",
-                    color = FocusColors.Ink,
-                    fontFamily = GothicFamily,
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Bold,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.weight(1f),
-                )
-                Spacer(Modifier.width(42.dp))
-            }
-
-            // Hero: the head of the queue, front and center, with its controls.
             Column(
-                Modifier
-                    .weight(1f)
-                    .fillMaxWidth()
-                    .padding(horizontal = 28.dp),
+                Modifier.fillMaxWidth().padding(top = 44.dp, start = 32.dp, end = 32.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center,
             ) {
-                if (current == null) {
+                Icon(Icons.Outlined.CheckCircle, contentDescription = null, tint = FocusColors.Success, modifier = Modifier.size(58.dp))
+                Text(
+                    "Session saved",
+                    color = FocusColors.Ink,
+                    fontSize = 23.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.padding(top = 16.dp),
+                )
+                justSaved?.let { session ->
                     Text(
-                        "오늘 할 일을 다 살펴봤어요",
+                        "${session.focus} · ${session.task.ifBlank { "Focus" }}",
                         color = FocusColors.Muted,
-                        fontFamily = MonoFamily,
-                        fontSize = 14.sp,
-                        textAlign = TextAlign.Center,
+                        fontSize = 14.5.sp,
+                        modifier = Modifier.padding(top = 4.dp),
                     )
-                } else {
-                    Text(
-                        "지금 시작할 일",
-                        color = FocusColors.AccentBlue,
-                        fontFamily = MonoFamily,
-                        fontSize = 12.sp,
-                        letterSpacing = 3.sp,
-                    )
-                    Spacer(Modifier.height(14.dp))
-                    Text(
-                        current.label.ifBlank { "집중" },
-                        color = FocusColors.Ink,
-                        fontFamily = GothicFamily,
-                        fontSize = 34.sp,
-                        fontWeight = FontWeight.Bold,
-                        lineHeight = 40.sp,
-                        textAlign = TextAlign.Center,
-                    )
-
-                    Spacer(Modifier.height(32.dp))
-
-                    Row(horizontalArrangement = Arrangement.spacedBy(26.dp), verticalAlignment = Alignment.CenterVertically) {
-                        GlassRoundButton(
-                            icon = Icons.Outlined.SkipNext,
-                            contentDescription = "건너뛰기",
-                            onClick = { if (ordered.size > 1) passIndex++ },
-                        )
-                        Box(
-                            Modifier
-                                .size(84.dp)
-                                .clip(CircleShape)
-                                .clickable(
-                                    interactionSource = remember { MutableInteractionSource() },
-                                    indication = null,
-                                    onClick = { start(current) },
-                                ),
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            Icon(Icons.Filled.PlayArrow, contentDescription = "바로 시작", tint = Color.White, modifier = Modifier.size(52.dp))
-                        }
-                        GlassRoundButton(
-                            icon = Icons.Outlined.LocalCafe,
-                            contentDescription = "휴식",
-                            onClick = {
-                                showBreakInput = !showBreakInput
-                                breakInput = ""
-                            },
-                        )
-                    }
-
-                    AnimatedVisibility(visible = showBreakInput) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Spacer(Modifier.height(20.dp))
-                            LaunchedEffect(Unit) { breakFocusRequester.requestFocus() }
-                            Row(
-                                Modifier
-                                    .clip(RoundedCornerShape(20.dp))
-                                    .background(Color.White)
-                                    .border(1.dp, FocusColors.Line, RoundedCornerShape(20.dp))
-                                    .padding(horizontal = 18.dp, vertical = 10.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                            ) {
-                                fun commitBreak() {
-                                    val m = breakInput.toIntOrNull()?.coerceIn(1, 180) ?: return
-                                    val minutes = (current.plannedMs / 60_000L).toInt().coerceAtLeast(1)
-                                    viewModel.consume(current.id)
-                                    passIndex = 0
-                                    onBreak(m, current.label, minutes)
-                                }
-                                BasicTextField(
-                                    value = breakInput,
-                                    onValueChange = { text -> breakInput = text.filter { it.isDigit() }.take(3) },
-                                    singleLine = true,
-                                    cursorBrush = SolidColor(FocusColors.AccentBlue),
-                                    textStyle = TextStyle(
-                                        color = FocusColors.Ink,
-                                        fontFamily = MonoFamily,
-                                        fontSize = 16.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        textAlign = TextAlign.Center,
-                                    ),
-                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Done),
-                                    keyboardActions = KeyboardActions(onDone = { commitBreak() }),
-                                    decorationBox = { inner ->
-                                        if (breakInput.isEmpty()) {
-                                            Text("0", color = FocusColors.Muted2, fontFamily = MonoFamily, fontSize = 16.sp, fontWeight = FontWeight.Bold)
-                                        }
-                                        inner()
-                                    },
-                                    modifier = Modifier.width(46.dp).focusRequester(breakFocusRequester),
-                                )
-                                Text("분 휴식", color = FocusColors.Ink2, fontFamily = MonoFamily, fontSize = 13.sp)
-                            }
-                        }
-                    }
                 }
             }
 
-            // Waiting: everything else in the queue, browsable in a horizontal snap-scroll row.
-            Column(Modifier.padding(bottom = 20.dp)) {
+            if (current != null) {
+                Text(
+                    "UP NEXT",
+                    color = FocusColors.Muted,
+                    fontSize = 12.5.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    letterSpacing = 1.sp,
+                    modifier = Modifier.padding(start = 20.dp, top = 32.dp, bottom = 8.dp),
+                )
                 Row(
-                    Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 10.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 20.dp)
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(Color(0xEBFFFFFF))
+                        .padding(horizontal = 16.dp, vertical = 14.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Text(
-                        "대기 중인 작업",
-                        color = FocusColors.Ink,
-                        fontFamily = GothicFamily,
-                        fontSize = 15.sp,
-                        fontWeight = FontWeight.Bold,
-                    )
-                    Box(
-                        Modifier
-                            .clip(RoundedCornerShape(20.dp))
-                            .background(Color(0xB3FFFFFF))
-                            .padding(horizontal = 10.dp, vertical = 4.dp),
-                    ) {
-                        Text("${waiting.size}개", color = FocusColors.AccentBlue, fontFamily = MonoFamily, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                    Icon(Icons.Filled.PlayArrow, contentDescription = null, tint = FocusColors.AccentBlue, modifier = Modifier.size(22.dp))
+                    Column(Modifier.weight(1f).padding(start = 12.dp, end = 8.dp)) {
+                        Text(current.label.ifBlank { "Focus" }, color = FocusColors.Ink, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+                        if (waitingCount > 0) {
+                            Text("$waitingCount more task${if (waitingCount == 1) "" else "s"} waiting", color = FocusColors.Muted, fontSize = 12.5.sp)
+                        }
                     }
+                    val minutes = (current.plannedMs / 60_000L).toInt().coerceAtLeast(1)
+                    Text("$minutes min", color = FocusColors.Muted, fontSize = 15.sp)
                 }
-                Spacer(Modifier.height(4.dp))
-                LazyRow(
-                    contentPadding = PaddingValues(horizontal = 24.dp),
-                    horizontalArrangement = Arrangement.spacedBy(14.dp),
-                ) {
-                    items(waiting, key = { it.id }) { item ->
-                        WaitingCard(item = item, onClick = { promote(item) })
+            }
+
+            Spacer(Modifier.weight(1f))
+
+            Column(
+                Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 16.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                if (current != null) {
+                    DockPrimary("Start Next Session") { viewModel.startNow(current); onContinueNow() }
+                    Spacer(Modifier.height(9.dp))
+                    DockTint("Take a 5-min Break") {
+                        val minutes = (current.plannedMs / 60_000L).toInt().coerceAtLeast(1)
+                        viewModel.consumeForBreak(current)
+                        onBreak(5, current.label, minutes)
                     }
-                    item {
-                        AddMoreCard(onClick = onAddMore)
-                    }
+                    Spacer(Modifier.height(4.dp))
                 }
+                Text(
+                    "Done for Now",
+                    color = FocusColors.AccentBlue,
+                    fontSize = 15.5.sp,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth().clickable(onClick = onSkip).padding(vertical = 10.dp),
+                )
             }
         }
     }
 }
 
-/** A translucent circular icon-only button — matches the design's glass look. */
 @Composable
-private fun GlassRoundButton(icon: androidx.compose.ui.graphics.vector.ImageVector, contentDescription: String, onClick: () -> Unit) {
+private fun DockPrimary(label: String, onClick: () -> Unit) {
     Box(
         Modifier
-            .size(54.dp)
-            .clip(CircleShape)
-            .background(Color(0x66FFFFFF))
-            .border(1.dp, Color(0x80FFFFFF), CircleShape)
+            .fillMaxWidth()
+            .height(52.dp)
+            .clip(RoundedCornerShape(14.dp))
+            .background(FocusColors.AccentBlue)
             .clickable(onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
-        Icon(icon, contentDescription = contentDescription, tint = FocusColors.AccentDeep, modifier = Modifier.size(24.dp))
+        Text(label, color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
     }
 }
 
-/** One waiting-queue card. Tapping it brings that task to the front as the new hero. */
 @Composable
-private fun WaitingCard(item: PlannedFocusEntity, onClick: () -> Unit) {
-    val minutes = (item.plannedMs / 60_000L).toInt().coerceAtLeast(1)
-    Column(
+private fun DockTint(label: String, onClick: () -> Unit) {
+    Box(
         Modifier
-            .width(190.dp)
-            .clip(RoundedCornerShape(24.dp))
-            .background(Color(0xE6FFFFFF))
-            .border(1.dp, FocusColors.Line, RoundedCornerShape(24.dp))
-            .clickable(onClick = onClick)
-            .padding(18.dp),
+            .fillMaxWidth()
+            .height(52.dp)
+            .clip(RoundedCornerShape(14.dp))
+            .background(Color(0xEBFFFFFF))
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center,
     ) {
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.Top) {
-            Text(
-                item.label.ifBlank { "집중" },
-                color = FocusColors.Ink,
-                fontFamily = GothicFamily,
-                fontSize = 17.sp,
-                fontWeight = FontWeight.Bold,
-                lineHeight = 22.sp,
-                modifier = Modifier.weight(1f).padding(end = 8.dp),
-            )
-            Box(
-                Modifier
-                    .size(32.dp)
-                    .clip(CircleShape)
-                    .background(FocusColors.Mist),
-                contentAlignment = Alignment.Center,
-            ) {
-                Icon(Icons.Outlined.North, contentDescription = "다음으로 올리기", tint = FocusColors.AccentBlue, modifier = Modifier.size(16.dp))
-            }
-        }
-        Spacer(Modifier.height(18.dp))
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-            Icon(Icons.Outlined.Schedule, contentDescription = null, tint = FocusColors.Muted, modifier = Modifier.size(14.dp))
-            Text("${minutes}분", color = FocusColors.Muted, fontFamily = MonoFamily, fontSize = 12.sp)
-        }
-    }
-}
-
-/** The trailing card in the waiting row — jumps out to the todo screen to add more. */
-@Composable
-private fun AddMoreCard(onClick: () -> Unit) {
-    Column(
-        Modifier
-            .width(150.dp)
-            .clip(RoundedCornerShape(24.dp))
-            .background(Color(0x40FFFFFF))
-            .border(1.dp, Color(0x80FFFFFF), RoundedCornerShape(24.dp))
-            .clickable(onClick = onClick)
-            .padding(18.dp)
-            .height(96.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center,
-    ) {
-        Icon(Icons.Outlined.Add, contentDescription = "새로운 작업 추가", tint = FocusColors.Ink2, modifier = Modifier.size(24.dp))
-        Spacer(Modifier.height(6.dp))
-        Text("새로운 작업", color = FocusColors.Ink2, fontFamily = MonoFamily, fontSize = 11.sp)
-    }
-}
-
-/** A few soft, blurred stars scattered behind everything — decorative only. */
-@Composable
-private fun DecorativeStars() {
-    val tint = FocusColors.AccentBlue.copy(alpha = 0.35f)
-    Box(Modifier.fillMaxSize()) {
-        Icon(
-            Icons.Filled.Star, contentDescription = null, tint = tint,
-            modifier = Modifier.align(Alignment.TopStart).padding(start = 36.dp, top = 90.dp).size(30.dp)
-                .blur(6.dp, edgeTreatment = BlurredEdgeTreatment.Unbounded),
-        )
-        Icon(
-            Icons.Filled.Star, contentDescription = null, tint = FocusColors.AccentSky.copy(alpha = 0.4f),
-            modifier = Modifier.align(Alignment.TopEnd).padding(end = 48.dp, top = 160.dp).size(46.dp)
-                .blur(8.dp, edgeTreatment = BlurredEdgeTreatment.Unbounded),
-        )
-        Icon(
-            Icons.Filled.Star, contentDescription = null, tint = tint,
-            modifier = Modifier.align(Alignment.BottomStart).padding(start = 24.dp, bottom = 260.dp).size(22.dp)
-                .blur(5.dp, edgeTreatment = BlurredEdgeTreatment.Unbounded),
-        )
-        Icon(
-            Icons.Filled.Star, contentDescription = null, tint = FocusColors.AccentSky.copy(alpha = 0.35f),
-            modifier = Modifier.align(Alignment.BottomEnd).padding(end = 60.dp, bottom = 320.dp).size(34.dp)
-                .blur(7.dp, edgeTreatment = BlurredEdgeTreatment.Unbounded),
-        )
+        Text(label, color = FocusColors.AccentBlue, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
     }
 }

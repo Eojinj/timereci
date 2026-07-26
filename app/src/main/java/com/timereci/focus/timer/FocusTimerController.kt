@@ -12,6 +12,7 @@ import android.os.VibratorManager
 import androidx.core.content.ContextCompat
 import com.timereci.focus.data.ActiveSessionEntity
 import com.timereci.focus.data.FocusRepository
+import com.timereci.focus.data.SettingsRepository
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -41,6 +42,7 @@ class FocusTimerController @Inject constructor(
     @ApplicationContext private val context: Context,
     private val repository: FocusRepository,
     private val alarms: TimerAlarmScheduler,
+    settingsRepository: SettingsRepository,
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
@@ -50,6 +52,17 @@ class FocusTimerController @Inject constructor(
     /** elapsedRealtime target while running; null while paused/idle. */
     private var endsAtElapsed: Long? = null
     private var ticker: Job? = null
+
+    /** Kept current from Settings so the ticker's completion path (below) can read it
+     * synchronously — "Alert when a session ends" gates the in-app sound/vibration only;
+     * the dead-process notification backstop in [TimerAlarmScheduler] always fires regardless,
+     * since that one is a reliability guarantee, not a user preference. */
+    @Volatile private var alertWhenSessionEnds: Boolean = true
+    init {
+        scope.launch {
+            settingsRepository.settings.collect { alertWhenSessionEnds = it.alertWhenSessionEnds }
+        }
+    }
 
     /** Rebuilds timer state from persistence. Call once on app start. */
     fun restore() {
@@ -191,6 +204,7 @@ class FocusTimerController @Inject constructor(
      * own. Keeps going — no auto-timeout — until [stopAlarm] is called.
      */
     private fun playCompletionSound() {
+        if (!alertWhenSessionEnds) return
         stopAlarm()
         runCatching {
             val uri = RingtoneManager.getActualDefaultRingtoneUri(context, RingtoneManager.TYPE_ALARM)

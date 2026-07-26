@@ -20,10 +20,9 @@ import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.BarChart
 import androidx.compose.material.icons.outlined.Checklist
+import androidx.compose.material.icons.outlined.PhotoLibrary
 import androidx.compose.material.icons.outlined.Settings
-import androidx.compose.material.icons.outlined.Timer
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -46,27 +45,25 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
-import com.timereci.focus.ui.day.DayScreen
 import com.timereci.focus.ui.detail.DetailScreen
 import com.timereci.focus.ui.feed.FeedScreen
 import com.timereci.focus.ui.nextup.BreakScreen
 import com.timereci.focus.ui.nextup.NextUpScreen
 import com.timereci.focus.ui.publish.PublishScreen
+import com.timereci.focus.ui.quickstart.QuickStartScreen
 import com.timereci.focus.ui.settings.SettingsScreen
 import com.timereci.focus.ui.theme.FocusColors
-import com.timereci.focus.ui.theme.MonoFamily
 import com.timereci.focus.ui.timer.TimerScreen
 import com.timereci.focus.ui.todo.TodoScreen
 import com.timereci.focus.ui.util.findActivity
 
-/** The four top-level areas — everything else (publish, day, detail, …) is a drill-down. */
-private val TAB_ROUTES = setOf(Routes.TIMER, Routes.FEED, Routes.TODO, Routes.SETTINGS)
+/** The three tabs — everything else (quick start, timer, session complete, …) is a drill-down. */
+private val TAB_ROUTES = setOf(Routes.TODAY, Routes.HISTORY, Routes.SETTINGS)
 
 @Composable
 fun FocusApp(root: RootViewModel = hiltViewModel()) {
     val navController = rememberNavController()
     val resume by root.resume.collectAsStateWithLifecycle()
-    val timerActive by root.timerActive.collectAsStateWithLifecycle()
     val currentRoute = navController.currentBackStackEntryAsState().value?.destination?.route
 
     // Only the timer screen ever unlocks rotation. Enforcing that here — not just inside the
@@ -82,11 +79,11 @@ fun FocusApp(root: RootViewModel = hiltViewModel()) {
     LaunchedEffect(resume) {
         when (resume) {
             ResumeTarget.TIMER -> {
-                navController.navigate(Routes.timer()) { launchSingleTop = true }
+                navController.navigate(Routes.TIMER) { launchSingleTop = true }
                 root.consumeResume()
             }
             ResumeTarget.PUBLISH -> {
-                navController.navigate(Routes.PUBLISH) { launchSingleTop = true }
+                navController.navigate(Routes.SESSION_COMPLETE) { launchSingleTop = true }
                 root.consumeResume()
             }
             null -> Unit
@@ -96,66 +93,68 @@ fun FocusApp(root: RootViewModel = hiltViewModel()) {
     Box(Modifier.fillMaxSize()) {
         NavHost(
             navController = navController,
-            startDestination = Routes.TIMER,
+            startDestination = Routes.TODAY,
             enterTransition = { fadeIn(tween(220)) },
             exitTransition = { fadeOut(tween(180)) },
             popEnterTransition = { fadeIn(tween(220)) },
             popExitTransition = { fadeOut(tween(180)) },
         ) {
-            composable(
-                route = Routes.TIMER,
-                arguments = listOf(
-                    navArgument(Routes.ARG_TASK) { type = NavType.StringType; defaultValue = "" },
-                    navArgument(Routes.ARG_MINUTES) { type = NavType.IntType; defaultValue = 0 },
-                ),
-            ) {
+            composable(Routes.TODAY) {
+                TodoScreen(
+                    onOpenQuickStart = { navController.navigate(Routes.QUICK_START) },
+                    onStartedSession = {
+                        navController.navigate(Routes.TIMER) { launchSingleTop = true }
+                    },
+                )
+            }
+
+            composable(Routes.QUICK_START) {
+                QuickStartScreen(
+                    onCancel = { navController.popBackStack() },
+                    onStarted = {
+                        navController.navigate(Routes.TIMER) {
+                            popUpTo(Routes.TODAY) { inclusive = false }
+                        }
+                    },
+                )
+            }
+
+            composable(Routes.TIMER) {
                 TimerScreen(
                     onCompleted = {
-                        navController.navigate(Routes.PUBLISH) { launchSingleTop = true }
+                        navController.navigate(Routes.SESSION_COMPLETE) { launchSingleTop = true }
                     },
-                    // Stopping never navigates — it just resets in place, back to the star,
-                    // regardless of whether this session was ad-hoc or pushed from the queue.
-                    onAbandon = {},
-                )
-            }
-
-            composable(Routes.FEED) {
-                FeedScreen(
-                    onOpenDay = { epochDay -> navController.navigate(Routes.day(epochDay)) },
-                    onOpenReceipt = { id -> navController.navigate(Routes.detail(id)) },
-                )
-            }
-
-            composable(Routes.TODO) {
-                TodoScreen(
-                    onStartPlanned = { label, minutes ->
-                        navController.navigate(Routes.timer(label, minutes))
+                    // Stopping never navigates — it just resets in place, back to Today.
+                    onAbandon = {
+                        navController.navigate(Routes.TODAY) {
+                            popUpTo(Routes.TODAY) { inclusive = false }
+                        }
                     },
                 )
             }
 
-            composable(Routes.PUBLISH) {
+            composable(Routes.SESSION_COMPLETE) {
                 PublishScreen(
                     onFinished = { next ->
                         if (next != null) {
-                            // Queue has more — offer to browse straight into it.
-                            navController.navigate(Routes.NEXT_UP) {
-                                popUpTo(Routes.TIMER) { inclusive = false }
+                            // Queue has more — offer to continue straight into it.
+                            navController.navigate(Routes.UP_NEXT) {
+                                popUpTo(Routes.TODAY) { inclusive = false }
                             }
                         } else {
-                            navController.navigate(Routes.FEED) {
-                                popUpTo(Routes.TIMER) { inclusive = false }
+                            navController.navigate(Routes.HISTORY) {
+                                popUpTo(Routes.TODAY) { inclusive = false }
                             }
                         }
                     },
                 )
             }
 
-            composable(Routes.NEXT_UP) {
+            composable(Routes.UP_NEXT) {
                 NextUpScreen(
-                    onContinueNow = { task, minutes ->
-                        navController.navigate(Routes.timer(task, minutes)) {
-                            popUpTo(Routes.TIMER) { inclusive = true }
+                    onContinueNow = {
+                        navController.navigate(Routes.TIMER) {
+                            popUpTo(Routes.TODAY) { inclusive = false }
                             launchSingleTop = true
                         }
                     },
@@ -163,11 +162,10 @@ fun FocusApp(root: RootViewModel = hiltViewModel()) {
                         navController.navigate(Routes.breakScreen(breakMinutes, task, minutes))
                     },
                     onSkip = {
-                        navController.navigate(Routes.FEED) {
-                            popUpTo(Routes.TIMER) { inclusive = false }
+                        navController.navigate(Routes.HISTORY) {
+                            popUpTo(Routes.TODAY) { inclusive = false }
                         }
                     },
-                    onAddMore = { navController.navigate(Routes.TODO) },
                 )
             }
 
@@ -178,34 +176,25 @@ fun FocusApp(root: RootViewModel = hiltViewModel()) {
                     navArgument(Routes.ARG_TASK) { type = NavType.StringType; defaultValue = "" },
                     navArgument(Routes.ARG_MINUTES) { type = NavType.IntType; defaultValue = 25 },
                 ),
-            ) { backStackEntry ->
-                val args = backStackEntry.arguments
-                val breakMinutes = args?.getInt(Routes.ARG_BREAK_MINUTES) ?: 5
-                val task = args?.getString(Routes.ARG_TASK).orEmpty()
-                val minutes = args?.getInt(Routes.ARG_MINUTES) ?: 25
+            ) {
                 BreakScreen(
-                    minutes = breakMinutes,
                     onDone = {
-                        navController.navigate(Routes.timer(task, minutes)) {
-                            popUpTo(Routes.TIMER) { inclusive = true }
+                        navController.navigate(Routes.TIMER) {
+                            popUpTo(Routes.TODAY) { inclusive = false }
                             launchSingleTop = true
                         }
                     },
                 )
             }
 
-            composable(
-                route = Routes.DAY,
-                arguments = listOf(navArgument(Routes.ARG_EPOCH_DAY) { type = NavType.LongType }),
-            ) {
-                DayScreen(
-                    onBack = { navController.popBackStack() },
-                    onOpenReceipt = { id -> navController.navigate(Routes.detail(id)) },
+            composable(Routes.HISTORY) {
+                FeedScreen(
+                    onOpenReceipt = { id -> navController.navigate(Routes.sessionDetail(id)) },
                 )
             }
 
             composable(
-                route = Routes.DETAIL,
+                route = Routes.SESSION_DETAIL,
                 arguments = listOf(navArgument(Routes.ARG_RECEIPT_ID) { type = NavType.LongType }),
             ) {
                 DetailScreen(onBack = { navController.popBackStack() })
@@ -216,11 +205,7 @@ fun FocusApp(root: RootViewModel = hiltViewModel()) {
             }
         }
 
-        // Hide the tab bar only on the timer screen while a session runs (so its stop/complete
-        // controls own the bottom). On the other tabs it always shows — a session can keep
-        // running in the background and you must still be able to navigate.
-        val hideForRunningTimer = currentRoute == Routes.TIMER && timerActive
-        if (currentRoute in TAB_ROUTES && !hideForRunningTimer) {
+        if (currentRoute in TAB_ROUTES) {
             BottomTabBar(
                 currentRoute = currentRoute,
                 onNavigate = { route -> navController.navigateToTab(route) },
@@ -233,40 +218,20 @@ fun FocusApp(root: RootViewModel = hiltViewModel()) {
     }
 }
 
-/**
- * Standard bottom-nav pattern: keeps each tab's own back stack and scroll state — except for
- * Timer, which *is* the start destination. Combining `popUpTo(startDestination){saveState=true}`
- * with `restoreState=true` while navigating to that same start destination is an edge case
- * that can silently no-op (the requested back-stack shape already "matches"), which is why the
- * timer tab could stop responding: tapping it did nothing instead of returning to the timer.
- * Timer instead gets a plain, unambiguous "clear the stack and go" — nothing worth restoring
- * lives on its own back-stack entry anyway; the real session state is the singleton
- * FocusTimerController, not per-entry state.
- */
 private fun NavHostController.navigateToTab(route: String) {
-    val isTimer = route == Routes.timer()
     navigate(route) {
-        popUpTo(graph.findStartDestination().id) {
-            inclusive = isTimer
-            saveState = !isTimer
-        }
+        popUpTo(graph.findStartDestination().id) { saveState = true }
         launchSingleTop = true
-        restoreState = !isTimer
+        restoreState = true
     }
 }
 
-/**
- * [matchRoute] is the registered route *pattern* (what [NavDestination.route] reports, used to
- * tell which tab is selected); [target] is the concrete route actually passed to `navigate()`.
- * They differ only for Timer, whose pattern carries unfilled `{task}`/`{minutes}` placeholders.
- */
-private data class TabSpec(val matchRoute: String, val target: String, val label: String, val icon: ImageVector)
+private data class TabSpec(val route: String, val label: String, val icon: ImageVector)
 
 private val TABS = listOf(
-    TabSpec(Routes.TIMER, Routes.timer(), "타이머", Icons.Outlined.Timer),
-    TabSpec(Routes.FEED, Routes.FEED, "피드", Icons.Outlined.BarChart),
-    TabSpec(Routes.TODO, Routes.TODO, "할 일", Icons.Outlined.Checklist),
-    TabSpec(Routes.SETTINGS, Routes.SETTINGS, "설정", Icons.Outlined.Settings),
+    TabSpec(Routes.TODAY, "Today", Icons.Outlined.Checklist),
+    TabSpec(Routes.HISTORY, "History", Icons.Outlined.PhotoLibrary),
+    TabSpec(Routes.SETTINGS, "Settings", Icons.Outlined.Settings),
 )
 
 @Composable
@@ -286,11 +251,11 @@ private fun BottomTabBar(
         horizontalArrangement = Arrangement.SpaceEvenly,
     ) {
         TABS.forEach { tab ->
-            val selected = currentRoute == tab.matchRoute
+            val selected = currentRoute == tab.route
             Column(
                 modifier = Modifier
                     .clip(RoundedCornerShape(16.dp))
-                    .clickable { onNavigate(tab.target) }
+                    .clickable { onNavigate(tab.route) }
                     .padding(horizontal = 14.dp, vertical = 6.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
@@ -303,7 +268,6 @@ private fun BottomTabBar(
                 Text(
                     tab.label,
                     color = if (selected) FocusColors.AccentBlue else FocusColors.Muted2,
-                    fontFamily = MonoFamily,
                     fontSize = 10.sp,
                 )
             }

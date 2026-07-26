@@ -79,8 +79,8 @@ class FocusTimerService : LifecycleService() {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
         val remaining = formatRemaining(state.remainingMs)
-        val task = state.taskLabel.ifBlank { "집중 세션" }
-        val text = if (state.phase == TimerPhase.PAUSED) "$remaining · 일시정지" else remaining
+        val task = state.taskLabel.ifBlank { "Focus session" }
+        val text = if (state.phase == TimerPhase.PAUSED) "$remaining · Paused" else remaining
 
         return NotificationCompat.Builder(this, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_launcher_foreground)

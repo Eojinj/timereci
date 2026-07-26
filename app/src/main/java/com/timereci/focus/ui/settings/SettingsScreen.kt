@@ -108,9 +108,15 @@ fun SettingsScreen(
             SectionLabel("NOTIFICATIONS")
             Group {
                 ToggleRow(
-                    "Alert when a session ends",
+                    "Play a sound when a session ends",
                     checked = settings.alertWhenSessionEnds,
                     onCheckedChange = viewModel::setAlertWhenSessionEnds,
+                )
+                Divider()
+                ToggleRow(
+                    "Vibrate when a session ends",
+                    checked = settings.vibrateWhenSessionEnds,
+                    onCheckedChange = viewModel::setVibrateWhenSessionEnds,
                 )
                 Divider()
                 ValueRow("Sound", "System default", onClick = {

@@ -5,14 +5,17 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.timereci.focus.data.FocusRepository
 import com.timereci.focus.data.PhotoRef
+import com.timereci.focus.data.SettingsRepository
 import com.timereci.focus.timer.FocusTimerController
 import com.timereci.focus.ui.model.RecentTask
 import com.timereci.focus.ui.util.QuickEntry
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -26,6 +29,7 @@ private val PRESETS = listOf(15, 20, 25, 45, 60)
 class QuickStartViewModel @Inject constructor(
     private val repository: FocusRepository,
     private val controller: FocusTimerController,
+    private val settingsRepository: SettingsRepository,
 ) : ViewModel() {
 
     private val _text = MutableStateFlow("")
@@ -42,7 +46,10 @@ class QuickStartViewModel @Inject constructor(
     val recentPhotos: StateFlow<List<PhotoRef>> = repository.observeRecentPhotos()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
-    private val dismissedRecent = MutableStateFlow<Set<String>>(emptySet())
+    // Persisted (DataStore), not in-memory — otherwise a dismissed chip reappeared the moment
+    // this screen was left and reopened, since a fresh QuickStartViewModel is created each time.
+    private val dismissedRecent: Flow<Set<String>> = settingsRepository.settings
+        .map { it.dismissedRecentLabels }
 
     /** Recently completed tasks, offered as one-tap "fill the field" chips. */
     val recentCompleted: StateFlow<List<RecentTask>> = combine(
@@ -76,7 +83,9 @@ class QuickStartViewModel @Inject constructor(
         _text.value = task.label
         _presetMinutes.value = task.minutes
     }
-    fun dismissRecent(label: String) { dismissedRecent.value = dismissedRecent.value + label }
+    fun dismissRecent(label: String) {
+        viewModelScope.launch { settingsRepository.dismissRecentLabel(label) }
+    }
 
     fun importBackdrop(uri: Uri) {
         viewModelScope.launch {

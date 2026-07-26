@@ -7,6 +7,7 @@ import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
+import androidx.datastore.preferences.core.stringSetPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
@@ -44,8 +45,13 @@ data class FocusSettings(
     val durationPresets: List<Int> = DEFAULT_DURATION_PRESETS,
     /** true = Session Complete opens the photo picker automatically instead of waiting for a tap. */
     val askForPhotoAfterSession: Boolean = false,
-    /** true = a local notification fires when a running session ends. */
+    /** true = the completion sound plays when a running session ends. */
     val alertWhenSessionEnds: Boolean = true,
+    /** true = the device vibrates when a running session ends — independent of the sound. */
+    val vibrateWhenSessionEnds: Boolean = true,
+    /** Recent-task labels dismissed from Quick Start's "Recent" chips — persisted so they
+     * stay dismissed after navigating away and back, not just for the current screen visit. */
+    val dismissedRecentLabels: Set<String> = emptySet(),
 )
 
 @Singleton
@@ -60,6 +66,8 @@ class SettingsRepository @Inject constructor(
             durationPresets = parsePresets(prefs[KEY_DURATION_PRESETS]),
             askForPhotoAfterSession = prefs[KEY_ASK_PHOTO] ?: false,
             alertWhenSessionEnds = prefs[KEY_ALERT_ON_END] ?: true,
+            vibrateWhenSessionEnds = prefs[KEY_VIBRATE_ON_END] ?: true,
+            dismissedRecentLabels = prefs[KEY_DISMISSED_RECENT] ?: emptySet(),
         )
     }
 
@@ -68,6 +76,11 @@ class SettingsRepository @Inject constructor(
     suspend fun setPhotoAspect(value: PhotoAspect) = edit { it[KEY_PHOTO_ASPECT] = value.name }
     suspend fun setAskForPhotoAfterSession(value: Boolean) = edit { it[KEY_ASK_PHOTO] = value }
     suspend fun setAlertWhenSessionEnds(value: Boolean) = edit { it[KEY_ALERT_ON_END] = value }
+    suspend fun setVibrateWhenSessionEnds(value: Boolean) = edit { it[KEY_VIBRATE_ON_END] = value }
+
+    suspend fun dismissRecentLabel(label: String) = edit {
+        it[KEY_DISMISSED_RECENT] = (it[KEY_DISMISSED_RECENT] ?: emptySet()) + label
+    }
 
     private fun parsePresets(raw: String?): List<Int> {
         val parsed = raw?.split(",")?.mapNotNull { it.toIntOrNull() }
@@ -85,5 +98,7 @@ class SettingsRepository @Inject constructor(
         val KEY_DURATION_PRESETS = stringPreferencesKey("duration_presets")
         val KEY_ASK_PHOTO = booleanPreferencesKey("ask_photo_after_session")
         val KEY_ALERT_ON_END = booleanPreferencesKey("alert_when_session_ends")
+        val KEY_VIBRATE_ON_END = booleanPreferencesKey("vibrate_when_session_ends")
+        val KEY_DISMISSED_RECENT = stringSetPreferencesKey("dismissed_recent_labels")
     }
 }

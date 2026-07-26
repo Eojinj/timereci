@@ -9,10 +9,12 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -129,16 +131,19 @@ private fun SwipeAction(
     width: Dp,
     onClick: () -> Unit,
 ) {
-    Column(
+    // Icon and label side by side (one line) rather than stacked — a single line is always
+    // shorter than any real row, so there's a wide safety margin against ever overflowing it.
+    Row(
         Modifier
             .width(width)
             .fillMaxHeight()
             .background(background)
             .clickable(onClick = onClick),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center,
+        horizontalArrangement = Arrangement.Center,
+        verticalAlignment = Alignment.CenterVertically,
     ) {
-        Icon(icon, contentDescription = label, tint = Color.White, modifier = Modifier)
+        Icon(icon, contentDescription = label, tint = Color.White, modifier = Modifier.size(15.dp))
+        Spacer(Modifier.width(4.dp))
         Text(label, color = Color.White, fontSize = 11.5.sp)
     }
 }

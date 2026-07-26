@@ -39,4 +39,8 @@ class SettingsViewModel @Inject constructor(
     fun setAlertWhenSessionEnds(value: Boolean) = viewModelScope.launch {
         settingsRepository.setAlertWhenSessionEnds(value)
     }
+
+    fun setVibrateWhenSessionEnds(value: Boolean) = viewModelScope.launch {
+        settingsRepository.setVibrateWhenSessionEnds(value)
+    }
 }

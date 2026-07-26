@@ -54,13 +54,17 @@ class FocusTimerController @Inject constructor(
     private var ticker: Job? = null
 
     /** Kept current from Settings so the ticker's completion path (below) can read it
-     * synchronously — "Alert when a session ends" gates the in-app sound/vibration only;
-     * the dead-process notification backstop in [TimerAlarmScheduler] always fires regardless,
-     * since that one is a reliability guarantee, not a user preference. */
+     * synchronously — these gate the in-app completion sound/vibration independently of each
+     * other; the dead-process notification backstop in [TimerAlarmScheduler] always fires
+     * regardless, since that one is a reliability guarantee, not a user preference. */
     @Volatile private var alertWhenSessionEnds: Boolean = true
+    @Volatile private var vibrateWhenSessionEnds: Boolean = true
     init {
         scope.launch {
-            settingsRepository.settings.collect { alertWhenSessionEnds = it.alertWhenSessionEnds }
+            settingsRepository.settings.collect {
+                alertWhenSessionEnds = it.alertWhenSessionEnds
+                vibrateWhenSessionEnds = it.vibrateWhenSessionEnds
+            }
         }
     }
 
@@ -204,19 +208,23 @@ class FocusTimerController @Inject constructor(
      * own. Keeps going — no auto-timeout — until [stopAlarm] is called.
      */
     private fun playCompletionSound() {
-        if (!alertWhenSessionEnds) return
+        if (!alertWhenSessionEnds && !vibrateWhenSessionEnds) return
         stopAlarm()
-        runCatching {
-            val uri = RingtoneManager.getActualDefaultRingtoneUri(context, RingtoneManager.TYPE_ALARM)
-                ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
-            RingtoneManager.getRingtone(context, uri)?.also { ringtone ->
-                completionRingtone = ringtone
-                ringtone.play()
+        if (alertWhenSessionEnds) {
+            runCatching {
+                val uri = RingtoneManager.getActualDefaultRingtoneUri(context, RingtoneManager.TYPE_ALARM)
+                    ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
+                RingtoneManager.getRingtone(context, uri)?.also { ringtone ->
+                    completionRingtone = ringtone
+                    ringtone.play()
+                }
             }
         }
-        runCatching {
-            // Repeats the pattern (start index 0) until cancelled.
-            vibrator.vibrate(VibrationEffect.createWaveform(longArrayOf(0, 500, 500), 0))
+        if (vibrateWhenSessionEnds) {
+            runCatching {
+                // Repeats the pattern (start index 0) until cancelled.
+                vibrator.vibrate(VibrationEffect.createWaveform(longArrayOf(0, 500, 500), 0))
+            }
         }
         _alarmActive.value = true
     }

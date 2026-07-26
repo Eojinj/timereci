@@ -4,7 +4,6 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -206,16 +205,17 @@ fun PublishScreen(
                     Spacer(Modifier.height(16.dp))
                     Row(
                         Modifier
-                            .clip(RoundedCornerShape(20.dp))
-                            .background(Color(0xCCFFFFFF))
-                            .border(1.dp, FocusColors.Line, RoundedCornerShape(20.dp))
-                            .clickable(onClick = viewModel::stopAlarm)
-                            .padding(horizontal = 14.dp, vertical = 8.dp),
+                            .fillMaxWidth()
+                            .height(56.dp)
+                            .clip(RoundedCornerShape(16.dp))
+                            .background(FocusColors.AccentDeep)
+                            .clickable(onClick = viewModel::stopAlarm),
+                        horizontalArrangement = Arrangement.Center,
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(6.dp),
                     ) {
-                        Icon(Icons.Outlined.NotificationsOff, contentDescription = null, tint = FocusColors.Ink2, modifier = Modifier)
-                        Text("Stop Alarm", color = FocusColors.Ink2, fontSize = 12.sp)
+                        Icon(Icons.Outlined.NotificationsOff, contentDescription = null, tint = Color.White, modifier = Modifier.size(22.dp))
+                        Spacer(Modifier.width(8.dp))
+                        Text("Stop Alarm", color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
                     }
                 }
 

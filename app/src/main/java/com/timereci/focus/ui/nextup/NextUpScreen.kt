@@ -4,6 +4,7 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -23,6 +24,9 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Star
@@ -35,6 +39,7 @@ import androidx.compose.material.icons.outlined.SkipNext
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -44,9 +49,15 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.BlurredEdgeTreatment
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -57,8 +68,6 @@ import com.timereci.focus.ui.components.IconActionButton
 import com.timereci.focus.ui.theme.FocusColors
 import com.timereci.focus.ui.theme.GothicFamily
 import com.timereci.focus.ui.theme.MonoFamily
-
-private val BREAK_PRESETS = listOf(5, 10)
 
 /**
  * Shown after a session ends when the todo queue still has something in it. The head of the
@@ -86,7 +95,9 @@ fun NextUpScreen(
     val current = ordered.firstOrNull()
     val waiting = if (ordered.size > 1) ordered.subList(1, ordered.size) else emptyList()
 
-    var showBreakOptions by remember(current?.id) { mutableStateOf(false) }
+    var showBreakInput by remember(current?.id) { mutableStateOf(false) }
+    var breakInput by remember(current?.id) { mutableStateOf("") }
+    val breakFocusRequester = remember { FocusRequester() }
 
     fun start(item: PlannedFocusEntity) {
         val minutes = (item.plannedMs / 60_000L).toInt().coerceAtLeast(1)
@@ -177,44 +188,74 @@ fun NextUpScreen(
                     Row(horizontalArrangement = Arrangement.spacedBy(26.dp), verticalAlignment = Alignment.CenterVertically) {
                         GlassRoundButton(
                             icon = Icons.Outlined.SkipNext,
-                            label = "건너뛰기",
+                            contentDescription = "건너뛰기",
                             onClick = { if (ordered.size > 1) passIndex++ },
                         )
-                        IconActionButton(
-                            icon = Icons.Filled.PlayArrow,
-                            contentDescription = "바로 시작",
-                            onClick = { start(current) },
-                            accent = true,
-                            size = 84.dp,
-                        )
+                        Box(
+                            Modifier
+                                .size(84.dp)
+                                .clip(CircleShape)
+                                .clickable(
+                                    interactionSource = remember { MutableInteractionSource() },
+                                    indication = null,
+                                    onClick = { start(current) },
+                                ),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Icon(Icons.Filled.PlayArrow, contentDescription = "바로 시작", tint = Color.White, modifier = Modifier.size(52.dp))
+                        }
                         GlassRoundButton(
                             icon = Icons.Outlined.LocalCafe,
-                            label = "휴식",
-                            onClick = { showBreakOptions = !showBreakOptions },
+                            contentDescription = "휴식",
+                            onClick = {
+                                showBreakInput = !showBreakInput
+                                breakInput = ""
+                            },
                         )
                     }
 
-                    AnimatedVisibility(visible = showBreakOptions) {
-                        Column {
+                    AnimatedVisibility(visible = showBreakInput) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             Spacer(Modifier.height(20.dp))
-                            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                                BREAK_PRESETS.forEach { m ->
-                                    Box(
-                                        Modifier
-                                            .clip(RoundedCornerShape(20.dp))
-                                            .background(Color.White)
-                                            .border(1.dp, FocusColors.Line, RoundedCornerShape(20.dp))
-                                            .clickable {
-                                                val minutes = (current.plannedMs / 60_000L).toInt().coerceAtLeast(1)
-                                                viewModel.consume(current.id)
-                                                passIndex = 0
-                                                onBreak(m, current.label, minutes)
-                                            }
-                                            .padding(horizontal = 16.dp, vertical = 9.dp),
-                                    ) {
-                                        Text("${m}분 휴식", color = FocusColors.Ink2, fontFamily = MonoFamily, fontSize = 12.5.sp)
-                                    }
+                            LaunchedEffect(Unit) { breakFocusRequester.requestFocus() }
+                            Row(
+                                Modifier
+                                    .clip(RoundedCornerShape(20.dp))
+                                    .background(Color.White)
+                                    .border(1.dp, FocusColors.Line, RoundedCornerShape(20.dp))
+                                    .padding(horizontal = 18.dp, vertical = 10.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                fun commitBreak() {
+                                    val m = breakInput.toIntOrNull()?.coerceIn(1, 180) ?: return
+                                    val minutes = (current.plannedMs / 60_000L).toInt().coerceAtLeast(1)
+                                    viewModel.consume(current.id)
+                                    passIndex = 0
+                                    onBreak(m, current.label, minutes)
                                 }
+                                BasicTextField(
+                                    value = breakInput,
+                                    onValueChange = { text -> breakInput = text.filter { it.isDigit() }.take(3) },
+                                    singleLine = true,
+                                    cursorBrush = SolidColor(FocusColors.AccentBlue),
+                                    textStyle = TextStyle(
+                                        color = FocusColors.Ink,
+                                        fontFamily = MonoFamily,
+                                        fontSize = 16.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        textAlign = TextAlign.Center,
+                                    ),
+                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Done),
+                                    keyboardActions = KeyboardActions(onDone = { commitBreak() }),
+                                    decorationBox = { inner ->
+                                        if (breakInput.isEmpty()) {
+                                            Text("0", color = FocusColors.Muted2, fontFamily = MonoFamily, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                                        }
+                                        inner()
+                                    },
+                                    modifier = Modifier.width(46.dp).focusRequester(breakFocusRequester),
+                                )
+                                Text("분 휴식", color = FocusColors.Ink2, fontFamily = MonoFamily, fontSize = 13.sp)
                             }
                         }
                     }
@@ -261,23 +302,19 @@ fun NextUpScreen(
     }
 }
 
-/** A translucent circular icon button with a caption underneath — matches the design's glass look. */
+/** A translucent circular icon-only button — matches the design's glass look. */
 @Composable
-private fun GlassRoundButton(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String, onClick: () -> Unit) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Box(
-            Modifier
-                .size(54.dp)
-                .clip(CircleShape)
-                .background(Color(0x66FFFFFF))
-                .border(1.dp, Color(0x80FFFFFF), CircleShape)
-                .clickable(onClick = onClick),
-            contentAlignment = Alignment.Center,
-        ) {
-            Icon(icon, contentDescription = label, tint = FocusColors.AccentDeep, modifier = Modifier.size(24.dp))
-        }
-        Spacer(Modifier.height(6.dp))
-        Text(label, color = FocusColors.Ink2, fontFamily = MonoFamily, fontSize = 10.sp)
+private fun GlassRoundButton(icon: androidx.compose.ui.graphics.vector.ImageVector, contentDescription: String, onClick: () -> Unit) {
+    Box(
+        Modifier
+            .size(54.dp)
+            .clip(CircleShape)
+            .background(Color(0x66FFFFFF))
+            .border(1.dp, Color(0x80FFFFFF), CircleShape)
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(icon, contentDescription = contentDescription, tint = FocusColors.AccentDeep, modifier = Modifier.size(24.dp))
     }
 }
 

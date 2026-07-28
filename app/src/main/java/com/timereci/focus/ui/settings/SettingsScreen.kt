@@ -97,12 +97,6 @@ fun SettingsScreen(
             Group {
                 val shapeLabel = if (settings.photoAspect == PhotoAspect.SQUARE) "Square" else "Portrait"
                 ValueRow("Photo Shape", shapeLabel, onClick = { showShapePicker = true })
-                Divider()
-                ToggleRow(
-                    "Ask for a photo after each session",
-                    checked = settings.askForPhotoAfterSession,
-                    onCheckedChange = viewModel::setAskForPhotoAfterSession,
-                )
             }
 
             SectionLabel("NOTIFICATIONS")

@@ -30,7 +30,6 @@ import androidx.compose.material.icons.outlined.NotificationsOff
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -70,7 +69,6 @@ fun PublishScreen(
     val ui by viewModel.ui.collectAsStateWithLifecycle()
     val recentPhotos by viewModel.recentPhotos.collectAsStateWithLifecycle()
     val alarmActive by viewModel.alarmActive.collectAsStateWithLifecycle()
-    val askForPhoto by viewModel.askForPhotoAfterSession.collectAsStateWithLifecycle()
     var showPhotoSheet by remember { mutableStateOf(false) }
     val context = LocalContext.current
 
@@ -79,10 +77,6 @@ fun PublishScreen(
     ) { uri -> uri?.let(viewModel::setPhoto) }
     fun launchSystemPicker() {
         photoPicker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
-    }
-
-    LaunchedEffect(askForPhoto) {
-        if (askForPhoto && ui.photo == null) launchSystemPicker()
     }
 
     Box(Modifier.fillMaxSize()) {

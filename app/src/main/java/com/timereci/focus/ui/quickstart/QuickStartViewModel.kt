@@ -21,9 +21,7 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 /** Quick Start's resolved input: what will actually be queued/started. */
-data class QuickStartResolved(val label: String, val minutes: Int, val minutesFromText: Boolean)
-
-private val PRESETS = listOf(15, 20, 25, 45, 60)
+data class QuickStartResolved(val label: String, val minutes: Int)
 
 @HiltViewModel
 class QuickStartViewModel @Inject constructor(
@@ -35,10 +33,10 @@ class QuickStartViewModel @Inject constructor(
     private val _text = MutableStateFlow("")
     val text: StateFlow<String> = _text
 
+    // Falls back to 25 unless a Recent chip set it — there's no length picker in the UI
+    // anymore, so this only ever changes via fillFromRecent.
     private val _presetMinutes = MutableStateFlow(25)
     val presetMinutes: StateFlow<Int> = _presetMinutes
-
-    val presets: List<Int> = PRESETS
 
     private val _backdrop = MutableStateFlow<PhotoRef?>(null)
     val backdrop: StateFlow<PhotoRef?> = _backdrop
@@ -70,15 +68,10 @@ class QuickStartViewModel @Inject constructor(
      * to whichever length preset is selected (25 by default). */
     val resolved: StateFlow<QuickStartResolved> = combine(_text, _presetMinutes) { raw, preset ->
         val (label, minutesFromText) = QuickEntry.parse(raw)
-        QuickStartResolved(
-            label = label,
-            minutes = minutesFromText ?: preset,
-            minutesFromText = minutesFromText != null,
-        )
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), QuickStartResolved("", 25, false))
+        QuickStartResolved(label = label, minutes = minutesFromText ?: preset)
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), QuickStartResolved("", 25))
 
     fun setText(value: String) { _text.value = value }
-    fun setPreset(minutes: Int) { _presetMinutes.value = minutes }
     fun fillFromRecent(task: RecentTask) {
         _text.value = task.label
         _presetMinutes.value = task.minutes

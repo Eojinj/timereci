@@ -218,11 +218,22 @@ fun FocusApp(root: RootViewModel = hiltViewModel()) {
     }
 }
 
+/**
+ * Combining `popUpTo(startDestination){saveState=true}` with `restoreState=true` while
+ * navigating to that *same* start destination (Today) is a Navigation-Compose edge case that
+ * can silently no-op — the requested back-stack shape already "matches" — which is why Today
+ * could stop responding from other tabs. Today instead gets a plain, unambiguous "clear the
+ * stack and go"; there's nothing on its own back-stack entry worth restoring anyway.
+ */
 private fun NavHostController.navigateToTab(route: String) {
+    val isStart = route == Routes.TODAY
     navigate(route) {
-        popUpTo(graph.findStartDestination().id) { saveState = true }
+        popUpTo(graph.findStartDestination().id) {
+            inclusive = isStart
+            saveState = !isStart
+        }
         launchSingleTop = true
-        restoreState = true
+        restoreState = !isStart
     }
 }
 

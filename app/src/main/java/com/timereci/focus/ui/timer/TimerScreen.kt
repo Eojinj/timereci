@@ -238,7 +238,7 @@ private fun RunningContent(
                 color = FocusColors.Ink,
                 style = TextStyle(
                     fontFamily = GothicFamily,
-                    fontSize = if (isLandscape) 120.sp else 78.sp,
+                    fontSize = if (isLandscape) 132.sp else 94.sp,
                     fontWeight = FontWeight.SemiBold,
                     letterSpacing = (-2).sp,
                     fontFeatureSettings = "tnum",
@@ -301,18 +301,18 @@ private fun DockButton(icon: ImageVector, label: String, onClick: () -> Unit, mo
     val tint = if (filled) FocusColors.AccentBlue else FocusColors.Ink2
     Column(
         modifier
-            .clip(RoundedCornerShape(14.dp))
+            .clip(RoundedCornerShape(12.dp))
             .clickable(
                 interactionSource = remember { MutableInteractionSource() },
                 indication = null,
                 onClick = onClick,
             )
-            .padding(vertical = 11.dp),
+            .padding(vertical = 7.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Icon(icon, contentDescription = label, tint = tint, modifier = Modifier.size(24.dp))
-        Spacer(Modifier.height(4.dp))
-        Text(label, color = tint, fontSize = 12.sp, fontWeight = FontWeight.Medium)
+        Icon(icon, contentDescription = label, tint = tint, modifier = Modifier.size(18.dp))
+        Spacer(Modifier.height(3.dp))
+        Text(label, color = tint, fontSize = 10.5.sp, fontWeight = FontWeight.Medium)
     }
 }
 

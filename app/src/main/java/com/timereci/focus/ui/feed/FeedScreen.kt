@@ -11,15 +11,23 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.GridView
+import androidx.compose.material.icons.outlined.Notes
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -48,10 +56,13 @@ import java.time.LocalDate
 import java.time.format.TextStyle as JavaTextStyle
 import java.util.Locale
 
+private enum class HistoryViewMode { GALLERY, COMMENTS }
+
 /**
  * History (Merci v5 screen 8): each day is a block of that day's session tiles — a busy day
  * reads as a full grid, a quiet day as one tile. Tapping a tile opens Session Detail directly
- * (there's no separate "Day" screen anymore).
+ * (there's no separate "Day" screen anymore). A toggle switches to a text-only list of just
+ * the comments, for reading back over what you wrote without the photos.
  */
 @Composable
 fun FeedScreen(
@@ -59,6 +70,7 @@ fun FeedScreen(
     viewModel: FeedViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    var mode by remember { mutableStateOf(HistoryViewMode.GALLERY) }
 
     Box(
         Modifier
@@ -79,7 +91,13 @@ fun FeedScreen(
                 modifier = Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.systemBars),
                 contentPadding = PaddingValues(bottom = 110.dp),
             ) {
-                item { Header(content.subtitle) }
+                item {
+                    Header(
+                        subtitle = content.subtitle,
+                        mode = mode,
+                        onToggleMode = { mode = if (mode == HistoryViewMode.GALLERY) HistoryViewMode.COMMENTS else HistoryViewMode.GALLERY },
+                    )
+                }
                 item {
                     Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 4.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         StatCard("This week", content.thisWeekText, Modifier.weight(1f))
@@ -87,22 +105,44 @@ fun FeedScreen(
                     }
                 }
                 items(content.days, key = { it.epochDay }) { day ->
-                    DayBlock(day = day, onOpenReceipt = onOpenReceipt)
+                    if (mode == HistoryViewMode.GALLERY) {
+                        DayBlock(day = day, onOpenReceipt = onOpenReceipt)
+                    } else {
+                        DayCommentsBlock(day = day, onOpenReceipt = onOpenReceipt)
+                    }
                 }
             }
-            FeedUiState.Empty -> Column(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.systemBars)) { Header(""); EmptyFeed() }
+            FeedUiState.Empty -> Column(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.systemBars)) {
+                Header(subtitle = "", mode = mode, onToggleMode = {})
+                EmptyFeed()
+            }
             FeedUiState.Loading -> Box(Modifier.fillMaxSize())
         }
     }
 }
 
 @Composable
-private fun Header(subtitle: String) {
-    Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 8.dp)) {
-        Text("History", color = FocusColors.Ink, fontSize = 34.sp, fontWeight = FontWeight.Bold, letterSpacing = (-0.03).sp)
-        if (subtitle.isNotEmpty()) {
-            Text(subtitle, color = FocusColors.Muted, fontSize = 14.5.sp, modifier = Modifier.padding(top = 2.dp))
+private fun Header(subtitle: String, mode: HistoryViewMode, onToggleMode: () -> Unit) {
+    Row(
+        Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.Bottom,
+    ) {
+        Column(Modifier.weight(1f)) {
+            Text("History", color = FocusColors.Ink, fontSize = 34.sp, fontWeight = FontWeight.Bold, letterSpacing = (-0.03).sp)
+            if (subtitle.isNotEmpty()) {
+                Text(subtitle, color = FocusColors.Muted, fontSize = 14.5.sp, modifier = Modifier.padding(top = 2.dp))
+            }
         }
+        Icon(
+            if (mode == HistoryViewMode.GALLERY) Icons.Outlined.Notes else Icons.Outlined.GridView,
+            contentDescription = if (mode == HistoryViewMode.GALLERY) "Show comments only" else "Show gallery",
+            tint = FocusColors.AccentBlue,
+            modifier = Modifier
+                .padding(bottom = 6.dp)
+                .clip(RoundedCornerShape(10.dp))
+                .clickable(onClick = onToggleMode)
+                .padding(6.dp),
+        )
     }
 }
 
@@ -155,6 +195,61 @@ private fun DayBlock(day: FeedDay, onOpenReceipt: (Long) -> Unit) {
                 }
             }
         }
+    }
+}
+
+/** The same day, as a text-only list of what was written — no photos, just the comments. */
+@Composable
+private fun DayCommentsBlock(day: FeedDay, onOpenReceipt: (Long) -> Unit) {
+    Column {
+        Row(
+            Modifier.fillMaxWidth().padding(horizontal = 22.dp).padding(top = 16.dp, bottom = 8.dp),
+            verticalAlignment = Alignment.Bottom,
+        ) {
+            Text(relativeDayLabel(day.date), color = FocusColors.Ink, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
+            Text(
+                "${day.focusText} · ${day.sessions.size} session${if (day.sessions.size == 1) "" else "s"}",
+                color = FocusColors.Muted,
+                fontSize = 12.5.sp,
+                textAlign = TextAlign.End,
+                modifier = Modifier.weight(1f).padding(start = 8.dp),
+            )
+        }
+        Column(
+            Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp)
+                .clip(RoundedCornerShape(16.dp))
+                .background(Color(0xEBFFFFFF)),
+        ) {
+            day.sessions.forEachIndexed { index, session ->
+                if (index > 0) Box(Modifier.fillMaxWidth().height(1.dp).background(FocusColors.LineSoft))
+                CommentRow(session = session, onClick = { onOpenReceipt(session.id) })
+            }
+        }
+    }
+}
+
+@Composable
+private fun CommentRow(session: SessionCard, onClick: () -> Unit) {
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+    ) {
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+            Text(session.task.ifBlank { "Focus" }, color = FocusColors.Ink, fontSize = 15.5.sp, fontWeight = FontWeight.SemiBold)
+            Text(session.stamp, color = FocusColors.Muted, fontSize = 12.sp)
+        }
+        val comment = session.comment
+        Text(
+            if (comment.isNullOrBlank()) "No note" else comment,
+            color = if (comment.isNullOrBlank()) FocusColors.Muted2 else FocusColors.Ink2,
+            fontSize = 14.sp,
+            lineHeight = 20.sp,
+            modifier = Modifier.padding(top = 4.dp),
+        )
     }
 }
 

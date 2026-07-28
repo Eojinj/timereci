@@ -7,7 +7,6 @@ import com.timereci.focus.data.FocusRepository
 import com.timereci.focus.data.PhotoRef
 import com.timereci.focus.data.PlannedFocusEntity
 import com.timereci.focus.data.ReceiptEntity
-import com.timereci.focus.data.SettingsRepository
 import com.timereci.focus.timer.FocusTimerController
 import com.timereci.focus.ui.util.Formatters
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -15,7 +14,6 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -34,18 +32,11 @@ data class PublishUiState(
 class PublishViewModel @Inject constructor(
     private val controller: FocusTimerController,
     private val repository: FocusRepository,
-    settingsRepository: SettingsRepository,
 ) : ViewModel() {
 
     // Captured once: the completed session powering this publish screen.
     private val completed = controller.state.value
     private val issuedAt = System.currentTimeMillis()
-
-    /** True the first time this screen is shown for a session with no photo yet — the caller
-     * opens the Choose Photo sheet automatically then, per the "ask for a photo" setting. */
-    val askForPhotoAfterSession: StateFlow<Boolean> = settingsRepository.settings
-        .map { it.askForPhotoAfterSession }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
 
     /** True while the completion sound/vibration from finishing this session is still ringing. */
     val alarmActive: StateFlow<Boolean> = controller.alarmActive

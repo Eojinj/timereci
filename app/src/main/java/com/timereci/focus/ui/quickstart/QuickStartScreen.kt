@@ -181,35 +181,6 @@ fun QuickStartScreen(
                     modifier = Modifier.padding(top = 10.dp, start = 4.dp, end = 4.dp),
                 )
 
-                SectionLabel("OR PICK A LENGTH")
-                Row(
-                    Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(Color(0x9EFFFFFF))
-                        .padding(3.dp),
-                ) {
-                    viewModel.presets.forEach { min ->
-                        val active = min == presetMinutes && !resolved.minutesFromText
-                        Box(
-                            Modifier
-                                .weight(1f)
-                                .clip(RoundedCornerShape(9.dp))
-                                .then(if (active) Modifier.background(Color.White) else Modifier)
-                                .clickable { viewModel.setPreset(min) }
-                                .padding(vertical = 8.dp),
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            Text(
-                                "$min",
-                                color = if (active) FocusColors.Ink else FocusColors.Muted,
-                                fontSize = 14.5.sp,
-                                fontWeight = if (active) FontWeight.SemiBold else FontWeight.Medium,
-                            )
-                        }
-                    }
-                }
-
                 if (recentCompleted.isNotEmpty()) {
                     SectionLabel("RECENT")
                     LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {

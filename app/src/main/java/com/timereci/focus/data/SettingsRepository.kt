@@ -43,8 +43,6 @@ data class FocusSettings(
     val photoAspect: PhotoAspect = PhotoAspect.PORTRAIT,
     /** Quick-pick minute presets shown on the timer, settings and todo screens. */
     val durationPresets: List<Int> = DEFAULT_DURATION_PRESETS,
-    /** true = Session Complete opens the photo picker automatically instead of waiting for a tap. */
-    val askForPhotoAfterSession: Boolean = false,
     /** true = the completion sound plays when a running session ends. */
     val alertWhenSessionEnds: Boolean = true,
     /** true = the device vibrates when a running session ends — independent of the sound. */
@@ -64,7 +62,6 @@ class SettingsRepository @Inject constructor(
             keepRunningWhileCommenting = prefs[KEY_KEEP_RUNNING] ?: true,
             photoAspect = PhotoAspect.from(prefs[KEY_PHOTO_ASPECT]),
             durationPresets = parsePresets(prefs[KEY_DURATION_PRESETS]),
-            askForPhotoAfterSession = prefs[KEY_ASK_PHOTO] ?: false,
             alertWhenSessionEnds = prefs[KEY_ALERT_ON_END] ?: true,
             vibrateWhenSessionEnds = prefs[KEY_VIBRATE_ON_END] ?: true,
             dismissedRecentLabels = prefs[KEY_DISMISSED_RECENT] ?: emptySet(),
@@ -74,7 +71,6 @@ class SettingsRepository @Inject constructor(
     suspend fun setDefaultDuration(ms: Long) = edit { it[KEY_DEFAULT_MS] = ms }
     suspend fun setKeepRunningWhileCommenting(value: Boolean) = edit { it[KEY_KEEP_RUNNING] = value }
     suspend fun setPhotoAspect(value: PhotoAspect) = edit { it[KEY_PHOTO_ASPECT] = value.name }
-    suspend fun setAskForPhotoAfterSession(value: Boolean) = edit { it[KEY_ASK_PHOTO] = value }
     suspend fun setAlertWhenSessionEnds(value: Boolean) = edit { it[KEY_ALERT_ON_END] = value }
     suspend fun setVibrateWhenSessionEnds(value: Boolean) = edit { it[KEY_VIBRATE_ON_END] = value }
 
@@ -96,7 +92,6 @@ class SettingsRepository @Inject constructor(
         val KEY_KEEP_RUNNING = booleanPreferencesKey("keep_running_commenting")
         val KEY_PHOTO_ASPECT = stringPreferencesKey("photo_aspect")
         val KEY_DURATION_PRESETS = stringPreferencesKey("duration_presets")
-        val KEY_ASK_PHOTO = booleanPreferencesKey("ask_photo_after_session")
         val KEY_ALERT_ON_END = booleanPreferencesKey("alert_when_session_ends")
         val KEY_VIBRATE_ON_END = booleanPreferencesKey("vibrate_when_session_ends")
         val KEY_DISMISSED_RECENT = stringSetPreferencesKey("dismissed_recent_labels")

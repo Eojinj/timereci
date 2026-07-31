@@ -21,7 +21,7 @@ object DataModule {
     @Singleton
     fun provideDatabase(@ApplicationContext context: Context): FocusDatabase =
         Room.databaseBuilder(context, FocusDatabase::class.java, FocusDatabase.NAME)
-            .addMigrations(FocusDatabase.MIGRATION_1_2)
+            .addMigrations(FocusDatabase.MIGRATION_1_2, FocusDatabase.MIGRATION_2_3)
             .fallbackToDestructiveMigration()
             .build()
 

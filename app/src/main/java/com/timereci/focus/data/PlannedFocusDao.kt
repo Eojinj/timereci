@@ -12,9 +12,14 @@ interface PlannedFocusDao {
     @Query("SELECT * FROM planned_focus ORDER BY createdAtEpoch ASC")
     fun observeAll(): Flow<List<PlannedFocusEntity>>
 
-    /** The head of the queue — whatever was added first (oldest still-pending item). */
-    @Query("SELECT * FROM planned_focus ORDER BY createdAtEpoch ASC LIMIT 1")
-    suspend fun getFirst(): PlannedFocusEntity?
+    /**
+     * The queue in "what to do next" order. One-offs come first so they actually drain — a
+     * repeating task is never finished, so letting one hold the head would starve the rest.
+     * (Today's own list keeps [observeAll]'s creation order; this ordering is only for
+     * picking what to offer next.)
+     */
+    @Query("SELECT * FROM planned_focus ORDER BY isRepeating ASC, createdAtEpoch ASC")
+    suspend fun getQueue(): List<PlannedFocusEntity>
 
     @Insert
     suspend fun insert(item: PlannedFocusEntity): Long

@@ -39,16 +39,27 @@ class TodoViewModel @Inject constructor(
         viewModelScope.launch { repository.deletePlannedFocus(id) }
     }
 
-    fun update(item: PlannedFocusEntity, label: String, minutes: Int) {
+    fun update(item: PlannedFocusEntity, label: String, minutes: Int, isRepeating: Boolean) {
         viewModelScope.launch {
-            repository.updatePlannedFocus(item.copy(label = label.trim(), plannedMs = minutes * 60_000L))
+            repository.updatePlannedFocus(
+                item.copy(
+                    label = label.trim(),
+                    plannedMs = minutes * 60_000L,
+                    isRepeating = isRepeating,
+                ),
+            )
         }
     }
 
-    /** Starts the session directly (no confirmation screen) and drops it from the queue —
-     * the caller just navigates to the (already-running) timer right after calling this. */
+    /**
+     * Starts the session directly (no confirmation screen) — the caller just navigates to the
+     * (already-running) timer right after calling this. A one-off is consumed by starting it;
+     * a repeating task stays put so it can be run again tomorrow and keep building up stats.
+     */
     fun startItem(item: PlannedFocusEntity) {
-        viewModelScope.launch { repository.deletePlannedFocus(item.id) }
+        if (!item.isRepeating) {
+            viewModelScope.launch { repository.deletePlannedFocus(item.id) }
+        }
         val minutes = (item.plannedMs / 60_000L).toInt().coerceAtLeast(1)
         controller.start(plannedMs = minutes * 60_000L, taskLabel = item.label, backdropFileName = null)
     }

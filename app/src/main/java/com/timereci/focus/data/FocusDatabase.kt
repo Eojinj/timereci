@@ -8,7 +8,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 
 @Database(
     entities = [ReceiptEntity::class, ActiveSessionEntity::class, PlannedFocusEntity::class],
-    version = 2,
+    version = 3,
     exportSchema = true,
 )
 @TypeConverters(Converters::class)
@@ -29,6 +29,15 @@ abstract class FocusDatabase : RoomDatabase() {
                         "`label` TEXT NOT NULL, " +
                         "`plannedMs` INTEGER NOT NULL, " +
                         "`createdAtEpoch` INTEGER NOT NULL)",
+                )
+            }
+        }
+
+        /** v3 adds the repeating flag on planned focus; existing tasks stay one-offs (0). */
+        val MIGRATION_2_3 = object : Migration(2, 3) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "ALTER TABLE `planned_focus` ADD COLUMN `isRepeating` INTEGER NOT NULL DEFAULT 0",
                 )
             }
         }

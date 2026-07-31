@@ -47,12 +47,13 @@ class FocusRepository @Inject constructor(
 
     fun observePlannedFocus(): Flow<List<PlannedFocusEntity>> = plannedFocusDao.observeAll()
 
-    suspend fun addPlannedFocus(label: String, plannedMs: Long) {
+    suspend fun addPlannedFocus(label: String, plannedMs: Long, isRepeating: Boolean = false) {
         plannedFocusDao.insert(
             PlannedFocusEntity(
                 label = label,
                 plannedMs = plannedMs,
                 createdAtEpoch = System.currentTimeMillis(),
+                isRepeating = isRepeating,
             ),
         )
     }
@@ -61,8 +62,18 @@ class FocusRepository @Inject constructor(
 
     suspend fun updatePlannedFocus(item: PlannedFocusEntity) = plannedFocusDao.update(item)
 
-    /** Head of the todo queue, if any — used to offer "continue with the next task". */
-    suspend fun nextPlannedFocus(): PlannedFocusEntity? = plannedFocusDao.getFirst()
+    /**
+     * Head of the todo queue, if any — used to offer "continue with the next task".
+     *
+     * [excludingLabel] skips the task that was just finished. Without it a repeating task,
+     * which by design stays on the list after being started, would immediately offer itself
+     * back and every session would end in "up next: the thing you just did".
+     */
+    suspend fun nextPlannedFocus(excludingLabel: String? = null): PlannedFocusEntity? {
+        val excluded = excludingLabel?.takeIf { it.isNotBlank() }?.let(TaskKey::of)
+        return plannedFocusDao.getQueue()
+            .firstOrNull { excluded == null || TaskKey.of(it.label) != excluded }
+    }
 
     // ---- Photos ----
 

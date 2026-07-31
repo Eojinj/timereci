@@ -14,4 +14,11 @@ data class PlannedFocusEntity(
     val label: String,
     val plannedMs: Long,
     val createdAtEpoch: Long,
+
+    /**
+     * A recurring task: starting it leaves it in the list so it can be run again tomorrow,
+     * instead of being consumed like a one-off to-do. This is what makes a task's stats
+     * accumulate over time rather than being a single entry in history.
+     */
+    val isRepeating: Boolean = false,
 )

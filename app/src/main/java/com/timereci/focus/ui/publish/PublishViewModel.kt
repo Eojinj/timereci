@@ -100,7 +100,7 @@ class PublishViewModel @Inject constructor(
                     photos = listOfNotNull(_ui.value.photo),
                 ),
             )
-            val next = repository.nextPlannedFocus()
+            val next = repository.nextPlannedFocus(excludingLabel = completed.taskLabel)
             controller.reset()
             onDone(next)
         }
@@ -109,7 +109,7 @@ class PublishViewModel @Inject constructor(
     /** Discard the session without publishing — leaves no trace, like an abandon. */
     fun discard(onDone: (PlannedFocusEntity?) -> Unit) {
         viewModelScope.launch {
-            val next = repository.nextPlannedFocus()
+            val next = repository.nextPlannedFocus(excludingLabel = completed.taskLabel)
             controller.reset()
             onDone(next)
         }

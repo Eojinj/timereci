@@ -34,5 +34,14 @@ object Routes {
     fun sessionDetail(receiptId: Long) = "sessionDetail/$receiptId"
     const val ARG_RECEIPT_ID = "receiptId"
 
+    /** Per-task totals, reached from History. */
+    const val STATS = "stats"
+
+    // One task's own trend. The arg is the normalized label, which can be blank (an unnamed
+    // session) — hence a query parameter rather than a path segment, which can't be empty.
+    const val TASK_STATS = "taskStats?key={key}"
+    const val ARG_TASK_KEY = "key"
+    fun taskStats(key: String) = "taskStats?key=${android.net.Uri.encode(key)}"
+
     const val SETTINGS = "settings"
 }

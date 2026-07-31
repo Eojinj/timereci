@@ -29,9 +29,12 @@ import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.AddCircleOutline
 import androidx.compose.material.icons.outlined.Close
+import androidx.compose.material.icons.outlined.Repeat
 import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
+import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -194,8 +197,8 @@ fun TodoScreen(
         EditTaskDialog(
             target = target,
             onDismiss = { editing = null },
-            onSave = { label, minutes ->
-                viewModel.update(target, label, minutes)
+            onSave = { label, minutes, isRepeating ->
+                viewModel.update(target, label, minutes, isRepeating)
                 editing = null
             },
         )
@@ -225,16 +228,28 @@ private fun TaskRow(item: PlannedFocusEntity, onStart: () -> Unit) {
             fontSize = 16.5.sp,
             modifier = Modifier.weight(1f).padding(end = 10.dp),
         )
+        // Marks the task as one that survives being started, so the row's stats keep growing.
+        if (item.isRepeating) {
+            Icon(
+                Icons.Outlined.Repeat,
+                contentDescription = "Repeats",
+                tint = FocusColors.AccentBlue,
+                modifier = Modifier.size(16.dp).padding(end = 1.dp),
+            )
+            Spacer(Modifier.width(7.dp))
+        }
         Text("$minutes min", color = FocusColors.Muted, fontSize = 15.5.sp)
     }
 }
 
 @Composable
-private fun EditTaskDialog(target: PlannedFocusEntity, onDismiss: () -> Unit, onSave: (String, Int) -> Unit) {
+private fun EditTaskDialog(target: PlannedFocusEntity, onDismiss: () -> Unit, onSave: (String, Int, Boolean) -> Unit) {
     var label by remember(target.id) { mutableStateOf(target.label) }
     var minutesText by remember(target.id) {
         mutableStateOf(((target.plannedMs / 60_000L).toInt().coerceAtLeast(1)).toString())
     }
+    var isRepeating by remember(target.id) { mutableStateOf(target.isRepeating) }
+    fun save() = onSave(label, minutesText.toIntOrNull()?.coerceIn(1, 300) ?: 25, isRepeating)
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -277,13 +292,38 @@ private fun EditTaskDialog(target: PlannedFocusEntity, onDismiss: () -> Unit, on
                             cursorBrush = SolidColor(FocusColors.AccentBlue),
                             textStyle = TextStyle(color = FocusColors.Ink, fontSize = 15.sp, fontWeight = FontWeight.SemiBold),
                             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-                            keyboardActions = KeyboardActions(onDone = {
-                                onSave(label, minutesText.toIntOrNull()?.coerceIn(1, 300) ?: 25)
-                            }),
+                            keyboardActions = KeyboardActions(onDone = { save() }),
                         )
                     }
                     Spacer(Modifier.width(6.dp))
                     Text("min", color = FocusColors.Muted, fontSize = 14.sp)
+                }
+                Spacer(Modifier.height(14.dp))
+                Row(
+                    Modifier.fillMaxWidth().clickable { isRepeating = !isRepeating },
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Icon(Icons.Outlined.Repeat, contentDescription = null, tint = FocusColors.Muted, modifier = Modifier.size(16.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Column(Modifier.weight(1f).padding(end = 10.dp)) {
+                        Text("Repeat", color = FocusColors.Ink, fontSize = 15.sp)
+                        Text(
+                            "Stays in the list after you start it",
+                            color = FocusColors.Muted,
+                            fontSize = 12.sp,
+                            lineHeight = 16.sp,
+                        )
+                    }
+                    Switch(
+                        checked = isRepeating,
+                        onCheckedChange = { isRepeating = it },
+                        colors = SwitchDefaults.colors(
+                            checkedThumbColor = Color.White,
+                            checkedTrackColor = FocusColors.AccentBlue,
+                            uncheckedTrackColor = FocusColors.Line,
+                            uncheckedBorderColor = FocusColors.LineStrong,
+                        ),
+                    )
                 }
             }
         },
@@ -291,7 +331,7 @@ private fun EditTaskDialog(target: PlannedFocusEntity, onDismiss: () -> Unit, on
             IconActionButton(
                 icon = Icons.Outlined.Add,
                 contentDescription = "Save",
-                onClick = { onSave(label, minutesText.toIntOrNull()?.coerceIn(1, 300) ?: 25) },
+                onClick = { save() },
                 accent = true,
                 size = 40.dp,
             )

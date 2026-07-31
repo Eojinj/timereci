@@ -52,6 +52,8 @@ import com.timereci.focus.ui.nextup.NextUpScreen
 import com.timereci.focus.ui.publish.PublishScreen
 import com.timereci.focus.ui.quickstart.QuickStartScreen
 import com.timereci.focus.ui.settings.SettingsScreen
+import com.timereci.focus.ui.stats.StatsScreen
+import com.timereci.focus.ui.stats.TaskStatsScreen
 import com.timereci.focus.ui.theme.FocusColors
 import com.timereci.focus.ui.timer.TimerScreen
 import com.timereci.focus.ui.todo.TodoScreen
@@ -190,6 +192,31 @@ fun FocusApp(root: RootViewModel = hiltViewModel()) {
             composable(Routes.HISTORY) {
                 FeedScreen(
                     onOpenReceipt = { id -> navController.navigate(Routes.sessionDetail(id)) },
+                    onOpenStats = { navController.navigate(Routes.STATS) },
+                )
+            }
+
+            composable(Routes.STATS) {
+                StatsScreen(
+                    onBack = { navController.popBackStack() },
+                    onOpenTask = { key -> navController.navigate(Routes.taskStats(key)) },
+                )
+            }
+
+            composable(
+                route = Routes.TASK_STATS,
+                arguments = listOf(
+                    navArgument(Routes.ARG_TASK_KEY) { type = NavType.StringType; defaultValue = "" },
+                ),
+            ) {
+                TaskStatsScreen(
+                    onBack = { navController.popBackStack() },
+                    onStarted = {
+                        navController.navigate(Routes.TIMER) {
+                            popUpTo(Routes.TODAY) { inclusive = false }
+                            launchSingleTop = true
+                        }
+                    },
                 )
             }
 

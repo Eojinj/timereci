@@ -19,6 +19,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.BarChart
 import androidx.compose.material.icons.outlined.GridView
 import androidx.compose.material.icons.outlined.Notes
 import androidx.compose.material3.Icon
@@ -67,6 +68,7 @@ private enum class HistoryViewMode { GALLERY, COMMENTS }
 @Composable
 fun FeedScreen(
     onOpenReceipt: (Long) -> Unit,
+    onOpenStats: () -> Unit,
     viewModel: FeedViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -96,6 +98,7 @@ fun FeedScreen(
                         subtitle = content.subtitle,
                         mode = mode,
                         onToggleMode = { mode = if (mode == HistoryViewMode.GALLERY) HistoryViewMode.COMMENTS else HistoryViewMode.GALLERY },
+                        onOpenStats = onOpenStats,
                     )
                 }
                 item {
@@ -113,7 +116,7 @@ fun FeedScreen(
                 }
             }
             FeedUiState.Empty -> Column(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.systemBars)) {
-                Header(subtitle = "", mode = mode, onToggleMode = {})
+                Header(subtitle = "", mode = mode, onToggleMode = {}, onOpenStats = onOpenStats)
                 EmptyFeed()
             }
             FeedUiState.Loading -> Box(Modifier.fillMaxSize())
@@ -122,7 +125,7 @@ fun FeedScreen(
 }
 
 @Composable
-private fun Header(subtitle: String, mode: HistoryViewMode, onToggleMode: () -> Unit) {
+private fun Header(subtitle: String, mode: HistoryViewMode, onToggleMode: () -> Unit, onOpenStats: () -> Unit) {
     Row(
         Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 8.dp),
         verticalAlignment = Alignment.Bottom,
@@ -141,6 +144,16 @@ private fun Header(subtitle: String, mode: HistoryViewMode, onToggleMode: () -> 
                 .padding(bottom = 6.dp)
                 .clip(RoundedCornerShape(10.dp))
                 .clickable(onClick = onToggleMode)
+                .padding(6.dp),
+        )
+        Icon(
+            Icons.Outlined.BarChart,
+            contentDescription = "Stats",
+            tint = FocusColors.AccentBlue,
+            modifier = Modifier
+                .padding(bottom = 6.dp)
+                .clip(RoundedCornerShape(10.dp))
+                .clickable(onClick = onOpenStats)
                 .padding(6.dp),
         )
     }

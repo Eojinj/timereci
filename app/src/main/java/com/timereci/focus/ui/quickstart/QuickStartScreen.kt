@@ -34,6 +34,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowForward
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material3.Icon
+import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -55,6 +57,7 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -79,6 +82,7 @@ fun QuickStartScreen(
     val presetMinutes by viewModel.presetMinutes.collectAsStateWithLifecycle()
     val recentCompleted by viewModel.recentCompleted.collectAsStateWithLifecycle()
     val backdrop by viewModel.backdrop.collectAsStateWithLifecycle()
+    val repeating by viewModel.repeating.collectAsStateWithLifecycle()
     val recentPhotos by viewModel.recentPhotos.collectAsStateWithLifecycle()
     var showPhotoSheet by remember { mutableStateOf(false) }
 
@@ -211,6 +215,34 @@ fun QuickStartScreen(
                         Text("Background Photo", color = FocusColors.Ink, fontSize = 16.sp, modifier = Modifier.weight(1f))
                         Text(if (backdrop != null) "Selected" else "None", color = FocusColors.Muted, fontSize = 15.sp)
                     }
+                    Box(Modifier.fillMaxWidth().height(1.dp).background(FocusColors.LineSoft))
+                    Row(
+                        Modifier
+                            .fillMaxWidth()
+                            .clickable { viewModel.setRepeating(!repeating) }
+                            .padding(horizontal = 16.dp, vertical = 10.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Column(Modifier.weight(1f).padding(end = 10.dp)) {
+                            Text("Repeating Task", color = FocusColors.Ink, fontSize = 16.sp)
+                            Text(
+                                "Keeps it on Today every time you run it, and tracks its stats",
+                                color = FocusColors.Muted,
+                                fontSize = 12.sp,
+                                lineHeight = 16.sp,
+                            )
+                        }
+                        Switch(
+                            checked = repeating,
+                            onCheckedChange = viewModel::setRepeating,
+                            colors = SwitchDefaults.colors(
+                                checkedThumbColor = Color.White,
+                                checkedTrackColor = FocusColors.AccentBlue,
+                                uncheckedTrackColor = FocusColors.Line,
+                                uncheckedBorderColor = FocusColors.LineStrong,
+                            ),
+                        )
+                    }
                 }
 
                 Spacer(Modifier.height(120.dp))
@@ -238,6 +270,22 @@ fun QuickStartScreen(
                         color = Color.White,
                         fontSize = 17.sp,
                         fontWeight = FontWeight.SemiBold,
+                    )
+                }
+                // Queue it instead of starting now. Needs a name — an unnamed task on the list
+                // would just read as "Focus" and couldn't be told apart from any other.
+                if (resolved.label.isNotBlank()) {
+                    Text(
+                        "Save to Today",
+                        color = FocusColors.AccentBlue,
+                        fontSize = 15.5.sp,
+                        fontWeight = FontWeight.Medium,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(12.dp))
+                            .clickable { viewModel.saveToToday(); onCancel() }
+                            .padding(vertical = 11.dp),
                     )
                 }
             }

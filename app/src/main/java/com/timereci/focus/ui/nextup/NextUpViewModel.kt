@@ -30,16 +30,21 @@ class NextUpViewModel @Inject constructor(
         .map { receipts -> receipts.maxByOrNull { it.issuedAtEpoch }?.toSessionCard() }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
-    /** Starts [item] right now — removes it from the queue and starts the session directly;
+    /** Starts [item] right now — consumes it from the queue and starts the session directly;
      * the caller just navigates to the (already-running) timer after calling this. */
     fun startNow(item: PlannedFocusEntity) {
-        viewModelScope.launch { repository.deletePlannedFocus(item.id) }
+        consume(item)
         val minutes = (item.plannedMs / 60_000L).toInt().coerceAtLeast(1)
         controller.start(plannedMs = minutes * 60_000L, taskLabel = item.label, backdropFileName = null)
     }
 
-    /** Removes [item] from the queue ahead of a break — it resumes it once the break ends. */
-    fun consumeForBreak(item: PlannedFocusEntity) {
-        viewModelScope.launch { repository.deletePlannedFocus(item.id) }
+    /** Consumes [item] ahead of a break — the break screen starts it once the break ends. */
+    fun consumeForBreak(item: PlannedFocusEntity) = consume(item)
+
+    /** A one-off leaves the queue once it's been taken; a repeating task always stays. */
+    private fun consume(item: PlannedFocusEntity) {
+        if (!item.isRepeating) {
+            viewModelScope.launch { repository.deletePlannedFocus(item.id) }
+        }
     }
 }

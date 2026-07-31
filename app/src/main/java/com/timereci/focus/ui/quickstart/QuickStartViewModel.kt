@@ -41,6 +41,10 @@ class QuickStartViewModel @Inject constructor(
     private val _backdrop = MutableStateFlow<PhotoRef?>(null)
     val backdrop: StateFlow<PhotoRef?> = _backdrop
 
+    /** Whether "Save to Today" files this as a task that survives being started. */
+    private val _repeating = MutableStateFlow(false)
+    val repeating: StateFlow<Boolean> = _repeating
+
     val recentPhotos: StateFlow<List<PhotoRef>> = repository.observeRecentPhotos()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
@@ -79,6 +83,7 @@ class QuickStartViewModel @Inject constructor(
     fun dismissRecent(label: String) {
         viewModelScope.launch { settingsRepository.dismissRecentLabel(label) }
     }
+    fun setRepeating(value: Boolean) { _repeating.value = value }
 
     fun importBackdrop(uri: Uri) {
         viewModelScope.launch {
@@ -105,5 +110,20 @@ class QuickStartViewModel @Inject constructor(
             taskLabel = r.label,
             backdropFileName = _backdrop.value?.fileName,
         )
+    }
+
+    /**
+     * Files the task on Today instead of starting it now. Marking it repeating is what makes
+     * it reusable — it stays on the list every time you run it, so its stats build up.
+     */
+    fun saveToToday() {
+        val r = resolved.value
+        viewModelScope.launch {
+            repository.addPlannedFocus(
+                label = r.label,
+                plannedMs = r.minutes * 60_000L,
+                isRepeating = _repeating.value,
+            )
+        }
     }
 }

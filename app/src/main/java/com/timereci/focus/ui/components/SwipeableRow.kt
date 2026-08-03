@@ -23,6 +23,7 @@ import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
@@ -68,6 +69,12 @@ fun SwipeableRow(
     // reading a bounded constraint that may not exist inside a scrolling column.
     var contentHeightPx by remember { mutableIntStateOf(0) }
 
+    // The row backgrounds in this app are translucent white over a gradient, so actions parked
+    // behind a closed row are legible *through* it. Rather than fight that with opacity, the
+    // actions simply aren't composed until the row is actually dragged open. derivedStateOf
+    // keeps this to one recomposition per open/close instead of one per animation frame.
+    val revealed by remember { derivedStateOf { offsetX.value != 0f } }
+
     fun close() = scope.launch { offsetX.animateTo(0f, tween(200)) }
 
     Box(
@@ -75,28 +82,30 @@ fun SwipeableRow(
             .fillMaxWidth()
             .clip(RoundedCornerShape(cornerRadius)),
     ) {
-        Row(
-            Modifier
-                .fillMaxWidth()
-                .height(with(density) { contentHeightPx.toDp() }),
-            horizontalArrangement = Arrangement.End,
-        ) {
-            if (onEdit != null) {
+        if (revealed) {
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .height(with(density) { contentHeightPx.toDp() }),
+                horizontalArrangement = Arrangement.End,
+            ) {
+                if (onEdit != null) {
+                    SwipeAction(
+                        label = "Edit",
+                        icon = Icons.Outlined.Edit,
+                        background = FocusColors.Muted2,
+                        width = actionWidth,
+                        onClick = { onEdit(); close() },
+                    )
+                }
                 SwipeAction(
-                    label = "Edit",
-                    icon = Icons.Outlined.Edit,
-                    background = FocusColors.Muted2,
+                    label = "Delete",
+                    icon = Icons.Outlined.DeleteOutline,
+                    background = FocusColors.Danger,
                     width = actionWidth,
-                    onClick = { onEdit(); close() },
+                    onClick = onDelete,
                 )
             }
-            SwipeAction(
-                label = "Delete",
-                icon = Icons.Outlined.DeleteOutline,
-                background = FocusColors.Danger,
-                width = actionWidth,
-                onClick = onDelete,
-            )
         }
         Box(
             Modifier

@@ -28,12 +28,14 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.outlined.Repeat
-import androidx.compose.material.icons.outlined.Schedule
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -41,6 +43,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -71,10 +75,9 @@ fun TaskStatsScreen(
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val stat = state.stat
 
-    // Seeded from the task's usual length, then freely editable — "tap a favorite, type a
-    // number, go" is the whole point of this screen. Re-seeds if the underlying task changes.
-    var minutesText by rememberSaveable(state.defaultMinutes) { mutableStateOf(state.defaultMinutes.toString()) }
-    val minutes = minutesText.toIntOrNull()?.takeIf { it in 1..300 }
+    // The length is asked for on the way out, not parked on the screen: Start opens the prompt,
+    // prefilled with this task's usual length so it's usually just Start -> Start.
+    var askingLength by rememberSaveable { mutableStateOf(false) }
 
     Box(
         Modifier
@@ -125,10 +128,7 @@ fun TaskStatsScreen(
             // scrolling past a wall of numbers to reach them would be backwards.
             item {
                 StartBlock(
-                    minutesText = minutesText,
-                    onMinutesChange = { minutesText = it.filter(Char::isDigit).take(3) },
-                    canStart = minutes != null,
-                    onStart = { minutes?.let { viewModel.startAgain(it); onStarted() } },
+                    onStart = { askingLength = true },
                     showAddToToday = !state.isFavorite,
                     onAddToToday = viewModel::addToToday,
                 )
@@ -195,14 +195,98 @@ fun TaskStatsScreen(
             }
         }
     }
+
+    if (askingLength) {
+        LengthDialog(
+            taskLabel = state.label,
+            defaultMinutes = state.defaultMinutes,
+            onDismiss = { askingLength = false },
+            onStart = { chosen ->
+                askingLength = false
+                viewModel.startAgain(chosen)
+                onStarted()
+            },
+        )
+    }
 }
 
-/** Type a length, hit Start. Prefilled with the task's usual length so it's often just one tap. */
+/**
+ * Asked for only once Start is pressed. Prefilled with the task's usual length and focused
+ * immediately, so the common case is Start, then Start again.
+ */
+@Composable
+private fun LengthDialog(
+    taskLabel: String,
+    defaultMinutes: Int,
+    onDismiss: () -> Unit,
+    onStart: (Int) -> Unit,
+) {
+    var minutesText by remember { mutableStateOf(defaultMinutes.toString()) }
+    val minutes = minutesText.toIntOrNull()?.takeIf { it in 1..300 }
+    val focusRequester = remember { FocusRequester() }
+    LaunchedEffect(Unit) { focusRequester.requestFocus() }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("How long?", fontWeight = FontWeight.Bold) },
+        text = {
+            Column {
+                Text(taskLabel, color = FocusColors.Muted, fontSize = 14.sp)
+                Row(
+                    Modifier.padding(top = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Box(
+                        Modifier
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(FocusColors.Mist)
+                            .padding(horizontal = 14.dp, vertical = 10.dp),
+                    ) {
+                        BasicTextField(
+                            value = minutesText,
+                            onValueChange = { minutesText = it.filter(Char::isDigit).take(3) },
+                            singleLine = true,
+                            cursorBrush = SolidColor(FocusColors.AccentBlue),
+                            textStyle = TextStyle(color = FocusColors.Ink, fontSize = 20.sp, fontWeight = FontWeight.SemiBold),
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Go),
+                            keyboardActions = KeyboardActions(onGo = { minutes?.let(onStart) }),
+                            modifier = Modifier.width(56.dp).focusRequester(focusRequester),
+                        )
+                    }
+                    Spacer(Modifier.width(8.dp))
+                    Text("min", color = FocusColors.Muted, fontSize = 15.sp)
+                }
+            }
+        },
+        confirmButton = {
+            Text(
+                "Start",
+                color = if (minutes != null) FocusColors.AccentDeep else FocusColors.Muted2,
+                fontSize = 16.sp,
+                fontWeight = FontWeight.SemiBold,
+                modifier = Modifier
+                    .clip(RoundedCornerShape(10.dp))
+                    .clickable(enabled = minutes != null) { minutes?.let(onStart) }
+                    .padding(horizontal = 10.dp, vertical = 6.dp),
+            )
+        },
+        dismissButton = {
+            Text(
+                "Cancel",
+                color = FocusColors.AccentBlue,
+                fontSize = 15.sp,
+                modifier = Modifier
+                    .clip(RoundedCornerShape(10.dp))
+                    .clickable(onClick = onDismiss)
+                    .padding(horizontal = 10.dp, vertical = 6.dp),
+            )
+        },
+    )
+}
+
+/** Just the button — the length is asked for after it's pressed, in [LengthDialog]. */
 @Composable
 private fun StartBlock(
-    minutesText: String,
-    onMinutesChange: (String) -> Unit,
-    canStart: Boolean,
     onStart: () -> Unit,
     showAddToToday: Boolean,
     onAddToToday: () -> Unit,
@@ -211,54 +295,16 @@ private fun StartBlock(
         Row(
             Modifier
                 .fillMaxWidth()
-                .clip(RoundedCornerShape(16.dp))
-                .background(Color(0xEBFFFFFF))
-                .padding(horizontal = 16.dp, vertical = 12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Icon(Icons.Outlined.Schedule, contentDescription = null, tint = FocusColors.Muted, modifier = Modifier.size(18.dp))
-            Spacer(Modifier.width(10.dp))
-            Text("Length", color = FocusColors.Ink, fontSize = 16.sp, modifier = Modifier.weight(1f))
-            Box(
-                Modifier
-                    .clip(RoundedCornerShape(10.dp))
-                    .background(FocusColors.Mist)
-                    .padding(horizontal = 14.dp, vertical = 8.dp),
-            ) {
-                BasicTextField(
-                    value = minutesText,
-                    onValueChange = onMinutesChange,
-                    singleLine = true,
-                    cursorBrush = SolidColor(FocusColors.AccentBlue),
-                    textStyle = TextStyle(color = FocusColors.Ink, fontSize = 17.sp, fontWeight = FontWeight.SemiBold),
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Go),
-                    keyboardActions = KeyboardActions(onGo = { if (canStart) onStart() }),
-                    modifier = Modifier.width(42.dp),
-                )
-            }
-            Spacer(Modifier.width(8.dp))
-            Text("min", color = FocusColors.Muted, fontSize = 15.sp)
-        }
-
-        Row(
-            Modifier
-                .fillMaxWidth()
-                .padding(top = 10.dp)
                 .height(52.dp)
                 .clip(RoundedCornerShape(14.dp))
-                .background(if (canStart) FocusColors.AccentDeep else FocusColors.Muted2)
-                .clickable(enabled = canStart, onClick = onStart),
+                .background(FocusColors.AccentDeep)
+                .clickable(onClick = onStart),
             horizontalArrangement = Arrangement.Center,
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Icon(Icons.Filled.PlayArrow, contentDescription = null, tint = Color.White, modifier = Modifier.size(20.dp))
             Spacer(Modifier.width(8.dp))
-            Text(
-                if (canStart) "Start · $minutesText min" else "Enter 1–300 minutes",
-                color = Color.White,
-                fontSize = 17.sp,
-                fontWeight = FontWeight.SemiBold,
-            )
+            Text("Start", color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
         }
 
         if (showAddToToday) {

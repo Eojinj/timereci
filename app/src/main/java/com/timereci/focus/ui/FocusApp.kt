@@ -107,6 +107,7 @@ fun FocusApp(root: RootViewModel = hiltViewModel()) {
                     onStartedSession = {
                         navController.navigate(Routes.TIMER) { launchSingleTop = true }
                     },
+                    onOpenTaskStats = { key -> navController.navigate(Routes.taskStats(key)) },
                 )
             }
 

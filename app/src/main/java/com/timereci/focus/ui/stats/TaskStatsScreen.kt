@@ -21,14 +21,21 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.outlined.Repeat
+import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -37,7 +44,11 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -59,6 +70,11 @@ fun TaskStatsScreen(
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val stat = state.stat
+
+    // Seeded from the task's usual length, then freely editable — "tap a favorite, type a
+    // number, go" is the whole point of this screen. Re-seeds if the underlying task changes.
+    var minutesText by rememberSaveable(state.defaultMinutes) { mutableStateOf(state.defaultMinutes.toString()) }
+    val minutes = minutesText.toIntOrNull()?.takeIf { it in 1..300 }
 
     Box(
         Modifier
@@ -95,7 +111,7 @@ fun TaskStatsScreen(
                     )
                     Spacer(Modifier.width(4.dp))
                     Text(
-                        stat?.label ?: "Task",
+                        state.label,
                         color = FocusColors.Ink,
                         fontSize = 28.sp,
                         fontWeight = FontWeight.Bold,
@@ -105,22 +121,37 @@ fun TaskStatsScreen(
                 }
             }
 
+            // The start controls come first: this screen is the way into a favorite, so
+            // scrolling past a wall of numbers to reach them would be backwards.
+            item {
+                StartBlock(
+                    minutesText = minutesText,
+                    onMinutesChange = { minutesText = it.filter(Char::isDigit).take(3) },
+                    canStart = minutes != null,
+                    onStart = { minutes?.let { viewModel.startAgain(it); onStarted() } },
+                    showAddToToday = !state.isFavorite,
+                    onAddToToday = viewModel::addToToday,
+                )
+            }
+
             if (stat == null) {
                 item {
                     Text(
-                        "No sessions for this task.",
+                        "No sessions yet — finish one and its stats show up here.",
                         color = FocusColors.Muted,
-                        fontSize = 15.sp,
+                        fontSize = 14.sp,
+                        lineHeight = 20.sp,
                         textAlign = TextAlign.Center,
-                        modifier = Modifier.fillMaxWidth().padding(40.dp),
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 40.dp, vertical = 32.dp),
                     )
                 }
                 return@LazyColumn
             }
 
+            item { SectionLabel("TOTALS") }
             item {
                 Row(
-                    Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 4.dp),
+                    Modifier.fillMaxWidth().padding(horizontal = 20.dp),
                     horizontalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
                     Metric("Total", Formatters.focusDuration(stat.totalFocusMs), Modifier.weight(1f))
@@ -140,43 +171,6 @@ fun TaskStatsScreen(
 
             item { SectionLabel("LAST 14 DAYS") }
             item { TrendChart(state.trend) }
-
-            item {
-                Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp).padding(top = 18.dp)) {
-                    Row(
-                        Modifier
-                            .fillMaxWidth()
-                            .height(52.dp)
-                            .clip(RoundedCornerShape(14.dp))
-                            .background(FocusColors.AccentDeep)
-                            .clickable { viewModel.startAgain(); onStarted() },
-                        horizontalArrangement = Arrangement.Center,
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Icon(Icons.Filled.PlayArrow, contentDescription = null, tint = Color.White, modifier = Modifier.size(20.dp))
-                        Spacer(Modifier.width(8.dp))
-                        Text(
-                            "Start again · ${stat.typicalMinutes} min",
-                            color = Color.White,
-                            fontSize = 17.sp,
-                            fontWeight = FontWeight.SemiBold,
-                        )
-                    }
-                    Row(
-                        Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(12.dp))
-                            .clickable { viewModel.addToToday() }
-                            .padding(vertical = 11.dp),
-                        horizontalArrangement = Arrangement.Center,
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Icon(Icons.Outlined.Repeat, contentDescription = null, tint = FocusColors.AccentBlue, modifier = Modifier.size(16.dp))
-                        Spacer(Modifier.width(7.dp))
-                        Text("Add to Today as repeating", color = FocusColors.AccentBlue, fontSize = 15.5.sp, fontWeight = FontWeight.Medium)
-                    }
-                }
-            }
 
             item { SectionLabel("SESSIONS") }
             items(state.sessions, key = { it.id }) { session ->
@@ -198,6 +192,88 @@ fun TaskStatsScreen(
                     }
                     Text(session.focus, color = FocusColors.AccentDeep, fontSize = 14.5.sp, fontWeight = FontWeight.SemiBold)
                 }
+            }
+        }
+    }
+}
+
+/** Type a length, hit Start. Prefilled with the task's usual length so it's often just one tap. */
+@Composable
+private fun StartBlock(
+    minutesText: String,
+    onMinutesChange: (String) -> Unit,
+    canStart: Boolean,
+    onStart: () -> Unit,
+    showAddToToday: Boolean,
+    onAddToToday: () -> Unit,
+) {
+    Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp).padding(top = 14.dp)) {
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(16.dp))
+                .background(Color(0xEBFFFFFF))
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(Icons.Outlined.Schedule, contentDescription = null, tint = FocusColors.Muted, modifier = Modifier.size(18.dp))
+            Spacer(Modifier.width(10.dp))
+            Text("Length", color = FocusColors.Ink, fontSize = 16.sp, modifier = Modifier.weight(1f))
+            Box(
+                Modifier
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(FocusColors.Mist)
+                    .padding(horizontal = 14.dp, vertical = 8.dp),
+            ) {
+                BasicTextField(
+                    value = minutesText,
+                    onValueChange = onMinutesChange,
+                    singleLine = true,
+                    cursorBrush = SolidColor(FocusColors.AccentBlue),
+                    textStyle = TextStyle(color = FocusColors.Ink, fontSize = 17.sp, fontWeight = FontWeight.SemiBold),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Go),
+                    keyboardActions = KeyboardActions(onGo = { if (canStart) onStart() }),
+                    modifier = Modifier.width(42.dp),
+                )
+            }
+            Spacer(Modifier.width(8.dp))
+            Text("min", color = FocusColors.Muted, fontSize = 15.sp)
+        }
+
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .padding(top = 10.dp)
+                .height(52.dp)
+                .clip(RoundedCornerShape(14.dp))
+                .background(if (canStart) FocusColors.AccentDeep else FocusColors.Muted2)
+                .clickable(enabled = canStart, onClick = onStart),
+            horizontalArrangement = Arrangement.Center,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(Icons.Filled.PlayArrow, contentDescription = null, tint = Color.White, modifier = Modifier.size(20.dp))
+            Spacer(Modifier.width(8.dp))
+            Text(
+                if (canStart) "Start · $minutesText min" else "Enter 1–300 minutes",
+                color = Color.White,
+                fontSize = 17.sp,
+                fontWeight = FontWeight.SemiBold,
+            )
+        }
+
+        if (showAddToToday) {
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(12.dp))
+                    .clickable(onClick = onAddToToday)
+                    .padding(vertical = 11.dp),
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Icon(Icons.Outlined.Repeat, contentDescription = null, tint = FocusColors.AccentBlue, modifier = Modifier.size(16.dp))
+                Spacer(Modifier.width(7.dp))
+                Text("Add to Favorites", color = FocusColors.AccentBlue, fontSize = 15.5.sp, fontWeight = FontWeight.Medium)
             }
         }
     }

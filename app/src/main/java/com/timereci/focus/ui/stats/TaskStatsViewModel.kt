@@ -4,6 +4,7 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.timereci.focus.data.FocusRepository
+import com.timereci.focus.data.TaskKey
 import com.timereci.focus.timer.FocusTimerController
 import com.timereci.focus.ui.Routes
 import com.timereci.focus.ui.model.SessionCard
@@ -14,15 +15,20 @@ import com.timereci.focus.ui.model.toSessionCard
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 data class TaskStatsUiState(
+    val label: String = "",
+    /** What the length field starts at: the last length used, else the saved task's own. */
+    val defaultMinutes: Int = 25,
+    /** Null until the task has actually been finished at least once. */
     val stat: TaskStat? = null,
     val trend: List<TrendBar> = emptyList(),
     val sessions: List<SessionCard> = emptyList(),
+    val isFavorite: Boolean = false,
 )
 
 @HiltViewModel
@@ -34,34 +40,46 @@ class TaskStatsViewModel @Inject constructor(
 
     private val key: String = savedStateHandle[Routes.ARG_TASK_KEY] ?: ""
 
-    val uiState: StateFlow<TaskStatsUiState> = repository.observeReceipts()
-        .map { receipts ->
-            val mine = TaskStatsBuilder.sessionsOf(receipts, key)
-            TaskStatsUiState(
-                stat = TaskStatsBuilder.build(mine).firstOrNull(),
-                trend = TaskStatsBuilder.trend(receipts, key),
-                sessions = mine.map { it.toSessionCard() },
-            )
-        }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), TaskStatsUiState())
+    /**
+     * Reads both history and the todo list: a favorite that has never been run has no receipts
+     * to take its name or length from, and it still has to be startable from here.
+     */
+    val uiState: StateFlow<TaskStatsUiState> = combine(
+        repository.observeReceipts(),
+        repository.observePlannedFocus(),
+    ) { receipts, planned ->
+        val mine = TaskStatsBuilder.sessionsOf(receipts, key)
+        val stat = TaskStatsBuilder.build(mine).firstOrNull()
+        val saved = planned.firstOrNull { TaskKey.of(it.label) == key }
+        TaskStatsUiState(
+            label = stat?.label ?: saved?.label?.trim()?.ifBlank { "Focus" } ?: "Focus",
+            defaultMinutes = stat?.typicalMinutes
+                ?: saved?.let { (it.plannedMs / 60_000L).toInt().coerceAtLeast(1) }
+                ?: 25,
+            stat = stat,
+            trend = TaskStatsBuilder.trend(receipts, key),
+            sessions = mine.map { it.toSessionCard() },
+            isFavorite = saved?.isRepeating == true,
+        )
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), TaskStatsUiState())
 
-    /** Runs this task again at the length it was last run — the whole point of a reusable task. */
-    fun startAgain() {
-        val stat = uiState.value.stat ?: return
+    /** Runs this task again for [minutes] — the caller navigates to the running timer after. */
+    fun startAgain(minutes: Int) {
         controller.start(
-            plannedMs = stat.typicalMinutes * 60_000L,
-            taskLabel = stat.label,
+            plannedMs = minutes.coerceIn(1, 300) * 60_000L,
+            taskLabel = uiState.value.label,
             backdropFileName = null,
         )
     }
 
     /** Files it on Today as a repeating task, so it's one tap away from here on. */
     fun addToToday() {
-        val stat = uiState.value.stat ?: return
+        val state = uiState.value
+        if (state.isFavorite) return
         viewModelScope.launch {
             repository.addPlannedFocus(
-                label = stat.label,
-                plannedMs = stat.typicalMinutes * 60_000L,
+                label = state.label,
+                plannedMs = state.defaultMinutes * 60_000L,
                 isRepeating = true,
             )
         }

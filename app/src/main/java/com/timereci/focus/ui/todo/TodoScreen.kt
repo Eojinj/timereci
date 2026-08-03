@@ -1,7 +1,9 @@
 package com.timereci.focus.ui.todo
 
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -28,6 +30,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.AddCircleOutline
+import androidx.compose.material.icons.outlined.BarChart
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.Repeat
 import androidx.compose.material.icons.outlined.Schedule
@@ -58,6 +61,7 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.timereci.focus.data.PlannedFocusEntity
+import com.timereci.focus.data.TaskKey
 import com.timereci.focus.ui.components.IconActionButton
 import com.timereci.focus.ui.components.SwipeableRow
 import com.timereci.focus.ui.theme.FocusColors
@@ -72,9 +76,11 @@ import com.timereci.focus.ui.util.Formatters
 fun TodoScreen(
     onOpenQuickStart: () -> Unit,
     onStartedSession: () -> Unit,
+    onOpenTaskStats: (String) -> Unit,
     viewModel: TodoViewModel = hiltViewModel(),
 ) {
     val planned by viewModel.planned.collectAsStateWithLifecycle()
+    val favorites by viewModel.favorites.collectAsStateWithLifecycle()
     val summary by viewModel.todaySummary.collectAsStateWithLifecycle()
     var editing by remember { mutableStateOf<PlannedFocusEntity?>(null) }
 
@@ -158,6 +164,45 @@ fun TodoScreen(
                     }
                 }
 
+                if (favorites.isNotEmpty()) {
+                    Text(
+                        "FAVORITES",
+                        color = FocusColors.Muted,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        letterSpacing = 1.sp,
+                        modifier = Modifier.padding(start = 4.dp).padding(top = 22.dp, bottom = 8.dp),
+                    )
+                    Column(
+                        Modifier
+                            .fillMaxWidth()
+                            .shadow(6.dp, RoundedCornerShape(18.dp))
+                            .clip(RoundedCornerShape(18.dp))
+                            .background(Color(0xEBFFFFFF)),
+                    ) {
+                        favorites.forEachIndexed { index, item ->
+                            if (index > 0) Box(Modifier.fillMaxWidth().height(1.dp).background(FocusColors.LineSoft).padding(start = 58.dp))
+                            SwipeableRow(
+                                cornerRadius = 0.dp,
+                                onEdit = { editing = item },
+                                onDelete = { viewModel.remove(item.id) },
+                            ) {
+                                FavoriteRow(
+                                    item = item,
+                                    onOpenStats = { onOpenTaskStats(TaskKey.of(item.label)) },
+                                    onEdit = { editing = item },
+                                )
+                            }
+                        }
+                    }
+                    Text(
+                        "Tap for stats and to start it, press and hold to edit.",
+                        color = FocusColors.Muted,
+                        fontSize = 12.5.sp,
+                        modifier = Modifier.padding(horizontal = 4.dp).padding(top = 8.dp),
+                    )
+                }
+
                 Text(
                     "${summary.sessionCount} session${if (summary.sessionCount == 1) "" else "s"} completed today · ${Formatters.focusDuration(summary.focusedMs)} focused.",
                     color = FocusColors.Muted,
@@ -228,17 +273,46 @@ private fun TaskRow(item: PlannedFocusEntity, onStart: () -> Unit) {
             fontSize = 16.5.sp,
             modifier = Modifier.weight(1f).padding(end = 10.dp),
         )
-        // Marks the task as one that survives being started, so the row's stats keep growing.
-        if (item.isRepeating) {
-            Icon(
-                Icons.Outlined.Repeat,
-                contentDescription = "Repeats",
-                tint = FocusColors.AccentBlue,
-                modifier = Modifier.size(16.dp).padding(end = 1.dp),
-            )
-            Spacer(Modifier.width(7.dp))
-        }
         Text("$minutes min", color = FocusColors.Muted, fontSize = 15.5.sp)
+    }
+}
+
+/**
+ * A repeating task. Tapping opens its stats — that screen is also where you pick a length and
+ * start it — and a long press edits it in place, so the row itself stays a single clean line.
+ */
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun FavoriteRow(item: PlannedFocusEntity, onOpenStats: () -> Unit, onEdit: () -> Unit) {
+    val minutes = (item.plannedMs / 60_000L).toInt().coerceAtLeast(1)
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .background(Color(0xEBFFFFFF))
+            .combinedClickable(onClick = onOpenStats, onLongClick = onEdit)
+            .padding(horizontal = 16.dp, vertical = 13.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(
+            Icons.Outlined.Repeat,
+            contentDescription = null,
+            tint = FocusColors.AccentBlue,
+            modifier = Modifier.width(30.dp).size(20.dp),
+        )
+        Text(
+            item.label.ifBlank { "Focus" },
+            color = FocusColors.Ink,
+            fontSize = 16.5.sp,
+            modifier = Modifier.weight(1f).padding(end = 10.dp),
+        )
+        Text("$minutes min", color = FocusColors.Muted, fontSize = 15.5.sp)
+        Spacer(Modifier.width(6.dp))
+        Icon(
+            Icons.Outlined.BarChart,
+            contentDescription = "Stats",
+            tint = FocusColors.Muted2,
+            modifier = Modifier.size(17.dp),
+        )
     }
 }
 

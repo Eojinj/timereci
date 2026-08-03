@@ -24,7 +24,17 @@ class TodoViewModel @Inject constructor(
     private val controller: FocusTimerController,
 ) : ViewModel() {
 
-    val planned: StateFlow<List<PlannedFocusEntity>> = repository.observePlannedFocus()
+    private val allPlanned: StateFlow<List<PlannedFocusEntity>> = repository.observePlannedFocus()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    /** Today's one-off queue — things that get consumed once they're done. */
+    val planned: StateFlow<List<PlannedFocusEntity>> = allPlanned
+        .map { items -> items.filterNot { it.isRepeating } }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    /** Repeating tasks, kept in their own section — they're always available, never consumed. */
+    val favorites: StateFlow<List<PlannedFocusEntity>> = allPlanned
+        .map { items -> items.filter { it.isRepeating } }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     val todaySummary: StateFlow<TodaySummary> = repository.observeReceipts()

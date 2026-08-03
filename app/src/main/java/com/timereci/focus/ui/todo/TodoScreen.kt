@@ -64,8 +64,9 @@ import com.timereci.focus.data.PlannedFocusEntity
 import com.timereci.focus.data.TaskKey
 import com.timereci.focus.ui.components.IconActionButton
 import com.timereci.focus.ui.components.SwipeableRow
+import com.timereci.focus.ui.i18n.LocalStrings
+import com.timereci.focus.ui.i18n.durationOf
 import com.timereci.focus.ui.theme.FocusColors
-import com.timereci.focus.ui.util.Formatters
 
 /**
  * "Today" — one list, one line per task (Merci v5 screen 1). Tap a task to start it right away;
@@ -82,6 +83,7 @@ fun TodoScreen(
     val planned by viewModel.planned.collectAsStateWithLifecycle()
     val favorites by viewModel.favorites.collectAsStateWithLifecycle()
     val summary by viewModel.todaySummary.collectAsStateWithLifecycle()
+    val strings = LocalStrings.current
     var editing by remember { mutableStateOf<PlannedFocusEntity?>(null) }
 
     val totalPlannedMinutes = planned.sumOf { (it.plannedMs / 60_000L).toInt().coerceAtLeast(1) }
@@ -116,14 +118,21 @@ fun TodoScreen(
             ) {
                 Spacer(Modifier.height(14.dp))
                 Text(
-                    "Today",
+                    strings.tabToday,
                     color = FocusColors.Ink,
                     fontSize = 34.sp,
                     fontWeight = FontWeight.Bold,
                     letterSpacing = (-0.03).sp,
                 )
                 Text(
-                    if (planned.isEmpty()) "No tasks queued" else "${planned.size} task${if (planned.size == 1) "" else "s"} · ${Formatters.focusDuration(totalPlannedMinutes * 60_000L)} planned",
+                    if (planned.isEmpty()) {
+                        strings.noTasksQueued
+                    } else {
+                        strings.plannedSummary(
+                            strings.tasksCount(planned.size),
+                            strings.durationOf(totalPlannedMinutes * 60_000L),
+                        )
+                    },
                     color = FocusColors.Muted,
                     fontSize = 14.5.sp,
                     modifier = Modifier.padding(top = 3.dp, bottom = 18.dp),
@@ -160,13 +169,13 @@ fun TodoScreen(
                             tint = FocusColors.AccentBlue,
                             modifier = Modifier.width(30.dp).size(22.dp),
                         )
-                        Text("New Task", color = FocusColors.AccentBlue, fontSize = 16.5.sp)
+                        Text(strings.newTask, color = FocusColors.AccentBlue, fontSize = 16.5.sp)
                     }
                 }
 
                 if (favorites.isNotEmpty()) {
                     Text(
-                        "FAVORITES",
+                        strings.favorites,
                         color = FocusColors.Muted,
                         fontSize = 12.sp,
                         fontWeight = FontWeight.SemiBold,
@@ -196,7 +205,7 @@ fun TodoScreen(
                         }
                     }
                     Text(
-                        "Tap for stats and to start it, press and hold to edit.",
+                        strings.favoritesHint,
                         color = FocusColors.Muted,
                         fontSize = 12.5.sp,
                         modifier = Modifier.padding(horizontal = 4.dp).padding(top = 8.dp),
@@ -204,7 +213,10 @@ fun TodoScreen(
                 }
 
                 Text(
-                    "${summary.sessionCount} session${if (summary.sessionCount == 1) "" else "s"} completed today · ${Formatters.focusDuration(summary.focusedMs)} focused.",
+                    strings.todayFooter(
+                        strings.sessionsCount(summary.sessionCount),
+                        strings.durationOf(summary.focusedMs),
+                    ),
                     color = FocusColors.Muted,
                     fontSize = 12.5.sp,
                     lineHeight = 18.sp,
@@ -234,7 +246,7 @@ fun TodoScreen(
         ) {
             Icon(Icons.Outlined.Add, contentDescription = null, tint = Color.White, modifier = Modifier.size(24.dp))
             Spacer(Modifier.width(8.dp))
-            Text("Quick Start", color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
+            Text(strings.quickStart, color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
         }
     }
 
@@ -252,6 +264,7 @@ fun TodoScreen(
 
 @Composable
 private fun TaskRow(item: PlannedFocusEntity, onStart: () -> Unit) {
+    val strings = LocalStrings.current
     val minutes = (item.plannedMs / 60_000L).toInt().coerceAtLeast(1)
     Row(
         Modifier
@@ -268,12 +281,12 @@ private fun TaskRow(item: PlannedFocusEntity, onStart: () -> Unit) {
             modifier = Modifier.width(30.dp).size(22.dp),
         )
         Text(
-            item.label.ifBlank { "Focus" },
+            item.label.ifBlank { strings.focusFallback },
             color = FocusColors.Ink,
             fontSize = 16.5.sp,
             modifier = Modifier.weight(1f).padding(end = 10.dp),
         )
-        Text("$minutes min", color = FocusColors.Muted, fontSize = 15.5.sp)
+        Text(strings.minutes(minutes), color = FocusColors.Muted, fontSize = 15.5.sp)
     }
 }
 
@@ -284,6 +297,7 @@ private fun TaskRow(item: PlannedFocusEntity, onStart: () -> Unit) {
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun FavoriteRow(item: PlannedFocusEntity, onOpenStats: () -> Unit, onEdit: () -> Unit) {
+    val strings = LocalStrings.current
     val minutes = (item.plannedMs / 60_000L).toInt().coerceAtLeast(1)
     Row(
         Modifier
@@ -300,16 +314,16 @@ private fun FavoriteRow(item: PlannedFocusEntity, onOpenStats: () -> Unit, onEdi
             modifier = Modifier.width(30.dp).size(20.dp),
         )
         Text(
-            item.label.ifBlank { "Focus" },
+            item.label.ifBlank { strings.focusFallback },
             color = FocusColors.Ink,
             fontSize = 16.5.sp,
             modifier = Modifier.weight(1f).padding(end = 10.dp),
         )
-        Text("$minutes min", color = FocusColors.Muted, fontSize = 15.5.sp)
+        Text(strings.minutes(minutes), color = FocusColors.Muted, fontSize = 15.5.sp)
         Spacer(Modifier.width(6.dp))
         Icon(
             Icons.Outlined.BarChart,
-            contentDescription = "Stats",
+            contentDescription = strings.statsAction,
             tint = FocusColors.Muted2,
             modifier = Modifier.size(17.dp),
         )
@@ -323,11 +337,12 @@ private fun EditTaskDialog(target: PlannedFocusEntity, onDismiss: () -> Unit, on
         mutableStateOf(((target.plannedMs / 60_000L).toInt().coerceAtLeast(1)).toString())
     }
     var isRepeating by remember(target.id) { mutableStateOf(target.isRepeating) }
+    val strings = LocalStrings.current
     fun save() = onSave(label, minutesText.toIntOrNull()?.coerceIn(1, 300) ?: 25, isRepeating)
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Edit Task", fontWeight = FontWeight.Bold) },
+        title = { Text(strings.editTask, fontWeight = FontWeight.Bold) },
         text = {
             Column {
                 Box(
@@ -344,7 +359,7 @@ private fun EditTaskDialog(target: PlannedFocusEntity, onDismiss: () -> Unit, on
                         cursorBrush = SolidColor(FocusColors.AccentBlue),
                         textStyle = TextStyle(color = FocusColors.Ink, fontSize = 15.sp, fontWeight = FontWeight.SemiBold),
                         decorationBox = { inner ->
-                            if (label.isEmpty()) Text("Task", color = FocusColors.Muted2, fontSize = 15.sp)
+                            if (label.isEmpty()) Text(strings.taskFieldPlaceholder, color = FocusColors.Muted2, fontSize = 15.sp)
                             inner()
                         },
                     )
@@ -370,7 +385,7 @@ private fun EditTaskDialog(target: PlannedFocusEntity, onDismiss: () -> Unit, on
                         )
                     }
                     Spacer(Modifier.width(6.dp))
-                    Text("min", color = FocusColors.Muted, fontSize = 14.sp)
+                    Text(strings.minLabel, color = FocusColors.Muted, fontSize = 14.sp)
                 }
                 Spacer(Modifier.height(14.dp))
                 Row(
@@ -380,9 +395,9 @@ private fun EditTaskDialog(target: PlannedFocusEntity, onDismiss: () -> Unit, on
                     Icon(Icons.Outlined.Repeat, contentDescription = null, tint = FocusColors.Muted, modifier = Modifier.size(16.dp))
                     Spacer(Modifier.width(8.dp))
                     Column(Modifier.weight(1f).padding(end = 10.dp)) {
-                        Text("Repeat", color = FocusColors.Ink, fontSize = 15.sp)
+                        Text(strings.repeat, color = FocusColors.Ink, fontSize = 15.sp)
                         Text(
-                            "Stays in the list after you start it",
+                            strings.repeatHint,
                             color = FocusColors.Muted,
                             fontSize = 12.sp,
                             lineHeight = 16.sp,
@@ -404,14 +419,14 @@ private fun EditTaskDialog(target: PlannedFocusEntity, onDismiss: () -> Unit, on
         confirmButton = {
             IconActionButton(
                 icon = Icons.Outlined.Add,
-                contentDescription = "Save",
+                contentDescription = strings.save,
                 onClick = { save() },
                 accent = true,
                 size = 40.dp,
             )
         },
         dismissButton = {
-            IconActionButton(icon = Icons.Outlined.Close, contentDescription = "Cancel", onClick = onDismiss, size = 40.dp)
+            IconActionButton(icon = Icons.Outlined.Close, contentDescription = strings.cancel, onClick = onDismiss, size = 40.dp)
         },
     )
 }

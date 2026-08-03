@@ -52,7 +52,9 @@ class TaskStatsViewModel @Inject constructor(
         val stat = TaskStatsBuilder.build(mine).firstOrNull()
         val saved = planned.firstOrNull { TaskKey.of(it.label) == key }
         TaskStatsUiState(
-            label = stat?.label ?: saved?.label?.trim()?.ifBlank { "Focus" } ?: "Focus",
+            // Raw and possibly blank: the "unnamed session" fallback is UI copy, so the
+            // screen substitutes it rather than baking English into the state.
+            label = stat?.label ?: saved?.label?.trim() ?: "",
             defaultMinutes = stat?.typicalMinutes
                 ?: saved?.let { (it.plannedMs / 60_000L).toInt().coerceAtLeast(1) }
                 ?: 25,

@@ -9,6 +9,7 @@ import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.core.stringSetPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import com.timereci.focus.ui.i18n.AppLanguage
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -50,6 +51,8 @@ data class FocusSettings(
     /** Recent-task labels dismissed from Quick Start's "Recent" chips — persisted so they
      * stay dismissed after navigating away and back, not just for the current screen visit. */
     val dismissedRecentLabels: Set<String> = emptySet(),
+    /** UI language; SYSTEM follows the device locale. */
+    val language: AppLanguage = AppLanguage.SYSTEM,
 )
 
 @Singleton
@@ -65,6 +68,8 @@ class SettingsRepository @Inject constructor(
             alertWhenSessionEnds = prefs[KEY_ALERT_ON_END] ?: true,
             vibrateWhenSessionEnds = prefs[KEY_VIBRATE_ON_END] ?: true,
             dismissedRecentLabels = prefs[KEY_DISMISSED_RECENT] ?: emptySet(),
+            language = AppLanguage.entries.firstOrNull { it.name == prefs[KEY_LANGUAGE] }
+                ?: AppLanguage.SYSTEM,
         )
     }
 
@@ -73,6 +78,7 @@ class SettingsRepository @Inject constructor(
     suspend fun setPhotoAspect(value: PhotoAspect) = edit { it[KEY_PHOTO_ASPECT] = value.name }
     suspend fun setAlertWhenSessionEnds(value: Boolean) = edit { it[KEY_ALERT_ON_END] = value }
     suspend fun setVibrateWhenSessionEnds(value: Boolean) = edit { it[KEY_VIBRATE_ON_END] = value }
+    suspend fun setLanguage(value: AppLanguage) = edit { it[KEY_LANGUAGE] = value.name }
 
     suspend fun dismissRecentLabel(label: String) = edit {
         it[KEY_DISMISSED_RECENT] = (it[KEY_DISMISSED_RECENT] ?: emptySet()) + label
@@ -95,5 +101,6 @@ class SettingsRepository @Inject constructor(
         val KEY_ALERT_ON_END = booleanPreferencesKey("alert_when_session_ends")
         val KEY_VIBRATE_ON_END = booleanPreferencesKey("vibrate_when_session_ends")
         val KEY_DISMISSED_RECENT = stringSetPreferencesKey("dismissed_recent_labels")
+        val KEY_LANGUAGE = stringPreferencesKey("app_language")
     }
 }

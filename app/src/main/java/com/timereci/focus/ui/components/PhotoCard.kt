@@ -33,6 +33,7 @@ import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.timereci.focus.data.PhotoRef
 import com.timereci.focus.data.PhotoStorage
+import com.timereci.focus.ui.i18n.LocalStrings
 import com.timereci.focus.ui.theme.MonoFamily
 import com.timereci.focus.ui.theme.PhotoTones
 import com.timereci.focus.ui.theme.patternPlaceholder
@@ -82,7 +83,7 @@ fun PhotoCard(
                     .data(PhotoStorage.fileIn(context, name))
                     .crossfade(true)
                     .build(),
-                contentDescription = task.ifBlank { "Focus photo" },
+                contentDescription = task.ifBlank { LocalStrings.current.focusPhoto },
                 contentScale = androidx.compose.ui.layout.ContentScale.Crop,
                 modifier = Modifier.fillMaxSize(),
             )

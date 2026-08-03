@@ -40,9 +40,11 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.timereci.focus.ui.i18n.LocalStrings
+import com.timereci.focus.ui.i18n.durationOf
+import com.timereci.focus.ui.i18n.minutesOf
 import com.timereci.focus.ui.model.TaskStat
 import com.timereci.focus.ui.theme.FocusColors
-import com.timereci.focus.ui.util.Formatters
 
 /**
  * Stats — what you actually spend your focus on, rolled up per task. Tasks are matched by
@@ -56,6 +58,7 @@ fun StatsScreen(
     viewModel: StatsViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val strings = LocalStrings.current
 
     Box(
         Modifier
@@ -82,7 +85,7 @@ fun StatsScreen(
                 ) {
                     Icon(
                         Icons.AutoMirrored.Outlined.ArrowBack,
-                        contentDescription = "Back",
+                        contentDescription = strings.back,
                         tint = FocusColors.AccentBlue,
                         modifier = Modifier
                             .clip(RoundedCornerShape(10.dp))
@@ -91,7 +94,7 @@ fun StatsScreen(
                             .size(22.dp),
                     )
                     Spacer(Modifier.width(4.dp))
-                    Text("Stats", color = FocusColors.Ink, fontSize = 30.sp, fontWeight = FontWeight.Bold, letterSpacing = (-0.03).sp)
+                    Text(strings.statsTitle, color = FocusColors.Ink, fontSize = 30.sp, fontWeight = FontWeight.Bold, letterSpacing = (-0.03).sp)
                 }
             }
 
@@ -100,9 +103,9 @@ fun StatsScreen(
                     Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 4.dp),
                     horizontalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
-                    SummaryCard("All time", Formatters.focusDuration(state.totalFocusMs), Modifier.weight(1f))
-                    SummaryCard("This week", Formatters.focusDuration(state.thisWeekMs), Modifier.weight(1f))
-                    SummaryCard("Sessions", "${state.totalSessions}", Modifier.weight(1f))
+                    SummaryCard(strings.allTime, strings.durationOf(state.totalFocusMs), Modifier.weight(1f))
+                    SummaryCard(strings.thisWeek, strings.durationOf(state.thisWeekMs), Modifier.weight(1f))
+                    SummaryCard(strings.sessionsLabel, "${state.totalSessions}", Modifier.weight(1f))
                 }
             }
 
@@ -111,7 +114,7 @@ fun StatsScreen(
             } else {
                 item {
                     Text(
-                        "BY TASK",
+                        strings.byTask,
                         color = FocusColors.Muted,
                         fontSize = 12.sp,
                         fontWeight = FontWeight.SemiBold,
@@ -147,6 +150,7 @@ private fun SummaryCard(label: String, value: String, modifier: Modifier = Modif
 
 @Composable
 private fun TaskStatRow(task: TaskStat, topTaskMs: Long, onClick: () -> Unit) {
+    val strings = LocalStrings.current
     val share = if (topTaskMs > 0) (task.totalFocusMs.toFloat() / topTaskMs).coerceIn(0f, 1f) else 0f
     Column(
         Modifier
@@ -166,7 +170,7 @@ private fun TaskStatRow(task: TaskStat, topTaskMs: Long, onClick: () -> Unit) {
                 modifier = Modifier.weight(1f).padding(end = 10.dp),
             )
             Text(
-                Formatters.focusDuration(task.totalFocusMs),
+                strings.durationOf(task.totalFocusMs),
                 color = FocusColors.AccentDeep,
                 fontSize = 16.sp,
                 fontWeight = FontWeight.SemiBold,
@@ -190,9 +194,11 @@ private fun TaskStatRow(task: TaskStat, topTaskMs: Long, onClick: () -> Unit) {
             )
         }
         Text(
-            "${task.sessions} session${if (task.sessions == 1) "" else "s"} · " +
-                "${task.daysActive} day${if (task.daysActive == 1) "" else "s"} · " +
-                "avg ${Formatters.focus(task.averageFocusMs)}",
+            strings.taskRowSummary(
+                strings.sessionsCount(task.sessions),
+                strings.daysCount(task.daysActive),
+                strings.minutesOf(task.averageFocusMs),
+            ),
             color = FocusColors.Muted,
             fontSize = 12.5.sp,
             modifier = Modifier.padding(top = 7.dp),
@@ -202,12 +208,13 @@ private fun TaskStatRow(task: TaskStat, topTaskMs: Long, onClick: () -> Unit) {
 
 @Composable
 private fun EmptyStats() {
+    val strings = LocalStrings.current
     Column(
         modifier = Modifier.fillMaxWidth().padding(40.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Text(
-            "Nothing to count yet.\nFinish a session and its task shows up here.",
+            strings.emptyStats,
             color = FocusColors.Ink2,
             fontSize = 15.5.sp,
             fontWeight = FontWeight.SemiBold,

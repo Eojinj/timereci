@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.timereci.focus.data.FocusSettings
 import com.timereci.focus.data.PhotoAspect
 import com.timereci.focus.data.SettingsRepository
+import com.timereci.focus.ui.i18n.AppLanguage
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -38,5 +39,9 @@ class SettingsViewModel @Inject constructor(
 
     fun setVibrateWhenSessionEnds(value: Boolean) = viewModelScope.launch {
         settingsRepository.setVibrateWhenSessionEnds(value)
+    }
+
+    fun setLanguage(value: AppLanguage) = viewModelScope.launch {
+        settingsRepository.setLanguage(value)
     }
 }

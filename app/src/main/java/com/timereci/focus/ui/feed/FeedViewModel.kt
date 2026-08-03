@@ -5,24 +5,23 @@ import androidx.lifecycle.viewModelScope
 import com.timereci.focus.data.FocusRepository
 import com.timereci.focus.ui.model.FeedBuilder
 import com.timereci.focus.ui.model.FeedDay
-import com.timereci.focus.ui.util.Formatters
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import java.time.LocalDate
-import java.time.format.TextStyle
-import java.util.Locale
 import javax.inject.Inject
 
 sealed interface FeedUiState {
     data object Loading : FeedUiState
     data object Empty : FeedUiState
+    /** Raw values only — the screen formats them, since the wording is language-dependent. */
     data class Content(
         val days: List<FeedDay>,
-        val subtitle: String,
-        val thisWeekText: String,
+        val sessionCount: Int,
+        val month: LocalDate,
+        val thisWeekMs: Long,
         val dayStreak: Int,
     ) : FeedUiState
 }
@@ -38,14 +37,12 @@ class FeedViewModel @Inject constructor(
             if (days.isEmpty()) {
                 FeedUiState.Empty
             } else {
-                val sessions = days.sumOf { it.sessions.size }
-                val monthName = LocalDate.now().month.getDisplayName(TextStyle.FULL, Locale.ENGLISH)
                 val weekAgo = LocalDate.now().minusDays(6)
-                val thisWeekMs = days.filter { it.date >= weekAgo }.sumOf { it.focusMs }
                 FeedUiState.Content(
                     days = days,
-                    subtitle = "$monthName · $sessions session${if (sessions == 1) "" else "s"}",
-                    thisWeekText = Formatters.focusDuration(thisWeekMs),
+                    sessionCount = days.sumOf { it.sessions.size },
+                    month = LocalDate.now(),
+                    thisWeekMs = days.filter { it.date >= weekAgo }.sumOf { it.focusMs },
                     dayStreak = currentStreak(days),
                 )
             }

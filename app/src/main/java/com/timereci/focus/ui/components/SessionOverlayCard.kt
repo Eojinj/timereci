@@ -44,6 +44,7 @@ import coil.request.ImageRequest
 import com.timereci.focus.data.PhotoAspect
 import com.timereci.focus.data.PhotoRef
 import com.timereci.focus.data.PhotoStorage
+import com.timereci.focus.ui.i18n.LocalStrings
 import com.timereci.focus.ui.model.SessionCard
 import com.timereci.focus.ui.theme.MonoFamily
 import com.timereci.focus.ui.theme.PhotoTones
@@ -86,7 +87,7 @@ fun SessionOverlayCard(
             AsyncImage(
                 model = ImageRequest.Builder(context)
                     .data(PhotoStorage.fileIn(context, name)).crossfade(true).build(),
-                contentDescription = session.task.ifBlank { "Focus photo" },
+                contentDescription = session.task.ifBlank { LocalStrings.current.focusPhoto },
                 contentScale = ContentScale.Crop,
                 modifier = Modifier.fillMaxSize(),
             )

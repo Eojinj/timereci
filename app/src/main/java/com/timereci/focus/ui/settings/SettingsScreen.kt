@@ -40,6 +40,9 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.timereci.focus.data.PhotoAspect
+import com.timereci.focus.ui.i18n.AppLanguage
+import com.timereci.focus.ui.i18n.LocalStrings
+import com.timereci.focus.ui.i18n.Strings
 import com.timereci.focus.ui.theme.FocusColors
 
 /** Settings (Merci v5 screen 10): a plain grouped list, current value on the right. */
@@ -48,9 +51,11 @@ fun SettingsScreen(
     viewModel: SettingsViewModel = hiltViewModel(),
 ) {
     val settings by viewModel.settings.collectAsStateWithLifecycle()
+    val strings = LocalStrings.current
     val context = LocalContext.current
     var showDurationPicker by remember { mutableStateOf(false) }
     var showShapePicker by remember { mutableStateOf(false) }
+    var showLanguagePicker by remember { mutableStateOf(false) }
 
     Box(
         Modifier
@@ -74,7 +79,7 @@ fun SettingsScreen(
                 .padding(horizontal = 20.dp),
         ) {
             Text(
-                "Settings",
+                strings.settingsTitle,
                 color = FocusColors.Ink,
                 fontSize = 34.sp,
                 fontWeight = FontWeight.Bold,
@@ -82,38 +87,43 @@ fun SettingsScreen(
                 modifier = Modifier.padding(top = 8.dp, bottom = 12.dp),
             )
 
-            SectionLabel("TIMER")
+            SectionLabel(strings.languageSection)
             Group {
-                ValueRow("Default Duration", "${settings.defaultDurationMs / 60_000L} min", onClick = { showDurationPicker = true })
+                ValueRow(strings.language, languageLabel(settings.language, strings), onClick = { showLanguagePicker = true })
+            }
+
+            SectionLabel(strings.timerSection)
+            Group {
+                ValueRow(strings.defaultDuration, strings.minutes((settings.defaultDurationMs / 60_000L).toInt()), onClick = { showDurationPicker = true })
                 Divider()
                 ToggleRow(
-                    "Keep running while writing a note",
+                    strings.keepRunningWhileNote,
                     checked = settings.keepRunningWhileCommenting,
                     onCheckedChange = viewModel::setKeepRunning,
                 )
             }
 
-            SectionLabel("PHOTOS")
+            SectionLabel(strings.photosSection)
             Group {
-                val shapeLabel = if (settings.photoAspect == PhotoAspect.SQUARE) "Square" else "Portrait"
-                ValueRow("Photo Shape", shapeLabel, onClick = { showShapePicker = true })
+                val shapeLabel = if (settings.photoAspect == PhotoAspect.SQUARE) strings.shapeSquare else strings.shapePortrait
+                ValueRow(strings.photoShape, shapeLabel, onClick = { showShapePicker = true })
             }
 
-            SectionLabel("NOTIFICATIONS")
+            SectionLabel(strings.notificationsSection)
             Group {
                 ToggleRow(
-                    "Play a sound when a session ends",
+                    strings.playSoundOnEnd,
                     checked = settings.alertWhenSessionEnds,
                     onCheckedChange = viewModel::setAlertWhenSessionEnds,
                 )
                 Divider()
                 ToggleRow(
-                    "Vibrate when a session ends",
+                    strings.vibrateOnEnd,
                     checked = settings.vibrateWhenSessionEnds,
                     onCheckedChange = viewModel::setVibrateWhenSessionEnds,
                 )
                 Divider()
-                ValueRow("Sound", "System default", onClick = {
+                ValueRow(strings.sound, strings.systemDefault, onClick = {
                     context.startActivity(
                         Intent(AndroidSettings.ACTION_APP_NOTIFICATION_SETTINGS)
                             .putExtra(AndroidSettings.EXTRA_APP_PACKAGE, context.packageName),
@@ -122,7 +132,7 @@ fun SettingsScreen(
             }
 
             Text(
-                "No storage permission is required. Photos are picked with the system picker and stay on this device.",
+                strings.settingsFooter,
                 color = FocusColors.Muted,
                 fontSize = 12.5.sp,
                 lineHeight = 18.sp,
@@ -146,6 +156,45 @@ fun SettingsScreen(
             onDismiss = { showShapePicker = false },
         )
     }
+    if (showLanguagePicker) {
+        LanguagePickerDialog(
+            current = settings.language,
+            onPick = { viewModel.setLanguage(it); showLanguagePicker = false },
+            onDismiss = { showLanguagePicker = false },
+        )
+    }
+}
+
+private fun languageLabel(language: AppLanguage, strings: Strings): String = when (language) {
+    AppLanguage.SYSTEM -> strings.languageSystem
+    AppLanguage.ENGLISH -> strings.languageEnglish
+    AppLanguage.KOREAN -> strings.languageKorean
+}
+
+@Composable
+private fun LanguagePickerDialog(current: AppLanguage, onPick: (AppLanguage) -> Unit, onDismiss: () -> Unit) {
+    val strings = LocalStrings.current
+    androidx.compose.material3.AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(strings.language, fontWeight = FontWeight.Bold) },
+        text = {
+            Column {
+                AppLanguage.entries.forEach { option ->
+                    Row(
+                        Modifier.fillMaxWidth().clickable { onPick(option) }.padding(vertical = 12.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                    ) {
+                        Text(languageLabel(option, strings), color = FocusColors.Ink, fontSize = 16.sp)
+                        if (option == current) Text("✓", color = FocusColors.AccentBlue, fontSize = 16.sp)
+                    }
+                }
+            }
+        },
+        confirmButton = {},
+        dismissButton = {
+            Text(strings.cancel, color = FocusColors.AccentBlue, fontSize = 15.sp, modifier = Modifier.clickable(onClick = onDismiss))
+        },
+    )
 }
 
 @Composable
@@ -213,9 +262,10 @@ private fun ToggleRow(label: String, checked: Boolean, onCheckedChange: (Boolean
 
 @Composable
 private fun DurationPickerDialog(current: Long, presets: List<Int>, onPick: (Long) -> Unit, onDismiss: () -> Unit) {
+    val strings = LocalStrings.current
     androidx.compose.material3.AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Default Duration", fontWeight = FontWeight.Bold) },
+        title = { Text(strings.defaultDuration, fontWeight = FontWeight.Bold) },
         text = {
             Column {
                 presets.forEach { minutes ->
@@ -224,7 +274,7 @@ private fun DurationPickerDialog(current: Long, presets: List<Int>, onPick: (Lon
                         Modifier.fillMaxWidth().clickable { onPick(ms) }.padding(vertical = 12.dp),
                         horizontalArrangement = Arrangement.SpaceBetween,
                     ) {
-                        Text("$minutes min", color = FocusColors.Ink, fontSize = 16.sp)
+                        Text(strings.minutes(minutes), color = FocusColors.Ink, fontSize = 16.sp)
                         if (ms == current) Text("✓", color = FocusColors.AccentBlue, fontSize = 16.sp)
                     }
                 }
@@ -232,20 +282,21 @@ private fun DurationPickerDialog(current: Long, presets: List<Int>, onPick: (Lon
         },
         confirmButton = {},
         dismissButton = {
-            Text("Cancel", color = FocusColors.AccentBlue, fontSize = 15.sp, modifier = Modifier.clickable(onClick = onDismiss))
+            Text(strings.cancel, color = FocusColors.AccentBlue, fontSize = 15.sp, modifier = Modifier.clickable(onClick = onDismiss))
         },
     )
 }
 
 @Composable
 private fun ShapePickerDialog(current: PhotoAspect, onPick: (PhotoAspect) -> Unit, onDismiss: () -> Unit) {
+    val strings = LocalStrings.current
     androidx.compose.material3.AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Photo Shape", fontWeight = FontWeight.Bold) },
+        title = { Text(strings.photoShape, fontWeight = FontWeight.Bold) },
         text = {
             Column {
                 PhotoAspect.entries.forEach { aspect ->
-                    val label = if (aspect == PhotoAspect.SQUARE) "Square" else "Portrait"
+                    val label = if (aspect == PhotoAspect.SQUARE) strings.shapeSquare else strings.shapePortrait
                     Row(
                         Modifier.fillMaxWidth().clickable { onPick(aspect) }.padding(vertical = 12.dp),
                         horizontalArrangement = Arrangement.SpaceBetween,
@@ -258,7 +309,7 @@ private fun ShapePickerDialog(current: PhotoAspect, onPick: (PhotoAspect) -> Uni
         },
         confirmButton = {},
         dismissButton = {
-            Text("Cancel", color = FocusColors.AccentBlue, fontSize = 15.sp, modifier = Modifier.clickable(onClick = onDismiss))
+            Text(strings.cancel, color = FocusColors.AccentBlue, fontSize = 15.sp, modifier = Modifier.clickable(onClick = onDismiss))
         },
     )
 }

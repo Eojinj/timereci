@@ -40,6 +40,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.timereci.focus.ui.i18n.LocalStrings
 import com.timereci.focus.ui.theme.FocusColors
 import kotlin.math.roundToInt
 import kotlinx.coroutines.launch
@@ -57,6 +58,7 @@ fun SwipeableRow(
     onEdit: (() -> Unit)? = null,
     content: @Composable () -> Unit,
 ) {
+    val strings = LocalStrings.current
     val density = LocalDensity.current
     val actionWidth = 76.dp
     val totalWidthDp = if (onEdit != null) actionWidth * 2 else actionWidth
@@ -91,7 +93,7 @@ fun SwipeableRow(
             ) {
                 if (onEdit != null) {
                     SwipeAction(
-                        label = "Edit",
+                        label = strings.edit,
                         icon = Icons.Outlined.Edit,
                         background = FocusColors.Muted2,
                         width = actionWidth,
@@ -99,7 +101,7 @@ fun SwipeableRow(
                     )
                 }
                 SwipeAction(
-                    label = "Delete",
+                    label = strings.delete,
                     icon = Icons.Outlined.DeleteOutline,
                     background = FocusColors.Danger,
                     width = actionWidth,

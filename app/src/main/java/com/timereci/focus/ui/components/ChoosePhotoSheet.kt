@@ -42,14 +42,15 @@ import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.timereci.focus.data.PhotoRef
 import com.timereci.focus.data.PhotoStorage
+import com.timereci.focus.ui.i18n.LocalStrings
 import com.timereci.focus.ui.theme.FocusColors
 import com.timereci.focus.ui.theme.PhotoTones
 import com.timereci.focus.ui.theme.patternPlaceholder
 
 /**
  * The one photo-picking sheet in the app (Merci v5 screen 3): a grid of recently-used photos
- * (tap one to reuse it, matching whichever is already selected), "Choose from Library" for the
- * system picker, and — only when a photo is currently set — "Remove Photo". Shared by Quick
+ * (tap one to reuse it, matching whichever is already selected), strings.chooseFromLibrary for the
+ * system picker, and — only when a photo is currently set — strings.removePhoto. Shared by Quick
  * Start (background photo) and Session Complete (the receipt's photo).
  */
 @Composable
@@ -61,6 +62,7 @@ fun ChoosePhotoSheet(
     onRemove: (() -> Unit)?,
     onDismiss: () -> Unit,
 ) {
+    val strings = LocalStrings.current
     val context = LocalContext.current
 
     Box(
@@ -90,13 +92,13 @@ fun ChoosePhotoSheet(
             )
             Box(Modifier.fillMaxWidth().padding(horizontal = 18.dp).height(48.dp)) {
                 Text(
-                    "Cancel",
+                    strings.cancel,
                     color = FocusColors.AccentBlue,
                     fontSize = 16.5.sp,
                     modifier = Modifier.align(Alignment.CenterStart).clickable(onClick = onDismiss),
                 )
                 Text(
-                    "Choose Photo",
+                    strings.choosePhoto,
                     color = FocusColors.Ink,
                     fontSize = 17.sp,
                     fontWeight = FontWeight.SemiBold,
@@ -106,7 +108,7 @@ fun ChoosePhotoSheet(
 
             if (recent.isNotEmpty()) {
                 Text(
-                    "RECENTLY USED",
+                    strings.recentlyUsed,
                     color = FocusColors.Muted,
                     fontSize = 12.sp,
                     fontWeight = FontWeight.SemiBold,
@@ -152,7 +154,7 @@ fun ChoosePhotoSheet(
                                         .background(FocusColors.AccentBlue),
                                     contentAlignment = Alignment.Center,
                                 ) {
-                                    Icon(Icons.Outlined.Check, contentDescription = "Selected", tint = Color.White, modifier = Modifier.size(13.dp))
+                                    Icon(Icons.Outlined.Check, contentDescription = strings.selected, tint = Color.White, modifier = Modifier.size(13.dp))
                                 }
                             }
                         }
@@ -176,7 +178,7 @@ fun ChoosePhotoSheet(
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
                     Icon(Icons.Outlined.PhotoLibrary, contentDescription = null, tint = FocusColors.AccentBlue, modifier = Modifier.size(20.dp))
-                    Text("Choose from Library", color = FocusColors.AccentBlue, fontSize = 16.5.sp)
+                    Text(strings.chooseFromLibrary, color = FocusColors.AccentBlue, fontSize = 16.5.sp)
                 }
                 if (onRemove != null) {
                     Box(Modifier.fillMaxWidth().height(1.dp).background(FocusColors.LineSoft))
@@ -189,12 +191,12 @@ fun ChoosePhotoSheet(
                     ) {
                         Icon(Icons.Outlined.DeleteOutline, contentDescription = null, tint = FocusColors.Danger, modifier = Modifier.size(20.dp))
                         Spacer(Modifier.width(8.dp))
-                        Text("Remove Photo", color = FocusColors.Danger, fontSize = 16.5.sp)
+                        Text(strings.removePhoto, color = FocusColors.Danger, fontSize = 16.5.sp)
                     }
                 }
             }
             Text(
-                "Photos are picked with the system picker — the app never asks for storage access.",
+                strings.photoPickerNote,
                 color = FocusColors.Muted,
                 fontSize = 12.5.sp,
                 lineHeight = 18.sp,

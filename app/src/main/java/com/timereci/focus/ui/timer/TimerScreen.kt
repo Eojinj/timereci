@@ -64,6 +64,7 @@ import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.timereci.focus.data.PhotoStorage
 import com.timereci.focus.ui.components.IconActionButton
+import com.timereci.focus.ui.i18n.LocalStrings
 import com.timereci.focus.ui.theme.FocusColors
 import com.timereci.focus.ui.theme.GothicFamily
 import com.timereci.focus.ui.util.Formatters
@@ -82,6 +83,7 @@ fun TimerScreen(
 ) {
     val state by viewModel.timerState.collectAsStateWithLifecycle()
     val keepRunning by viewModel.keepRunningWhileCommenting.collectAsStateWithLifecycle()
+    val strings = LocalStrings.current
 
     val context = LocalContext.current
     val focusManager = LocalFocusManager.current
@@ -162,7 +164,7 @@ fun TimerScreen(
 
         IconActionButton(
             icon = Icons.Outlined.ScreenRotation,
-            contentDescription = "Toggle landscape",
+            contentDescription = strings.toggleLandscape,
             onClick = { forcedLandscape = !forcedLandscape },
             size = 42.dp,
             accent = forcedLandscape,
@@ -216,6 +218,7 @@ private fun RunningContent(
     onCancel: () -> Unit,
     onFinish: () -> Unit,
 ) {
+    val strings = LocalStrings.current
     Column(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing)) {
         Column(
             Modifier
@@ -249,7 +252,7 @@ private fun RunningContent(
             )
             ProgressLine(progress = progress, isLandscape = isLandscape)
             Text(
-                "Ends at ${Formatters.timeOfDay(System.currentTimeMillis() + remainingMs)}",
+                strings.endsAt(Formatters.timeOfDay(System.currentTimeMillis() + remainingMs)),
                 color = FocusColors.Muted,
                 fontSize = 14.sp,
             )
@@ -269,18 +272,18 @@ private fun RunningContent(
                 .padding(horizontal = 20.dp, vertical = 16.dp),
         ) {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                DockButton(icon = Icons.Outlined.EditNote, label = "Note", onClick = onNote, modifier = Modifier.weight(1f))
+                DockButton(icon = Icons.Outlined.EditNote, label = strings.note, onClick = onNote, modifier = Modifier.weight(1f))
                 DockButton(
                     icon = if (isPaused) Icons.Outlined.PlayArrow else Icons.Outlined.Pause,
-                    label = if (isPaused) "Resume" else "Pause",
+                    label = if (isPaused) strings.resume else strings.pause,
                     onClick = onTogglePause,
                     modifier = Modifier.weight(1f),
                 )
-                DockButton(icon = Icons.Outlined.Check, label = "Finish", onClick = onFinish, filled = true, modifier = Modifier.weight(1f))
+                DockButton(icon = Icons.Outlined.Check, label = strings.finish, onClick = onFinish, filled = true, modifier = Modifier.weight(1f))
             }
             Spacer(Modifier.height(8.dp))
             Text(
-                "Cancel Session",
+                strings.cancelSession,
                 color = FocusColors.Danger,
                 fontSize = 15.5.sp,
                 textAlign = TextAlign.Center,
@@ -330,6 +333,7 @@ private fun NoteField(
     focusRequester: FocusRequester,
     onFocusChanged: (Boolean) -> Unit,
 ) {
+    val strings = LocalStrings.current
     val textStyle = TextStyle(
         color = FocusColors.InkSoft,
         fontFamily = GothicFamily,
@@ -350,7 +354,7 @@ private fun NoteField(
             .onFocusChanged { onFocusChanged(it.isFocused) },
         decorationBox = { inner ->
             if (comment.isEmpty()) {
-                Text("Add a note about right now…", style = textStyle.copy(color = FocusColors.Muted2), modifier = Modifier.fillMaxWidth())
+                Text(strings.noteNowPlaceholder, style = textStyle.copy(color = FocusColors.Muted2), modifier = Modifier.fillMaxWidth())
             }
             inner()
         },

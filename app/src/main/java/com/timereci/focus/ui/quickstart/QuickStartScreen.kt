@@ -63,6 +63,7 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.timereci.focus.ui.components.ChoosePhotoSheet
+import com.timereci.focus.ui.i18n.LocalStrings
 import com.timereci.focus.ui.model.RecentTask
 import com.timereci.focus.ui.theme.FocusColors
 
@@ -84,6 +85,7 @@ fun QuickStartScreen(
     val backdrop by viewModel.backdrop.collectAsStateWithLifecycle()
     val repeating by viewModel.repeating.collectAsStateWithLifecycle()
     val recentPhotos by viewModel.recentPhotos.collectAsStateWithLifecycle()
+    val strings = LocalStrings.current
     var showPhotoSheet by remember { mutableStateOf(false) }
 
     val photoPicker = rememberLauncherForActivityResult(
@@ -112,12 +114,12 @@ fun QuickStartScreen(
         Column(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing)) {
             Box(Modifier.fillMaxWidth().padding(horizontal = 18.dp).height(46.dp)) {
                 Text(
-                    "Cancel",
+                    strings.cancel,
                     color = FocusColors.AccentBlue,
                     fontSize = 16.5.sp,
                     modifier = Modifier.align(Alignment.CenterStart).clickable(onClick = onCancel),
                 )
-                Text("Quick Start", color = FocusColors.Ink, fontSize = 17.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.align(Alignment.Center))
+                Text(strings.quickStart, color = FocusColors.Ink, fontSize = 17.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.align(Alignment.Center))
             }
 
             Column(
@@ -126,7 +128,7 @@ fun QuickStartScreen(
                     .verticalScroll(rememberScrollState())
                     .padding(horizontal = 20.dp),
             ) {
-                SectionLabel("WHAT ARE YOU FOCUSING ON?", topPadding = 10.dp)
+                SectionLabel(strings.whatFocusingOn, topPadding = 10.dp)
 
                 Row(
                     Modifier
@@ -153,7 +155,7 @@ fun QuickStartScreen(
                         }),
                         modifier = Modifier.weight(1f).focusRequester(focusRequester),
                         decorationBox = { inner ->
-                            if (text.isEmpty()) Text("e.g. Laundry 20", color = FocusColors.Muted2, fontSize = 24.sp)
+                            if (text.isEmpty()) Text(strings.quickEntryPlaceholder, color = FocusColors.Muted2, fontSize = 24.sp)
                             inner()
                         },
                     )
@@ -172,13 +174,13 @@ fun QuickStartScreen(
                         Icon(Icons.AutoMirrored.Outlined.ArrowForward, contentDescription = null, tint = FocusColors.AccentBlue, modifier = Modifier.size(20.dp))
                         Row(Modifier.weight(1f).padding(start = 10.dp)) {
                             Text(resolved.label, color = FocusColors.Ink, fontSize = 19.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
-                            Text("${resolved.minutes} min", color = FocusColors.AccentBlue, fontSize = 19.sp, fontWeight = FontWeight.SemiBold)
+                            Text(strings.minutes(resolved.minutes), color = FocusColors.AccentBlue, fontSize = 19.sp, fontWeight = FontWeight.SemiBold)
                         }
                     }
                 }
 
                 Text(
-                    "Add a number for the minutes. No number starts a ${presetMinutes}-minute session.",
+                    strings.quickEntryHint(presetMinutes),
                     color = FocusColors.Muted,
                     fontSize = 12.5.sp,
                     lineHeight = 18.sp,
@@ -186,7 +188,7 @@ fun QuickStartScreen(
                 )
 
                 if (recentCompleted.isNotEmpty()) {
-                    SectionLabel("RECENT")
+                    SectionLabel(strings.recentSection)
                     LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         items(recentCompleted, key = { it.label }) { task ->
                             RecentChip(
@@ -198,7 +200,7 @@ fun QuickStartScreen(
                     }
                 }
 
-                SectionLabel("OPTIONS")
+                SectionLabel(strings.optionsSection)
                 Column(
                     Modifier
                         .fillMaxWidth()
@@ -212,8 +214,8 @@ fun QuickStartScreen(
                             .padding(horizontal = 16.dp, vertical = 14.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        Text("Background Photo", color = FocusColors.Ink, fontSize = 16.sp, modifier = Modifier.weight(1f))
-                        Text(if (backdrop != null) "Selected" else "None", color = FocusColors.Muted, fontSize = 15.sp)
+                        Text(strings.backgroundPhoto, color = FocusColors.Ink, fontSize = 16.sp, modifier = Modifier.weight(1f))
+                        Text(if (backdrop != null) strings.selected else strings.none, color = FocusColors.Muted, fontSize = 15.sp)
                     }
                     Box(Modifier.fillMaxWidth().height(1.dp).background(FocusColors.LineSoft))
                     Row(
@@ -224,9 +226,9 @@ fun QuickStartScreen(
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Column(Modifier.weight(1f).padding(end = 10.dp)) {
-                            Text("Repeating Task", color = FocusColors.Ink, fontSize = 16.sp)
+                            Text(strings.repeatingTask, color = FocusColors.Ink, fontSize = 16.sp)
                             Text(
-                                "Keeps it on Today every time you run it, and tracks its stats",
+                                strings.repeatingTaskHint,
                                 color = FocusColors.Muted,
                                 fontSize = 12.sp,
                                 lineHeight = 16.sp,
@@ -266,7 +268,11 @@ fun QuickStartScreen(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Text(
-                        if (resolved.label.isNotBlank()) "Start ${resolved.label} · ${resolved.minutes} min" else "Start · ${resolved.minutes} min",
+                        if (resolved.label.isNotBlank()) {
+                            strings.startWithLabel(resolved.label, strings.minutes(resolved.minutes))
+                        } else {
+                            strings.startPlain(strings.minutes(resolved.minutes))
+                        },
                         color = Color.White,
                         fontSize = 17.sp,
                         fontWeight = FontWeight.SemiBold,
@@ -276,7 +282,7 @@ fun QuickStartScreen(
                 // would just read as "Focus" and couldn't be told apart from any other.
                 if (resolved.label.isNotBlank()) {
                     Text(
-                        "Save to Today",
+                        strings.saveToToday,
                         color = FocusColors.AccentBlue,
                         fontSize = 15.5.sp,
                         fontWeight = FontWeight.Medium,
@@ -318,6 +324,7 @@ private fun SectionLabel(text: String, topPadding: androidx.compose.ui.unit.Dp =
 
 @Composable
 private fun RecentChip(task: RecentTask, onClick: () -> Unit, onDismiss: () -> Unit) {
+    val strings = LocalStrings.current
     Row(
         Modifier
             .clip(RoundedCornerShape(999.dp))
@@ -342,7 +349,7 @@ private fun RecentChip(task: RecentTask, onClick: () -> Unit, onDismiss: () -> U
                 .clickable(onClick = onDismiss),
             contentAlignment = Alignment.Center,
         ) {
-            Icon(Icons.Outlined.Close, contentDescription = "Remove", tint = FocusColors.Muted2, modifier = Modifier.size(12.dp))
+            Icon(Icons.Outlined.Close, contentDescription = strings.remove, tint = FocusColors.Muted2, modifier = Modifier.size(12.dp))
         }
     }
 }

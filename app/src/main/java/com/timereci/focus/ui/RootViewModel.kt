@@ -2,8 +2,12 @@ package com.timereci.focus.ui
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.timereci.focus.data.SettingsRepository
 import com.timereci.focus.timer.FocusTimerController
 import com.timereci.focus.timer.TimerPhase
+import com.timereci.focus.ui.i18n.English
+import com.timereci.focus.ui.i18n.Strings
+import com.timereci.focus.ui.i18n.stringsFor
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -24,7 +28,13 @@ enum class ResumeTarget { TIMER, PUBLISH }
 @HiltViewModel
 class RootViewModel @Inject constructor(
     private val controller: FocusTimerController,
+    settingsRepository: SettingsRepository,
 ) : ViewModel() {
+
+    /** The whole UI's copy, resolved once here and provided down the tree via LocalStrings. */
+    val strings: StateFlow<Strings> = settingsRepository.settings
+        .map { stringsFor(it.language) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), English)
 
     private val _resume = MutableStateFlow<ResumeTarget?>(null)
     val resume = _resume.asStateFlow()

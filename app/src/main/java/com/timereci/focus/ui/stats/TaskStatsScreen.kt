@@ -58,6 +58,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.timereci.focus.ui.i18n.LocalStrings
+import com.timereci.focus.ui.i18n.durationOf
+import com.timereci.focus.ui.i18n.minutesOf
 import com.timereci.focus.ui.model.TrendBar
 import com.timereci.focus.ui.theme.FocusColors
 import com.timereci.focus.ui.util.Formatters
@@ -74,6 +77,7 @@ fun TaskStatsScreen(
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val stat = state.stat
+    val strings = LocalStrings.current
 
     // The length is asked for on the way out, not parked on the screen: Start opens the prompt,
     // prefilled with this task's usual length so it's usually just Start -> Start.
@@ -104,7 +108,7 @@ fun TaskStatsScreen(
                 ) {
                     Icon(
                         Icons.AutoMirrored.Outlined.ArrowBack,
-                        contentDescription = "Back",
+                        contentDescription = strings.back,
                         tint = FocusColors.AccentBlue,
                         modifier = Modifier
                             .clip(RoundedCornerShape(10.dp))
@@ -114,7 +118,7 @@ fun TaskStatsScreen(
                     )
                     Spacer(Modifier.width(4.dp))
                     Text(
-                        state.label,
+                        state.label.ifBlank { strings.focusFallback },
                         color = FocusColors.Ink,
                         fontSize = 28.sp,
                         fontWeight = FontWeight.Bold,
@@ -137,7 +141,7 @@ fun TaskStatsScreen(
             if (stat == null) {
                 item {
                     Text(
-                        "No sessions yet — finish one and its stats show up here.",
+                        strings.noSessionsYet,
                         color = FocusColors.Muted,
                         fontSize = 14.sp,
                         lineHeight = 20.sp,
@@ -148,15 +152,15 @@ fun TaskStatsScreen(
                 return@LazyColumn
             }
 
-            item { SectionLabel("TOTALS") }
+            item { SectionLabel(strings.totalsSection) }
             item {
                 Row(
                     Modifier.fillMaxWidth().padding(horizontal = 20.dp),
                     horizontalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
-                    Metric("Total", Formatters.focusDuration(stat.totalFocusMs), Modifier.weight(1f))
-                    Metric("Sessions", "${stat.sessions}", Modifier.weight(1f))
-                    Metric("Average", Formatters.focus(stat.averageFocusMs), Modifier.weight(1f))
+                    Metric(strings.total, strings.durationOf(stat.totalFocusMs), Modifier.weight(1f))
+                    Metric(strings.sessionsLabel, "${stat.sessions}", Modifier.weight(1f))
+                    Metric(strings.average, strings.minutesOf(stat.averageFocusMs), Modifier.weight(1f))
                 }
             }
             item {
@@ -164,15 +168,15 @@ fun TaskStatsScreen(
                     Modifier.fillMaxWidth().padding(horizontal = 20.dp).padding(top = 10.dp),
                     horizontalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
-                    Metric("Days done", "${stat.daysActive}", Modifier.weight(1f))
-                    Metric("Last time", Formatters.stamp(stat.lastDoneEpoch), Modifier.weight(2f))
+                    Metric(strings.daysDone, strings.daysCount(stat.daysActive), Modifier.weight(1f))
+                    Metric(strings.lastTime, Formatters.stamp(stat.lastDoneEpoch), Modifier.weight(2f))
                 }
             }
 
-            item { SectionLabel("LAST 14 DAYS") }
+            item { SectionLabel(strings.last14Days) }
             item { TrendChart(state.trend) }
 
-            item { SectionLabel("SESSIONS") }
+            item { SectionLabel(strings.sessionsSection) }
             items(state.sessions, key = { it.id }) { session ->
                 Row(
                     Modifier
@@ -198,7 +202,7 @@ fun TaskStatsScreen(
 
     if (askingLength) {
         LengthDialog(
-            taskLabel = state.label,
+            taskLabel = state.label.ifBlank { strings.focusFallback },
             defaultMinutes = state.defaultMinutes,
             onDismiss = { askingLength = false },
             onStart = { chosen ->
@@ -221,6 +225,7 @@ private fun LengthDialog(
     onDismiss: () -> Unit,
     onStart: (Int) -> Unit,
 ) {
+    val strings = LocalStrings.current
     var minutesText by remember { mutableStateOf(defaultMinutes.toString()) }
     val minutes = minutesText.toIntOrNull()?.takeIf { it in 1..300 }
     val focusRequester = remember { FocusRequester() }
@@ -228,7 +233,7 @@ private fun LengthDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("How long?", fontWeight = FontWeight.Bold) },
+        title = { Text(strings.howLong, fontWeight = FontWeight.Bold) },
         text = {
             Column {
                 Text(taskLabel, color = FocusColors.Muted, fontSize = 14.sp)
@@ -254,13 +259,13 @@ private fun LengthDialog(
                         )
                     }
                     Spacer(Modifier.width(8.dp))
-                    Text("min", color = FocusColors.Muted, fontSize = 15.sp)
+                    Text(strings.minLabel, color = FocusColors.Muted, fontSize = 15.sp)
                 }
             }
         },
         confirmButton = {
             Text(
-                "Start",
+                strings.start,
                 color = if (minutes != null) FocusColors.AccentDeep else FocusColors.Muted2,
                 fontSize = 16.sp,
                 fontWeight = FontWeight.SemiBold,
@@ -272,7 +277,7 @@ private fun LengthDialog(
         },
         dismissButton = {
             Text(
-                "Cancel",
+                strings.cancel,
                 color = FocusColors.AccentBlue,
                 fontSize = 15.sp,
                 modifier = Modifier
@@ -291,6 +296,7 @@ private fun StartBlock(
     showAddToToday: Boolean,
     onAddToToday: () -> Unit,
 ) {
+    val strings = LocalStrings.current
     Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp).padding(top = 14.dp)) {
         Row(
             Modifier
@@ -304,7 +310,7 @@ private fun StartBlock(
         ) {
             Icon(Icons.Filled.PlayArrow, contentDescription = null, tint = Color.White, modifier = Modifier.size(20.dp))
             Spacer(Modifier.width(8.dp))
-            Text("Start", color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
+            Text(strings.start, color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
         }
 
         if (showAddToToday) {
@@ -319,7 +325,7 @@ private fun StartBlock(
             ) {
                 Icon(Icons.Outlined.Repeat, contentDescription = null, tint = FocusColors.AccentBlue, modifier = Modifier.size(16.dp))
                 Spacer(Modifier.width(7.dp))
-                Text("Add to Favorites", color = FocusColors.AccentBlue, fontSize = 15.5.sp, fontWeight = FontWeight.Medium)
+                Text(strings.addToFavorites, color = FocusColors.AccentBlue, fontSize = 15.5.sp, fontWeight = FontWeight.Medium)
             }
         }
     }

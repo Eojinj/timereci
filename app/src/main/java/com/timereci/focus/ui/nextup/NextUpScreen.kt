@@ -53,6 +53,7 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.timereci.focus.data.PlannedFocusEntity
+import com.timereci.focus.ui.i18n.LocalStrings
 import com.timereci.focus.ui.theme.FocusColors
 
 /**
@@ -72,6 +73,7 @@ fun NextUpScreen(
     val waitingCount = (queue.size - 1).coerceAtLeast(0)
     var showBreakInput by remember(current?.id) { mutableStateOf(false) }
     var breakInput by remember(current?.id) { mutableStateOf("") }
+    val strings = LocalStrings.current
 
     Box(
         Modifier
@@ -94,7 +96,7 @@ fun NextUpScreen(
             ) {
                 Icon(Icons.Outlined.CheckCircle, contentDescription = null, tint = FocusColors.Success, modifier = Modifier.size(58.dp))
                 Text(
-                    "Session saved",
+                    strings.sessionSaved,
                     color = FocusColors.Ink,
                     fontSize = 23.sp,
                     fontWeight = FontWeight.SemiBold,
@@ -102,7 +104,7 @@ fun NextUpScreen(
                 )
                 justSaved?.let { session ->
                     Text(
-                        "${session.focus} · ${session.task.ifBlank { "Focus" }}",
+                        "${session.focus} · ${session.task.ifBlank { strings.focusFallback }}",
                         color = FocusColors.Muted,
                         fontSize = 14.5.sp,
                         modifier = Modifier.padding(top = 4.dp),
@@ -112,7 +114,7 @@ fun NextUpScreen(
 
             if (current != null) {
                 Text(
-                    "UP NEXT",
+                    strings.upNext,
                     color = FocusColors.Muted,
                     fontSize = 12.5.sp,
                     fontWeight = FontWeight.SemiBold,
@@ -130,13 +132,13 @@ fun NextUpScreen(
                 ) {
                     Icon(Icons.Filled.PlayArrow, contentDescription = null, tint = FocusColors.AccentBlue, modifier = Modifier.size(22.dp))
                     Column(Modifier.weight(1f).padding(start = 12.dp, end = 8.dp)) {
-                        Text(current.label.ifBlank { "Focus" }, color = FocusColors.Ink, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+                        Text(current.label.ifBlank { strings.focusFallback }, color = FocusColors.Ink, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
                         if (waitingCount > 0) {
-                            Text("$waitingCount more task${if (waitingCount == 1) "" else "s"} waiting", color = FocusColors.Muted, fontSize = 12.5.sp)
+                            Text(strings.moreWaiting(waitingCount), color = FocusColors.Muted, fontSize = 12.5.sp)
                         }
                     }
                     val minutes = (current.plannedMs / 60_000L).toInt().coerceAtLeast(1)
-                    Text("$minutes min", color = FocusColors.Muted, fontSize = 15.sp)
+                    Text(strings.minutes(minutes), color = FocusColors.Muted, fontSize = 15.sp)
                 }
             }
 
@@ -149,7 +151,7 @@ fun NextUpScreen(
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
                 if (current != null) {
-                    DockPrimary("Start Next Session") { viewModel.startNow(current); onContinueNow() }
+                    DockPrimary(strings.startNextSession) { viewModel.startNow(current); onContinueNow() }
                     Spacer(Modifier.height(9.dp))
                     if (showBreakInput) {
                         BreakInputRow(
@@ -165,12 +167,12 @@ fun NextUpScreen(
                     } else {
                         // Tapping this doesn't start a fixed break — it just opens the
                         // "how many minutes" field below, so the length is always chosen.
-                        DockTint("Take a Break") { showBreakInput = true; breakInput = "" }
+                        DockTint(strings.takeABreak) { showBreakInput = true; breakInput = "" }
                     }
                     Spacer(Modifier.height(4.dp))
                 }
                 Text(
-                    "Done for Now",
+                    strings.doneForNow,
                     color = FocusColors.AccentBlue,
                     fontSize = 15.5.sp,
                     textAlign = TextAlign.Center,
@@ -200,6 +202,7 @@ private fun DockPrimary(label: String, onClick: () -> Unit) {
  * committing to a fixed length right away. */
 @Composable
 private fun BreakInputRow(value: String, onValueChange: (String) -> Unit, onConfirm: () -> Unit) {
+    val strings = LocalStrings.current
     val focusRequester = remember { FocusRequester() }
     LaunchedEffect(Unit) { focusRequester.requestFocus() }
     Row(
@@ -211,7 +214,7 @@ private fun BreakInputRow(value: String, onValueChange: (String) -> Unit, onConf
             .padding(horizontal = 18.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text("Rest for", color = FocusColors.Ink, fontSize = 16.sp, modifier = Modifier.weight(1f))
+        Text(strings.restFor, color = FocusColors.Ink, fontSize = 16.sp, modifier = Modifier.weight(1f))
         BasicTextField(
             value = value,
             onValueChange = onValueChange,
@@ -228,7 +231,7 @@ private fun BreakInputRow(value: String, onValueChange: (String) -> Unit, onConf
                 inner()
             },
         )
-        Text(" min", color = FocusColors.Muted, fontSize = 15.sp, modifier = Modifier.padding(end = 10.dp))
+        Text(strings.minLabel, color = FocusColors.Muted, fontSize = 15.sp, modifier = Modifier.padding(end = 10.dp))
         Box(
             Modifier
                 .size(34.dp)
@@ -237,7 +240,7 @@ private fun BreakInputRow(value: String, onValueChange: (String) -> Unit, onConf
                 .clickable(onClick = onConfirm),
             contentAlignment = Alignment.Center,
         ) {
-            Icon(Icons.Outlined.Check, contentDescription = "Start Break", tint = Color.White, modifier = Modifier.size(16.dp))
+            Icon(Icons.Outlined.Check, contentDescription = strings.startBreak, tint = Color.White, modifier = Modifier.size(16.dp))
         }
     }
 }

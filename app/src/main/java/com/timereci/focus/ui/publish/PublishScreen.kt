@@ -55,6 +55,7 @@ import coil.request.ImageRequest
 import com.timereci.focus.data.PhotoStorage
 import com.timereci.focus.data.PlannedFocusEntity
 import com.timereci.focus.ui.components.ChoosePhotoSheet
+import com.timereci.focus.ui.i18n.LocalStrings
 import com.timereci.focus.ui.theme.FocusColors
 
 /**
@@ -69,6 +70,7 @@ fun PublishScreen(
     val ui by viewModel.ui.collectAsStateWithLifecycle()
     val recentPhotos by viewModel.recentPhotos.collectAsStateWithLifecycle()
     val alarmActive by viewModel.alarmActive.collectAsStateWithLifecycle()
+    val strings = LocalStrings.current
     var showPhotoSheet by remember { mutableStateOf(false) }
     val context = LocalContext.current
 
@@ -98,14 +100,14 @@ fun PublishScreen(
         Column(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing)) {
             Box(Modifier.fillMaxWidth().padding(horizontal = 18.dp).height(46.dp)) {
                 Text(
-                    "Discard",
+                    strings.discard,
                     color = FocusColors.Danger,
                     fontSize = 16.5.sp,
                     modifier = Modifier.align(Alignment.CenterStart).clickable { viewModel.discard(onFinished) },
                 )
-                Text("Session Complete", color = FocusColors.Ink, fontSize = 17.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.align(Alignment.Center))
+                Text(strings.sessionComplete, color = FocusColors.Ink, fontSize = 17.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.align(Alignment.Center))
                 Text(
-                    "Save",
+                    strings.save,
                     color = FocusColors.AccentBlue,
                     fontSize = 16.5.sp,
                     fontWeight = FontWeight.SemiBold,
@@ -129,14 +131,14 @@ fun PublishScreen(
                         style = TextStyle(fontFeatureSettings = "tnum"),
                     )
                     Text(
-                        "${ui.task.ifBlank { "Focus" }} · ${ui.stamp}",
+                        "${ui.task.ifBlank { strings.focusFallback }} · ${ui.stamp}",
                         color = FocusColors.Muted,
                         fontSize = 14.5.sp,
                         modifier = Modifier.padding(top = 4.dp),
                     )
                 }
 
-                SectionLabel("PHOTO")
+                SectionLabel(strings.photoSection)
                 Row(
                     Modifier
                         .fillMaxWidth()
@@ -158,14 +160,14 @@ fun PublishScreen(
                         Icon(Icons.Outlined.Image, contentDescription = null, tint = FocusColors.AccentBlue, modifier = Modifier.size(28.dp))
                     }
                     Column(Modifier.weight(1f).padding(start = 12.dp)) {
-                        Text(if (photoFile != null) "Change Photo" else "Add Photo", color = FocusColors.Ink, fontSize = 16.sp)
+                        Text(if (photoFile != null) strings.changePhoto else strings.addPhoto, color = FocusColors.Ink, fontSize = 16.sp)
                         if (photoFile == null) {
-                            Text("Optional", color = FocusColors.Muted, fontSize = 12.5.sp)
+                            Text(strings.optional, color = FocusColors.Muted, fontSize = 12.5.sp)
                         }
                     }
                 }
 
-                SectionLabel("NOTE")
+                SectionLabel(strings.noteSection)
                 Box(
                     Modifier
                         .fillMaxWidth()
@@ -181,7 +183,7 @@ fun PublishScreen(
                         modifier = Modifier.fillMaxWidth().height(90.dp),
                         decorationBox = { inner ->
                             if (ui.comment.isEmpty()) {
-                                Text("Add a note about this session…", color = FocusColors.Muted2, fontSize = 16.sp)
+                                Text(strings.noteSessionPlaceholder, color = FocusColors.Muted2, fontSize = 16.sp)
                             }
                             inner()
                         },
@@ -189,7 +191,7 @@ fun PublishScreen(
                 }
 
                 Text(
-                    "Saved sessions appear in History. Discarded sessions are never recorded.",
+                    strings.publishFooter,
                     color = FocusColors.Muted,
                     fontSize = 12.5.sp,
                     lineHeight = 18.sp,
@@ -210,7 +212,7 @@ fun PublishScreen(
                     ) {
                         Icon(Icons.Outlined.NotificationsOff, contentDescription = null, tint = Color.White, modifier = Modifier.size(22.dp))
                         Spacer(Modifier.width(8.dp))
-                        Text("Stop Alarm", color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
+                        Text(strings.stopAlarm, color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
                     }
                 }
 

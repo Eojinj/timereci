@@ -58,6 +58,7 @@ import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.timereci.focus.data.PhotoStorage
 import com.timereci.focus.ui.components.IconActionButton
+import com.timereci.focus.ui.i18n.LocalStrings
 import com.timereci.focus.ui.theme.FocusColors
 import com.timereci.focus.ui.theme.PhotoTones
 import com.timereci.focus.ui.theme.patternPlaceholder
@@ -73,6 +74,7 @@ fun DetailScreen(
     viewModel: DetailViewModel = hiltViewModel(),
 ) {
     val card by viewModel.card.collectAsStateWithLifecycle()
+    val strings = LocalStrings.current
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val graphicsLayer = rememberGraphicsLayer()
@@ -99,10 +101,10 @@ fun DetailScreen(
                 Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 12.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
             ) {
-                IconActionButton(icon = Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = "Back", onClick = onBack, size = 38.dp)
+                IconActionButton(icon = Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = strings.back, onClick = onBack, size = 38.dp)
                 IconActionButton(
                     icon = Icons.Outlined.Share,
-                    contentDescription = "Share",
+                    contentDescription = strings.share,
                     size = 38.dp,
                     onClick = {
                         scope.launch {
@@ -116,7 +118,7 @@ fun DetailScreen(
                                 }
                                 context.startActivity(Intent.createChooser(send, null))
                             } else {
-                                Toast.makeText(context, "Couldn't prepare this for sharing", Toast.LENGTH_SHORT).show()
+                                Toast.makeText(context, strings.shareFailed, Toast.LENGTH_SHORT).show()
                             }
                         }
                     },
@@ -153,23 +155,23 @@ fun DetailScreen(
                     }
 
                     Column(Modifier.padding(horizontal = 20.dp, vertical = 16.dp)) {
-                        Text(current.task.ifBlank { "Focus" }, color = FocusColors.Ink, fontSize = 23.sp, fontWeight = FontWeight.SemiBold)
+                        Text(current.task.ifBlank { strings.focusFallback }, color = FocusColors.Ink, fontSize = 23.sp, fontWeight = FontWeight.SemiBold)
                         Text(current.stamp, color = FocusColors.Muted, fontSize = 14.sp, modifier = Modifier.padding(top = 2.dp))
                         current.comment?.takeIf { it.isNotBlank() }?.let { comment ->
                             Text(comment, color = FocusColors.Ink, fontSize = 16.5.sp, lineHeight = 24.sp, modifier = Modifier.padding(top = 12.dp))
                         }
                     }
 
-                    SectionLabel("DETAILS")
+                    SectionLabel(strings.detailsSection)
                     Column(
                         Modifier
                             .padding(horizontal = 16.dp)
                             .clip(RoundedCornerShape(16.dp))
                             .background(Color(0xEBFFFFFF)),
                     ) {
-                        DetailRow("Focused", "${(current.focusMs / 60_000L).coerceAtLeast(1)} min")
+                        DetailRow(strings.focused, strings.minutes((current.focusMs / 60_000L).coerceAtLeast(1).toInt()))
                         Box(Modifier.fillMaxWidth().height(1.dp).background(FocusColors.LineSoft))
-                        DetailRow("Planned", current.focus)
+                        DetailRow(strings.planned, current.focus)
                     }
 
                     Spacer(Modifier.height(16.dp))
@@ -180,14 +182,14 @@ fun DetailScreen(
                             .background(Color(0xEBFFFFFF)),
                     ) {
                         Text(
-                            "Edit Note",
+                            strings.editNote,
                             color = FocusColors.AccentBlue,
                             fontSize = 16.5.sp,
                             modifier = Modifier.fillMaxWidth().clickable { editingNote = true }.padding(horizontal = 16.dp, vertical = 14.dp),
                         )
                         Box(Modifier.fillMaxWidth().height(1.dp).background(FocusColors.LineSoft))
                         Text(
-                            "Delete Session",
+                            strings.deleteSession,
                             color = FocusColors.Danger,
                             fontSize = 16.5.sp,
                             textAlign = TextAlign.Center,
@@ -205,7 +207,7 @@ fun DetailScreen(
         var text by remember(current?.id) { mutableStateOf(current?.comment.orEmpty()) }
         AlertDialog(
             onDismissRequest = { editingNote = false },
-            title = { Text("Edit Note", fontWeight = FontWeight.Bold) },
+            title = { Text(strings.editNote, fontWeight = FontWeight.Bold) },
             text = {
                 Box(
                     Modifier
@@ -223,7 +225,7 @@ fun DetailScreen(
                 }
             },
             confirmButton = {
-                IconActionButton(icon = Icons.Outlined.Check, contentDescription = "Save", accent = true, size = 40.dp, onClick = {
+                IconActionButton(icon = Icons.Outlined.Check, contentDescription = strings.save, accent = true, size = 40.dp, onClick = {
                     viewModel.updateNote(text)
                     editingNote = false
                 })
@@ -234,15 +236,15 @@ fun DetailScreen(
     if (confirmDelete) {
         AlertDialog(
             onDismissRequest = { confirmDelete = false },
-            title = { Text("Delete this session?", fontWeight = FontWeight.Bold) },
-            text = { Text("This can't be undone.", color = FocusColors.Muted) },
+            title = { Text(strings.deleteSessionTitle, fontWeight = FontWeight.Bold) },
+            text = { Text(strings.deleteSessionBody, color = FocusColors.Muted) },
             confirmButton = {
-                IconActionButton(icon = Icons.Outlined.DeleteOutline, contentDescription = "Delete", size = 40.dp, onClick = {
+                IconActionButton(icon = Icons.Outlined.DeleteOutline, contentDescription = strings.delete, size = 40.dp, onClick = {
                     viewModel.delete(onBack)
                 })
             },
             dismissButton = {
-                IconActionButton(icon = Icons.Outlined.Close, contentDescription = "Cancel", size = 40.dp, onClick = { confirmDelete = false })
+                IconActionButton(icon = Icons.Outlined.Close, contentDescription = strings.cancel, size = 40.dp, onClick = { confirmDelete = false })
             },
         )
     }

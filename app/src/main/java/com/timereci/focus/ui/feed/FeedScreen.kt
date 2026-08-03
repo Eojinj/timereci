@@ -48,14 +48,15 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.timereci.focus.data.PhotoStorage
+import com.timereci.focus.ui.i18n.LocalStrings
+import com.timereci.focus.ui.i18n.Strings
+import com.timereci.focus.ui.i18n.durationOf
 import com.timereci.focus.ui.model.FeedDay
 import com.timereci.focus.ui.model.SessionCard
 import com.timereci.focus.ui.theme.FocusColors
 import com.timereci.focus.ui.theme.PhotoTones
 import com.timereci.focus.ui.theme.patternPlaceholder
 import java.time.LocalDate
-import java.time.format.TextStyle as JavaTextStyle
-import java.util.Locale
 
 private enum class HistoryViewMode { GALLERY, COMMENTS }
 
@@ -73,6 +74,7 @@ fun FeedScreen(
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     var mode by remember { mutableStateOf(HistoryViewMode.GALLERY) }
+    val strings = LocalStrings.current
 
     Box(
         Modifier
@@ -95,7 +97,10 @@ fun FeedScreen(
             ) {
                 item {
                     Header(
-                        subtitle = content.subtitle,
+                        subtitle = strings.historySubtitle(
+                            strings.monthName(content.month),
+                            strings.sessionsCount(content.sessionCount),
+                        ),
                         mode = mode,
                         onToggleMode = { mode = if (mode == HistoryViewMode.GALLERY) HistoryViewMode.COMMENTS else HistoryViewMode.GALLERY },
                         onOpenStats = onOpenStats,
@@ -103,8 +108,8 @@ fun FeedScreen(
                 }
                 item {
                     Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 4.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        StatCard("This week", content.thisWeekText, Modifier.weight(1f))
-                        StatCard("Day streak", "${content.dayStreak}", Modifier.weight(1f))
+                        StatCard(strings.thisWeek, strings.durationOf(content.thisWeekMs), Modifier.weight(1f))
+                        StatCard(strings.dayStreak, strings.daysCount(content.dayStreak), Modifier.weight(1f))
                     }
                 }
                 items(content.days, key = { it.epochDay }) { day ->
@@ -126,19 +131,20 @@ fun FeedScreen(
 
 @Composable
 private fun Header(subtitle: String, mode: HistoryViewMode, onToggleMode: () -> Unit, onOpenStats: () -> Unit) {
+    val strings = LocalStrings.current
     Row(
         Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 8.dp),
         verticalAlignment = Alignment.Bottom,
     ) {
         Column(Modifier.weight(1f)) {
-            Text("History", color = FocusColors.Ink, fontSize = 34.sp, fontWeight = FontWeight.Bold, letterSpacing = (-0.03).sp)
+            Text(strings.historyTitle, color = FocusColors.Ink, fontSize = 34.sp, fontWeight = FontWeight.Bold, letterSpacing = (-0.03).sp)
             if (subtitle.isNotEmpty()) {
                 Text(subtitle, color = FocusColors.Muted, fontSize = 14.5.sp, modifier = Modifier.padding(top = 2.dp))
             }
         }
         Icon(
             if (mode == HistoryViewMode.GALLERY) Icons.Outlined.Notes else Icons.Outlined.GridView,
-            contentDescription = if (mode == HistoryViewMode.GALLERY) "Show comments only" else "Show gallery",
+            contentDescription = if (mode == HistoryViewMode.GALLERY) strings.showCommentsOnly else strings.showGallery,
             tint = FocusColors.AccentBlue,
             modifier = Modifier
                 .padding(bottom = 6.dp)
@@ -148,7 +154,7 @@ private fun Header(subtitle: String, mode: HistoryViewMode, onToggleMode: () -> 
         )
         Icon(
             Icons.Outlined.BarChart,
-            contentDescription = "Stats",
+            contentDescription = strings.statsAction,
             tint = FocusColors.AccentBlue,
             modifier = Modifier
                 .padding(bottom = 6.dp)
@@ -173,22 +179,23 @@ private fun StatCard(label: String, value: String, modifier: Modifier = Modifier
     }
 }
 
-private fun relativeDayLabel(date: LocalDate): String = when (date) {
-    LocalDate.now() -> "Today"
-    LocalDate.now().minusDays(1) -> "Yesterday"
-    else -> "${date.month.getDisplayName(JavaTextStyle.FULL, Locale.ENGLISH)} ${date.dayOfMonth}"
+private fun relativeDayLabel(date: LocalDate, strings: Strings): String = when (date) {
+    LocalDate.now() -> strings.relativeToday
+    LocalDate.now().minusDays(1) -> strings.relativeYesterday
+    else -> strings.monthDay(date)
 }
 
 @Composable
 private fun DayBlock(day: FeedDay, onOpenReceipt: (Long) -> Unit) {
+    val strings = LocalStrings.current
     Column {
         Row(
             Modifier.fillMaxWidth().padding(horizontal = 22.dp).padding(top = 16.dp, bottom = 8.dp),
             verticalAlignment = Alignment.Bottom,
         ) {
-            Text(relativeDayLabel(day.date), color = FocusColors.Ink, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
+            Text(relativeDayLabel(day.date, strings), color = FocusColors.Ink, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
             Text(
-                "${day.focusText} · ${day.sessions.size} session${if (day.sessions.size == 1) "" else "s"}",
+                strings.daySummary(strings.durationOf(day.focusMs), strings.sessionsCount(day.sessions.size)),
                 color = FocusColors.Muted,
                 fontSize = 12.5.sp,
                 textAlign = TextAlign.End,
@@ -214,14 +221,15 @@ private fun DayBlock(day: FeedDay, onOpenReceipt: (Long) -> Unit) {
 /** The same day, as a text-only list of what was written — no photos, just the comments. */
 @Composable
 private fun DayCommentsBlock(day: FeedDay, onOpenReceipt: (Long) -> Unit) {
+    val strings = LocalStrings.current
     Column {
         Row(
             Modifier.fillMaxWidth().padding(horizontal = 22.dp).padding(top = 16.dp, bottom = 8.dp),
             verticalAlignment = Alignment.Bottom,
         ) {
-            Text(relativeDayLabel(day.date), color = FocusColors.Ink, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
+            Text(relativeDayLabel(day.date, strings), color = FocusColors.Ink, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
             Text(
-                "${day.focusText} · ${day.sessions.size} session${if (day.sessions.size == 1) "" else "s"}",
+                strings.daySummary(strings.durationOf(day.focusMs), strings.sessionsCount(day.sessions.size)),
                 color = FocusColors.Muted,
                 fontSize = 12.5.sp,
                 textAlign = TextAlign.End,
@@ -245,6 +253,7 @@ private fun DayCommentsBlock(day: FeedDay, onOpenReceipt: (Long) -> Unit) {
 
 @Composable
 private fun CommentRow(session: SessionCard, onClick: () -> Unit) {
+    val strings = LocalStrings.current
     Column(
         Modifier
             .fillMaxWidth()
@@ -252,12 +261,12 @@ private fun CommentRow(session: SessionCard, onClick: () -> Unit) {
             .padding(horizontal = 16.dp, vertical = 12.dp),
     ) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            Text(session.task.ifBlank { "Focus" }, color = FocusColors.Ink, fontSize = 15.5.sp, fontWeight = FontWeight.SemiBold)
+            Text(session.task.ifBlank { strings.focusFallback }, color = FocusColors.Ink, fontSize = 15.5.sp, fontWeight = FontWeight.SemiBold)
             Text(session.stamp, color = FocusColors.Muted, fontSize = 12.sp)
         }
         val comment = session.comment
         Text(
-            if (comment.isNullOrBlank()) "No note" else comment,
+            if (comment.isNullOrBlank()) strings.noNote else comment,
             color = if (comment.isNullOrBlank()) FocusColors.Muted2 else FocusColors.Ink2,
             fontSize = 14.sp,
             lineHeight = 20.sp,
@@ -268,6 +277,7 @@ private fun CommentRow(session: SessionCard, onClick: () -> Unit) {
 
 @Composable
 private fun PhotoTile(session: SessionCard, onClick: () -> Unit, modifier: Modifier = Modifier) {
+    val strings = LocalStrings.current
     val context = LocalContext.current
     val photo = session.photos.first()
     val minutes = (session.focusMs / 60_000L).toInt().coerceAtLeast(1)
@@ -297,20 +307,21 @@ private fun PhotoTile(session: SessionCard, onClick: () -> Unit, modifier: Modif
                 .background(Color(0xE6FFFFFF))
                 .padding(horizontal = 8.dp, vertical = 2.dp),
         ) {
-            Text("${minutes}m", color = FocusColors.Ink, fontSize = 10.5.sp, fontWeight = FontWeight.SemiBold)
+            Text(strings.minutesCompact(minutes), color = FocusColors.Ink, fontSize = 10.5.sp, fontWeight = FontWeight.SemiBold)
         }
     }
 }
 
 @Composable
 private fun EmptyFeed() {
+    val strings = LocalStrings.current
     Column(
         modifier = Modifier.fillMaxSize().padding(40.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
     ) {
         Text(
-            "No sessions yet.\nFinish your first focus and it'll show up here.",
+            strings.emptyFeed,
             color = FocusColors.Ink2,
             fontSize = 16.sp,
             fontWeight = FontWeight.SemiBold,

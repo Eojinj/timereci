@@ -1,0 +1,9 @@
+<resources>
+    <!-- Notification copy only. The in-app UI is localized through ui/i18n/Strings.kt, which
+         follows the app's own language setting rather than the device locale. -->
+    <string name="timer_channel_name">집중 타이머</string>
+    <string name="timer_channel_desc">집중 세션이 진행되는 동안 표시돼요.</string>
+    <string name="timer_notification_title">집중 중</string>
+    <string name="timer_done_channel_name">집중 완료 알림</string>
+    <string name="timer_done_channel_desc">집중 타이머가 끝나면 울려요.</string>
+</resources>

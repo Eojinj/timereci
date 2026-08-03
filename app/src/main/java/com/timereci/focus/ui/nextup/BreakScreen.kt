@@ -33,6 +33,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.timereci.focus.ui.i18n.LocalStrings
 import com.timereci.focus.ui.theme.FocusColors
 import com.timereci.focus.ui.util.Formatters
 import kotlinx.coroutines.delay
@@ -51,6 +52,7 @@ fun BreakScreen(
     var remainingMs by remember { mutableLongStateOf(totalMs) }
     var targetElapsed by remember { mutableLongStateOf(SystemClock.elapsedRealtime() + totalMs) }
     var finished by remember { mutableStateOf(false) }
+    val strings = LocalStrings.current
 
     fun finish() {
         if (finished) return
@@ -91,7 +93,7 @@ fun BreakScreen(
             verticalArrangement = Arrangement.Center,
         ) {
             Text(
-                "Break",
+                strings.breakTitle,
                 color = FocusColors.Muted,
                 fontSize = 18.sp,
                 fontWeight = FontWeight.SemiBold,
@@ -120,7 +122,7 @@ fun BreakScreen(
                         .background(FocusColors.Success),
                 )
             }
-            Text("Then: your next focus", color = FocusColors.Muted, fontSize = 14.sp)
+            Text(strings.thenNextFocus, color = FocusColors.Muted, fontSize = 14.sp)
 
             Column(Modifier.fillMaxWidth().padding(top = 40.dp)) {
                 Box(
@@ -134,7 +136,7 @@ fun BreakScreen(
                             targetElapsed += 5 * 60_000L
                         },
                     contentAlignment = Alignment.Center,
-                ) { Text("Add 5 Minutes", color = FocusColors.AccentBlue, fontSize = 16.5.sp, fontWeight = FontWeight.SemiBold) }
+                ) { Text(strings.addFiveMinutes, color = FocusColors.AccentBlue, fontSize = 16.5.sp, fontWeight = FontWeight.SemiBold) }
                 Box(
                     Modifier
                         .fillMaxWidth()
@@ -144,7 +146,7 @@ fun BreakScreen(
                         .background(FocusColors.AccentBlue)
                         .clickable { finish() },
                     contentAlignment = Alignment.Center,
-                ) { Text("Skip Break", color = Color.White, fontSize = 16.5.sp, fontWeight = FontWeight.SemiBold) }
+                ) { Text(strings.skipBreak, color = Color.White, fontSize = 16.5.sp, fontWeight = FontWeight.SemiBold) }
             }
         }
     }

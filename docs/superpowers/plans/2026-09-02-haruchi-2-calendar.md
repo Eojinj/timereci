@@ -8,6 +8,8 @@
 
 **Tech Stack:** Kotlin 2.0.21, Jetpack Compose, Hilt, Room, `android.provider.CalendarContract`, JUnit4 + Robolectric
 
+**디자인:** `docs/design/2026-09-02-haruchi-three-screens.dc.html` (Today · ＋ 시트 · 설정)과 토큰 정리 `docs/design/2026-09-02-tokens-and-mapping.md`. 화면을 만드는 작업(Task 5·7)은 그 문서를 따른다.
+
 **선행 조건:** 계획 1(`2026-09-02-haruchi-1-strip-and-rename.md`)이 끝나 있어야 한다. 아래 경로는 전부 개명 후 기준(`com.haruchi.today`)이다.
 
 ---
@@ -848,12 +850,15 @@ git commit -m "Ask for calendar permission from Today, in context"
 
 ### Task 5: Today에 일정 땅금을 얹는다
 
-땅금의 배치 규칙(종일이 위, 시간순, "지금" 선의 자리)을 순수 함수로 빼고 먼저 테스트한다. 화면에서 직접 하면 겹치는 일정이나 자정을 걸친 일정을 손으로 앱을 열어봐야만 확인할 수 있다.
+디자인은 `docs/design/2026-09-02-haruchi-three-screens.dc.html`의 화면 1이고, 색·치수는 `docs/design/2026-09-02-tokens-and-mapping.md`에 정리돼 있다.
+
+정렬과 흐림 판정을 순수 함수로 빼고 먼저 테스트한다. 화면에서 직접 하면 겹치는 일정이나 자정을 걸친 일정을 손으로 앱을 열어봐야만 확인할 수 있다.
 
 **Files:**
 - Create: `app/src/main/java/com/haruchi/today/ui/today/DayAgenda.kt`
 - Modify: `app/src/main/java/com/haruchi/today/ui/today/TodayViewModel.kt`
 - Modify: `app/src/main/java/com/haruchi/today/ui/today/TodayScreen.kt`
+- Modify: `app/src/main/java/com/haruchi/today/data/SettingsRepository.kt`
 - Test: `app/src/test/java/com/haruchi/today/ui/today/DayAgendaTest.kt`
 
 - [ ] **Step 1: 실패하는 테스트를 쓴다**
@@ -865,6 +870,7 @@ package com.haruchi.today.ui.today
 
 import com.haruchi.today.data.calendar.CalendarEvent
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.time.LocalDate
@@ -890,32 +896,22 @@ class DayAgendaTest {
         isAllDay = true, color = 0,
     )
 
-    private fun AgendaRow.describe(): String = when (this) {
-        is AgendaRow.Event -> event.title
-        AgendaRow.Now -> "지금"
-    }
-
     @Test
     fun `an empty day produces no rows`() {
-        val rows = DayAgenda.rowsFor(emptyList(), day, now = at(11), zone = zone)
-
-        assertTrue(rows.isEmpty())
+        assertTrue(DayAgenda.rowsFor(emptyList(), day, now = at(11), zone = zone).isEmpty())
     }
 
     @Test
     fun `all-day events come first, then timed ones in order`() {
         val events = listOf(
             timed(2, "치과", at(15), at(16)),
-            allDay(9, "추석 연휴"),
-            timed(1, "팀 회의", at(9), at(10)),
+            allDay(9, "분기 마감 주간"),
+            timed(1, "스탠드업", at(9, 30), at(9, 45)),
         )
 
         val rows = DayAgenda.rowsFor(events, day, now = at(8), zone = zone)
 
-        assertEquals(
-            listOf("추석 연휴", "지금", "팀 회의", "치과"),
-            rows.map { it.describe() },
-        )
+        assertEquals(listOf("분기 마감 주간", "스탠드업", "치과"), rows.map { it.event.title })
     }
 
     @Test
@@ -927,39 +923,45 @@ class DayAgendaTest {
 
         val rows = DayAgenda.rowsFor(events, day, now = at(8), zone = zone)
 
-        assertEquals(listOf("지금", "회의 A", "회의 B"), rows.map { it.describe() })
+        assertEquals(listOf("회의 A", "회의 B"), rows.map { it.event.title })
     }
 
     @Test
-    fun `the now line sits between the events it falls between`() {
+    fun `an event that has ended reads as past`() {
         val events = listOf(
-            timed(1, "팀 회의", at(9), at(10)),
+            timed(1, "스탠드업", at(9, 30), at(9, 45)),
             timed(2, "치과", at(15), at(16)),
         )
 
-        val rows = DayAgenda.rowsFor(events, day, now = at(11), zone = zone)
+        val rows = DayAgenda.rowsFor(events, day, now = at(12, 40), zone = zone)
 
-        assertEquals(listOf("팀 회의", "지금", "치과"), rows.map { it.describe() })
+        assertTrue(rows.first { it.event.title == "스탠드업" }.isPast)
+        assertFalse(rows.first { it.event.title == "치과" }.isPast)
     }
 
     @Test
-    fun `there is no now line on a day that is not today`() {
-        val events = listOf(timed(1, "팀 회의", at(9), at(10)))
+    fun `nothing is past on a future day`() {
+        val events = listOf(timed(1, "온보딩 워크숍", at(10), at(12)))
 
-        val rows = DayAgenda.rowsFor(events, day, now = at(35), zone = zone)
+        val rows = DayAgenda.rowsFor(events, day, now = at(-10), zone = zone)
 
-        assertEquals(listOf("팀 회의"), rows.map { it.describe() })
+        assertFalse(rows.single().isPast)
+    }
+
+    @Test
+    fun `an all-day event is not past on the day it falls on`() {
+        val rows = DayAgenda.rowsFor(listOf(allDay(9, "재택")), day, now = at(23), zone = zone)
+
+        assertFalse(rows.single().isPast)
     }
 
     @Test
     fun `an event running past midnight is clipped to the day being viewed`() {
-        val events = listOf(timed(1, "야근", at(22), at(26)))
-        val lastInstantOfDay = at(24) - 1
+        val rows = DayAgenda.rowsFor(
+            listOf(timed(1, "야근", at(22), at(26))), day, now = at(8), zone = zone,
+        )
 
-        val rows = DayAgenda.rowsFor(events, day, now = at(8), zone = zone)
-
-        val event = rows.filterIsInstance<AgendaRow.Event>().single()
-        assertEquals(lastInstantOfDay, event.endsAtOnThisDay)
+        assertEquals(at(24) - 1, rows.single().endsAtOnThisDay)
     }
 }
 ```
@@ -968,7 +970,7 @@ class DayAgendaTest {
 
 Run: `./gradlew :app:testDebugUnitTest --tests "*DayAgendaTest*"`
 
-Expected: 컴파일 실패 — `Unresolved reference: DayAgenda`, `AgendaRow`
+Expected: 컴파일 실패 — `Unresolved reference: DayAgenda`
 
 - [ ] **Step 3: `DayAgenda`를 만든다**
 
@@ -978,29 +980,24 @@ Expected: 컴파일 실패 — `Unresolved reference: DayAgenda`, `AgendaRow`
 package com.haruchi.today.ui.today
 
 import com.haruchi.today.data.calendar.CalendarEvent
-import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
 
-/** A line in the day's timeline. */
-sealed interface AgendaRow {
-    data class Event(
-        val event: CalendarEvent,
-        /** The event's end as it should read on this day — something running past midnight
-         * is shown ending at this day's last instant, not on tomorrow's clock. */
-        val endsAtOnThisDay: Long,
-        /** Already over, so it can be drawn faded. */
-        val isPast: Boolean,
-    ) : AgendaRow
-
-    /** The "지금" marker. Present only when the day being viewed is the current day. */
-    data object Now : AgendaRow
-}
+/** One line in the day's timeline. */
+data class AgendaRow(
+    val event: CalendarEvent,
+    /** The event's end as it should read on this day — something running past midnight
+     * is shown ending at this day's last instant, not on tomorrow's clock. */
+    val endsAtOnThisDay: Long,
+    /** Already over, so the row is drawn faded. The design has no "now" line; dimming what
+     * has passed is how the screen says where you are in the day. */
+    val isPast: Boolean,
+)
 
 /**
  * Lays out one day's events. Kept apart from the screen so the awkward cases — an event
- * crossing midnight, two events overlapping, where the now-marker lands — are settled by
- * tests rather than by opening the app and squinting.
+ * crossing midnight, two events overlapping, an all-day event's odd stored time — are
+ * settled by tests rather than by opening the app and squinting.
  */
 object DayAgenda {
 
@@ -1011,28 +1008,17 @@ object DayAgenda {
         zone: ZoneId,
     ): List<AgendaRow> {
         val dayEnd = day.plusDays(1).atStartOfDay(zone).toInstant().toEpochMilli()
-        val isViewingToday = Instant.ofEpochMilli(now).atZone(zone).toLocalDate() == day
 
-        val rows = mutableListOf<AgendaRow>()
-        rows += events.filter { it.isAllDay }
-            .map { AgendaRow.Event(it, dayEnd - 1, isPast = false) }
+        fun row(event: CalendarEvent) = AgendaRow(
+            event = event,
+            endsAtOnThisDay = minOf(event.endMs, dayEnd - 1),
+            isPast = event.endMs <= now,
+        )
 
-        var nowPlaced = !isViewingToday
-        for (event in events.filterNot { it.isAllDay }.sortedBy { it.startMs }) {
-            if (!nowPlaced && event.startMs > now) {
-                rows += AgendaRow.Now
-                nowPlaced = true
-            }
-            rows += AgendaRow.Event(
-                event = event,
-                endsAtOnThisDay = minOf(event.endMs, dayEnd - 1),
-                isPast = event.endMs <= now,
-            )
-        }
-        if (!nowPlaced) rows += AgendaRow.Now
-
-        // A day with nothing on it shows nothing at all, not a lone "지금" line.
-        return if (rows.size == 1 && rows.single() is AgendaRow.Now) emptyList() else rows
+        // All-day first. The design's mock happens to list one mid-day, but that is the
+        // order of its demo array; a timed list with "종일" wedged into it reads as broken.
+        return events.filter { it.isAllDay }.map(::row) +
+            events.filterNot { it.isAllDay }.sortedBy { it.startMs }.map(::row)
     }
 }
 ```
@@ -1041,9 +1027,21 @@ object DayAgenda {
 
 Run: `./gradlew :app:testDebugUnitTest --tests "*DayAgendaTest*"`
 
-Expected: 6 tests, all PASS
+Expected: 7 tests, all PASS
 
-- [ ] **Step 5: 뷰모델이 일정과 할일을 함께 내놓게 한다**
+- [ ] **Step 5: 설정에 「지난 일정 흐리게」를 추가한다**
+
+디자인의 `dimPastEvents` 노브다. `SettingsRepository.kt`의 `FocusSettings`에 추가:
+
+```kotlin
+    /** Fade events that are already over. The screen has no "now" line, so this is what
+     * shows where you are in the day. */
+    val dimPastEvents: Boolean = true,
+```
+
+`KEY_DIM_PAST = booleanPreferencesKey("dim_past_events")`와 setter를 기존 것들과 같은 모양으로 추가한다.
+
+- [ ] **Step 6: 뷰모델이 일정과 할일을 함께 내놓게 한다**
 
 `TodayViewModel`에 `CalendarRepository`와 `@ApplicationContext Context`를 주입하고, 보고 있는 날짜를 상태로 둔다:
 
@@ -1073,27 +1071,42 @@ Expected: 6 tests, all PASS
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     fun openInSystemCalendar(eventId: Long) = calendarRepository.openInSystemCalendar(eventId)
+
+    fun toggleDone(task: TodayTask) {
+        viewModelScope.launch {
+            repository.setPlannedFocusDone(
+                task.task.id,
+                if (task.isDone) null else System.currentTimeMillis(),
+            )
+        }
+    }
 ```
 
-- [ ] **Step 6: 화면에 땅금을 그린다**
+- [ ] **Step 7: 화면을 디자인대로 그린다**
 
-`TodayScreen`의 할일 목록 **위에** 일정 구역을 넣는다. 순서는 이렇다:
+`TodayScreen`을 디자인 화면 1에 맞춘다. 위에서 아래로:
 
-1. 날짜 헤더 — `← 9월 2일 화 →`. 좌우 화살표는 `showDay(day ∓ 1)`, 가운데를 탭하면 Task 8의 미니 달력
-2. 권한 줄 (Task 4, `granted`가 false일 때만)
-3. `agenda`를 순서대로 그린다:
-   - `AgendaRow.Event`이고 `event.isAllDay`면 시간 없이 제목만
-   - `AgendaRow.Event`이고 시간 일정이면 `HH:mm` + 제목 + 캘린더 색 점(`event.color`). `isPast`면 알파 0.4
-   - `AgendaRow.Now`면 얇은 가로선과 "지금"
-4. `agenda`가 비어 있고 권한이 있으면 "일정이 없습니다" 한 줄
-5. 구분선
-6. "할 일" 라벨과 기존 목록. 각 행에 `carriedDays > 0`이면 "N일째" 배지, `isDone`이면 취소선
+1. **날짜 헤더** — `‹`(40dp 원형) · 가운데 버튼 · `›`. 가운데는 두 줄: 굵은 `9월 2일 수요일`(700/22, `Ink`)과 `오늘 · 일정 4개`(400/12, `InkFaint`). 오늘이 아니면 아래 줄은 `어제` / `내일` / `2026년`. 탭하면 미니 달력(Task 8)
+2. **`일정` 섹션 라벨** — 500/11 `InkFaint` `letter-spacing .08em`, 오른쪽으로 1dp `Line`, 그 끝에 `좌우로 스와이프`(400/11, `InkFainter`)
+3. **일정 행** (`agenda`) — 높이 패딩 11dp, 모서리 16dp, 눌림 `Hover`
+   - 시각: 폭 54dp 고정, Roboto 500/13, `InkMuted`. 종일이면 `종일`
+   - 색 막대: 폭 3dp, 세로로 꽉, 모서리 2dp. 종일은 `AllDayBar`, 그 외는 `Color(event.color)` — 색이 0이면 `Green`
+   - 제목 500/15 `Ink`, 메타 400/12 `InkFaint`. 메타는 종일이면 `종일 · 기본 25분으로 시작`, 아니면 `60분`
+   - 오른쪽 36dp 아이콘 버튼 — 바깥으로 나가는 화살표. 탭하면 `openInSystemCalendar` + 토스트 `삼성 캘린더에서 「치과」을 엽니다`
+   - `settings.dimPastEvents && row.isPast`면 행 전체 `alpha 0.45`
+4. **`할 일` 섹션 라벨** — 같은 모양, 오른쪽 힌트 없음
+5. **할일 행** (`tasks`) — 22dp 원형 체크(테두리 1.5dp `InkFainter`, 완료 시 `Green` 채움 + 흰 체크) · 제목(완료 시 취소선) · 메타. 메타는 `50분`, 이월된 것은 `50분 · 3일째`. 완료 행은 `alpha 0.5`. 체크는 행 시작과 따로 동작해야 한다
+6. **세션 바** — 세션이 도는 동안 하단 고정. 모서리 24dp, `Green` 바탕, 그림자. `집중 중`(400/11 `GreenSofter`) · 이름(500/15 흰색, 한 줄 말줄임) · 시계(Roboto 500/30, tabular figures) · 44dp 원형 `정지`. 기존 `SessionOverlayCard`를 이 모양으로 고친다
+7. **FAB `＋`** — 오른쪽 아래 16dp/20dp 띄우고 64×64, 모서리 20dp, `GreenSoft` 바탕에 `GreenDark` 글자. Task 7의 시트를 연다
+8. **토스트** — 하단 좌우 16dp, 모서리 12dp, `Toast` 바탕/글자. 2.2초 뒤 사라진다
 
-- [ ] **Step 7: 손으로 확인하고 커밋한다**
+권한이 없으면 2~3번 자리에 Task 4의 「캘린더 연결하기」 줄이 대신 들어간다. 권한은 있는데 일정이 없으면 `일정이 없습니다` 한 줄.
+
+- [ ] **Step 8: 손으로 확인하고 커밋한다**
 
 Run: `./gradlew :app:assembleDebug`
 
-기기에서: 삼성 캘린더에 오늘 일정 두 개(하나는 종일)를 만들고 하루치를 연다 → 셋 다 제자리에 보인다. 삼성 캘린더로 가서 일정 제목을 고치고 하루치로 돌아온다 → 새로고침 없이 바뀌어 있다 (`ContentObserver` 확인).
+기기에서: 삼성 캘린더에 오늘 일정 세 개(하나는 종일, 하나는 이미 지난 것)를 만들고 하루치를 연다 → 종일이 맨 위, 나머지는 시간순, 지난 것은 흐리게 보인다. 할일 체크를 눌러본다 → 취소선이 그어지고 목록 아래로 내려간다. 삼성 캘린더에서 제목을 고치고 돌아온다 → 새로고침 없이 바뀌어 있다.
 
 ```bash
 git add -A
@@ -1153,11 +1166,14 @@ git commit -m "Start a timer from a calendar event"
 
 ---
 
-### Task 7: 일정 추가와 기본 캘린더 설정
+### Task 7: ＋ 시트와 설정 화면
+
+디자인 화면 2(`＋ 시트`)와 3(`설정`)이다. 색·치수는 `docs/design/2026-09-02-tokens-and-mapping.md`.
 
 **Files:**
 - Modify: `app/src/main/java/com/haruchi/today/data/SettingsRepository.kt`
 - Modify: `app/src/main/java/com/haruchi/today/ui/settings/SettingsScreen.kt`, `SettingsViewModel.kt`
+- Create: `app/src/main/java/com/haruchi/today/ui/today/AddSheet.kt`
 - Modify: `app/src/main/java/com/haruchi/today/ui/today/TodayScreen.kt`, `TodayViewModel.kt`
 
 - [ ] **Step 1: 설정에 기본 캘린더를 넣는다**
@@ -1165,47 +1181,70 @@ git commit -m "Start a timer from a calendar event"
 `SettingsRepository.kt`의 `FocusSettings`에 추가:
 
 ```kotlin
-    /** Which calendar new events go into. 0 means "not chosen yet". */
+    /** Which calendar new events go into. 0 means "not chosen yet", which is what makes
+     * the add-event form refuse to save. */
     val defaultCalendarId: Long = 0L,
 ```
 
-`KEY_DEFAULT_CALENDAR = longPreferencesKey("default_calendar_id")`와 값을 쓰는 함수 `suspend fun setDefaultCalendarId(id: Long)`를 기존 setter들과 같은 모양으로 추가한다.
+`KEY_DEFAULT_CALENDAR = longPreferencesKey("default_calendar_id")`와 `suspend fun setDefaultCalendarId(id: Long)`를 기존 setter들과 같은 모양으로 추가한다.
 
-`SettingsScreen`에 "일정을 추가할 캘린더" 항목을 넣는다. `SettingsViewModel`이 `calendarRepository.writableCalendars()`를 불러 목록을 내놓고, 고르면 `setDefaultCalendarId`를 부른다. 목록이 비면 "쓸 수 있는 캘린더가 없습니다"를 보여준다.
+- [ ] **Step 2: 설정 화면을 디자인대로 만든다**
 
-- [ ] **Step 2: `＋` 시트에 일정 추가를 넣는다**
+`SettingsScreen`을 디자인 화면 3에 맞춘다:
 
-`＋`를 탭하면 두 갈래를 묻는다: "할 일 추가" / "일정 추가". 할 일 쪽은 기존 입력 경로 그대로이되, 저장할 때 보고 있는 날짜를 넘긴다:
+1. 제목 `설정` — 700/26 `Ink`, 위아래 여백 8/18dp
+2. `타이머` 구역 라벨 — 500/11 `Green` `letter-spacing .08em`
+3. **기본 집중 시간** 행 — 제목 500/15 `Ink`, 설명 `종일 일정과 길이 없는 할 일에 쓰인다` 400/12 `InkFaint`, 오른쪽에 `25분`(Roboto 500/15, `Green`). 탭하면 기존 시간 선택 UI
+4. 1dp `Line` 구분선, 좌우 20dp 여백
+5. `캘린더` 구역 라벨, 그 아래 **일정을 추가할 캘린더** 제목과 `＋에서 만든 일정이 여기로 들어간다` 설명
+6. **캘린더 목록** — `calendarRepository.writableCalendars()` 결과. 행마다 20dp 라디오(선택 시 `Green` 테두리 + 10dp 안쪽 원) · 10dp 둥근 사각 색 견본(`CalendarAccount`에 색이 없으므로 이 작업에서 `Calendars.CALENDAR_COLOR`를 프로젝션에 추가해 `CalendarAccount.color`로 들고 온다) · 이름 500/15와 계정명 400/12. 탭하면 `setDefaultCalendarId`
+7. **빈 상태** — 목록이 비면 대신 `Hover` 바탕 18dp 카드: `쓸 수 있는 캘린더가 없습니다` / `캘린더 권한을 허용하거나, 삼성 캘린더에서 계정을 추가해 주세요.` / `권한 허용` 버튼(`Green`). 버튼은 Task 4의 `rememberCalendarAccess().request()`를 부른다
+8. 기존 설정 항목들(알림·진동·언어·기본 길이 프리셋)은 아래에 그대로 둔다
+
+`CalendarAccount`에 `val color: Int`를 더하고, `writableCalendars()`의 프로젝션에 `Calendars.CALENDAR_COLOR`를 넣는다. Task 9의 가짜 구현(`RecordingCalendar`)도 새 인자를 넘기도록 고친다.
+
+- [ ] **Step 3: `＋` 시트를 만든다**
+
+`ui/today/AddSheet.kt` — `ModalBottomSheet`. 디자인 화면 2 그대로:
+
+1. 32×4dp 손잡이
+2. **탭 두 개** — `할 일 추가` / `일정 추가`, 각각 flex 1, 모서리 16dp. 고른 쪽은 `GreenSoft` 바탕 + `GreenDark` 글자, 나머지는 투명 + `LineStrong` 테두리 + `InkMuted` 글자
+3. **제목** 칸 — 라벨 400/11 `InkFaint`, 입력칸 `Hover` 바탕 모서리 14dp, 글자 500/16
+4. **두 번째 칸** — 일정이면 `시작 시각`(시각 선택), 할 일이면 `반복`(끄기/매일 — 기존 `isRepeating`)
+5. **길이** — 칩 세 개 `25분` `50분` `1시간`. 고른 칩은 `GreenSoft`, 나머지는 테두리만
+6. **힌트 한 줄** — 400/12. 할 일이면 `보고 있는 날짜(9월 2일)의 할 일로 저장됩니다.`, 일정이고 기본 캘린더가 있으면 `「내 캘린더」에 저장되고 삼성 캘린더에도 나타납니다.`, 없으면 `Sunday` 색으로 `기본 캘린더가 없습니다 — 탭하면 설정으로 갑니다.`
+7. **버튼 줄** — `취소`(테두리) + 저장. 저장 라벨은 `할 일 추가` / `일정 추가`이고, 일정인데 기본 캘린더가 없으면 `설정에서 캘린더 고르기`가 되어 `Line` 바탕 `InkFaint` 글자로 바뀌며, 누르면 설정 화면으로 보낸다
+
+저장 동작:
 
 ```kotlin
-repository.addPlannedFocus(label, plannedMs, isRepeating, dueDateEpochDay = day.toEpochDay())
-```
+// 할 일
+repository.addPlannedFocus(title, lengthMs, isRepeating, dueDateEpochDay = day.toEpochDay())
 
-일정 쪽은 제목 · 시작 시각 · 길이 세 칸이다. 저장은:
-
-```kotlin
+// 일정
 val start = day.atTime(hour, minute).atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
 calendarRepository.addEvent(title, start, start + lengthMs, settings.defaultCalendarId)
 ```
 
-`defaultCalendarId`가 0이거나 권한이 없으면 "일정 추가"를 비활성으로 두고, 탭하면 설정으로 보낸다. 복잡한 편집(반복 규칙 등)은 여기서 하지 않는다 — 삼성 캘린더의 몫이다.
+둘 다 저장 뒤 시트를 닫고 `저장했습니다` 토스트를 띄운다. 반복 규칙 편집 같은 건 여기서 하지 않는다 — 삼성 캘린더의 몫이다.
 
-- [ ] **Step 3: 손으로 확인하고 커밋한다**
+- [ ] **Step 4: 손으로 확인하고 커밋한다**
 
 Run: `./gradlew :app:assembleDebug`
 
 기기에서:
-1. 설정에서 기본 캘린더를 고른다
-2. Today에서 `＋` → 일정 추가 → "치과 15:00 1시간" → 땅금에 나타난다
+1. 설정을 연다 → 캘린더 목록이 색 견본과 계정명까지 보인다. 하나 고른다
+2. Today에서 `＋` → `일정 추가` → `치과 15:00 1시간` → 저장 → 땅금에 나타나고 토스트가 뜬다
 3. 삼성 캘린더를 연다 → 같은 일정이 거기에도 있다
-4. 내일로 스와이프해 할 일을 추가한다 → 내일 목록에만 있고 오늘엔 없다
+4. 내일로 스와이프해 `＋` → `할 일 추가` → 저장 → 내일 목록에만 있고 오늘엔 없다
+5. 설정에서 캘린더 선택을 지운 상태를 만든다(계정이 없는 기기로 확인하거나 잠시 `defaultCalendarId`를 0으로 두고) → `일정 추가` 저장 버튼이 `설정에서 캘린더 고르기`로 바뀐다
 
 ```bash
 git add -A
 ```
 
 ```bash
-git commit -m "Add events and to-dos for the day being viewed"
+git commit -m "Add the plus sheet and the calendar settings screen"
 ```
 
 ---

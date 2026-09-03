@@ -1,0 +1,431 @@
+</style>
+<style>
+body{margin:0;background:#F1EFEA;font-family:'Noto Sans KR',system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+a{color:#2E6A5C}a:hover{color:#245448}
+@keyframes hc-rise{from{transform:translateY(14px);opacity:0}to{transform:translateY(0);opacity:1}}
+</style>
+</helmet>
+
+<section style="display:flex;flex-direction:row;gap:56px;align-items:flex-start;padding:56px 64px 72px">
+
+<div style="display:flex;flex-direction:column;gap:14px;flex:none;width:428px">
+<div style="display:flex;flex-direction:column;gap:4px">
+<div style="font:700 13px/1.2 'Noto Sans KR',sans-serif;color:#1B1B18;letter-spacing:.02em">1 · Today</div>
+<div style="font:400 12px/1.5 'Noto Sans KR',sans-serif;color:#7A7871;max-width:380px">일정 행을 탭하면 그 제목·길이로 타이머가 시작된다. 종일 일정은 기본 시간. 지난 일정은 흐리지만 잠기지 않는다.</div>
+</div>
+<x-import component-from-global-scope="AndroidDevice" from="1c0333e5-eee2-4b46-a596-fcf168363ed1#/android-frame.jsx" hint-size="412px,892px">
+<div style="position:relative;min-height:100%;background:#FBFAF7;box-sizing:border-box;padding:0 0 12px">
+
+<div style="display:flex;align-items:center;gap:4px;padding:14px 12px 6px">
+<button sc-camel-on-click="{{prevDay}}" style="width:40px;height:40px;flex:none;border:0;background:transparent;border-radius:50%;cursor:pointer;color:#605E58;font:400 20px/1 Roboto,sans-serif" style-hover="background:#EFEDE7">‹</button>
+<button sc-camel-on-click="{{openCal}}" style="flex:1;border:0;background:transparent;border-radius:12px;cursor:pointer;padding:6px 8px;text-align:left" style-hover="background:#EFEDE7">
+<div style="font:700 22px/1.2 'Noto Sans KR',sans-serif;color:#1B1B18">{{dateTitle}}</div>
+<div style="font:400 12px/1.6 'Noto Sans KR',sans-serif;color:#8A8880">{{dateSub}}</div>
+</button>
+<button sc-camel-on-click="{{nextDay}}" style="width:40px;height:40px;flex:none;border:0;background:transparent;border-radius:50%;cursor:pointer;color:#605E58;font:400 20px/1 Roboto,sans-serif" style-hover="background:#EFEDE7">›</button>
+</div>
+
+<div style="padding:6px 16px 2px;display:flex;align-items:center;gap:8px">
+<div style="font:500 11px/1.4 'Noto Sans KR',sans-serif;color:#8A8880;letter-spacing:.08em">일정</div>
+<div style="flex:1;height:1px;background:#E4E1DA"></div>
+<div style="font:400 11px/1.4 'Noto Sans KR',sans-serif;color:#B0AEA6">좌우로 스와이프</div>
+</div>
+
+<div style="display:flex;flex-direction:column;padding:4px 8px 2px">
+<sc-for list="{{events}}" as="ev" hint-placeholder-count="4">
+<div sc-camel-on-click="{{ev.start}}" style="display:flex;flex-direction:row;gap:12px;align-items:center;padding:11px 8px;border-radius:16px;cursor:pointer;opacity:{{ev.op}}" style-hover="background:#EFEDE7">
+<div style="width:54px;flex:none;font:500 13px/17px Roboto,sans-serif;color:#605E58">{{ev.time}}</div>
+<div style="width:3px;align-self:stretch;flex:none;border-radius:2px;background:{{ev.bar}}"></div>
+<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:2px">
+<div style="font:500 15px/20px 'Noto Sans KR',sans-serif;color:#1B1B18">{{ev.title}}</div>
+<div style="font:400 12px/16px 'Noto Sans KR',sans-serif;color:#8A8880">{{ev.meta}}</div>
+</div>
+<button sc-camel-on-click="{{ev.open}}" title="캘린더에서 열기" style="width:36px;height:36px;flex:none;border:0;background:transparent;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center" style-hover="background:#E1DED6">
+<svg width="17" height="17" sc-camel-view-box="0 0 18 18" fill="none" stroke="#605E58" stroke-width="1.5" stroke-linecap="round"><path d="M10.5 3H15v4.5"></path><path d="M15 3l-6 6"></path><path d="M13 11v3.5a.5.5 0 01-.5.5h-9a.5.5 0 01-.5-.5v-9a.5.5 0 01.5-.5H7"></path></svg>
+</button>
+</div>
+</sc-for>
+</div>
+
+<div style="padding:16px 16px 2px;display:flex;align-items:center;gap:8px">
+<div style="font:500 11px/1.4 'Noto Sans KR',sans-serif;color:#8A8880;letter-spacing:.08em">할 일</div>
+<div style="flex:1;height:1px;background:#E4E1DA"></div>
+</div>
+
+<div style="display:flex;flex-direction:column;padding:4px 8px">
+<sc-for list="{{todos}}" as="td" hint-placeholder-count="3">
+<div sc-camel-on-click="{{td.start}}" style="display:flex;flex-direction:row;gap:12px;align-items:center;padding:11px 8px;border-radius:16px;cursor:pointer;opacity:{{td.op}}" style-hover="background:#EFEDE7">
+<button sc-camel-on-click="{{td.toggle}}" style="width:22px;height:22px;flex:none;border:1.5px solid #B0AEA6;background:{{td.dotBg}};border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0">
+<sc-if value="{{td.done}}" hint-placeholder-val="{{false}}">
+<svg width="12" height="12" sc-camel-view-box="0 0 12 12" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round"><path d="M2.5 6.3l2.4 2.4L9.5 3.8"></path></svg>
+</sc-if>
+</button>
+<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:2px">
+<div style="font:500 15px/20px 'Noto Sans KR',sans-serif;color:#1B1B18;text-decoration:{{td.deco}}">{{td.title}}</div>
+<div style="font:400 12px/16px 'Noto Sans KR',sans-serif;color:#8A8880">{{td.meta}}</div>
+</div>
+</div>
+</sc-for>
+</div>
+
+<sc-if value="{{session}}" hint-placeholder-val="{{false}}">
+<div style="position:sticky;bottom:0;margin:14px 12px 0;padding:16px 18px;border-radius:24px;background:#2E6A5C;color:#fff;display:flex;flex-direction:row;align-items:center;gap:14px;box-shadow:0 10px 28px rgba(46,106,92,.32);animation:hc-rise .22s ease-out">
+<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:3px">
+<div style="font:400 11px/1.3 'Noto Sans KR',sans-serif;color:#BEDCD3;letter-spacing:.08em">집중 중</div>
+<div style="font:500 15px/20px 'Noto Sans KR',sans-serif;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{sessionLabel}}</div>
+</div>
+<div style="font:500 30px/1 Roboto,sans-serif;font-variant-numeric:tabular-nums">{{sessionClock}}</div>
+<button sc-camel-on-click="{{stopSession}}" style="width:44px;height:44px;flex:none;border:0;border-radius:50%;background:rgba(255,255,255,.16);cursor:pointer;color:#fff;font:500 12px/1 'Noto Sans KR',sans-serif" style-hover="background:rgba(255,255,255,.28)">정지</button>
+</div>
+</sc-if>
+
+<sc-if value="{{toast}}" hint-placeholder-val="{{false}}">
+<div style="position:absolute;left:16px;right:16px;bottom:16px;padding:14px 16px;border-radius:12px;background:#32302B;color:#F3F1EC;font:400 13px/1.4 'Noto Sans KR',sans-serif">{{toast}}</div>
+</sc-if>
+
+<button sc-camel-on-click="{{openSheet}}" style="position:absolute;right:16px;bottom:20px;width:64px;height:64px;border:0;border-radius:20px;background:#CFE6DD;color:#12372F;font:400 28px/1 Roboto,sans-serif;cursor:pointer;box-shadow:0 6px 18px rgba(0,0,0,.14)" style-hover="background:#BEDCD3">＋</button>
+
+<sc-if value="{{calOpen}}" hint-placeholder-val="{{false}}">
+<div sc-camel-on-click="{{closeCal}}" style="position:absolute;inset:0;background:rgba(20,19,17,.42);display:flex;align-items:center;justify-content:center;padding:20px">
+<div sc-camel-on-click="{{swallow}}" style="width:100%;background:#FBFAF7;border-radius:28px;padding:20px 16px 12px;box-shadow:0 20px 50px rgba(0,0,0,.3)">
+<div style="display:flex;flex-direction:row;align-items:center;gap:4px;padding:0 4px 10px">
+<button sc-camel-on-click="{{prevMonth}}" style="width:36px;height:36px;border:0;background:transparent;border-radius:50%;cursor:pointer;color:#605E58;font:400 18px/1 Roboto,sans-serif" style-hover="background:#EFEDE7">←</button>
+<div style="flex:1;text-align:center;font:500 16px/1.3 'Noto Sans KR',sans-serif;color:#1B1B18">{{monthTitle}}</div>
+<button sc-camel-on-click="{{nextMonth}}" style="width:36px;height:36px;border:0;background:transparent;border-radius:50%;cursor:pointer;color:#605E58;font:400 18px/1 Roboto,sans-serif" style-hover="background:#EFEDE7">→</button>
+</div>
+<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px;padding-bottom:4px">
+<sc-for list="{{weekdays}}" as="w" hint-placeholder-count="7">
+<div style="text-align:center;font:500 11px/1.4 'Noto Sans KR',sans-serif;color:{{w.color}}">{{w.label}}</div>
+</sc-for>
+</div>
+<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px">
+<sc-for list="{{cells}}" as="c" hint-placeholder-count="35">
+<button sc-camel-on-click="{{c.pick}}" style="height:44px;border:{{c.border}};background:{{c.bg}};border-radius:50%;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;padding:0">
+<div style="font:500 14px/1 Roboto,sans-serif;color:{{c.fg}}">{{c.label}}</div>
+<div style="width:4px;height:4px;border-radius:50%;background:{{c.dot}}"></div>
+</button>
+</sc-for>
+</div>
+<div style="display:flex;justify-content:flex-end;padding:8px 4px 0">
+<button sc-camel-on-click="{{closeCal}}" style="border:0;background:transparent;color:#2E6A5C;font:500 14px/1 'Noto Sans KR',sans-serif;padding:10px 14px;border-radius:12px;cursor:pointer" style-hover="background:#E7F0EC">닫기</button>
+</div>
+</div>
+</div>
+</sc-if>
+
+</div>
+</x-import>
+</div>
+
+<div style="display:flex;flex-direction:column;gap:14px;flex:none;width:428px">
+<div style="display:flex;flex-direction:column;gap:4px">
+<div style="font:700 13px/1.2 'Noto Sans KR',sans-serif;color:#1B1B18;letter-spacing:.02em">2 · ＋ 시트</div>
+<div style="font:400 12px/1.5 'Noto Sans KR',sans-serif;color:#7A7871;max-width:380px">두 갈래를 먼저 묻는다. 일정 쪽은 제목·시작 시각·길이 세 칸뿐. 기본 캘린더가 없으면 저장은 비활성이고 설정으로 보낸다.</div>
+</div>
+<x-import component-from-global-scope="AndroidDevice" from="1c0333e5-eee2-4b46-a596-fcf168363ed1#/android-frame.jsx" hint-size="412px,892px">
+<div style="position:relative;min-height:100%;background:#FBFAF7;box-sizing:border-box">
+<div style="padding:18px 20px;opacity:.35;display:flex;flex-direction:column;gap:14px">
+<div style="font:700 22px/1.2 'Noto Sans KR',sans-serif;color:#1B1B18">9월 2일 수요일</div>
+<div style="display:flex;flex-direction:column;gap:12px">
+<div style="height:14px;width:70%;border-radius:7px;background:#E4E1DA"></div>
+<div style="height:14px;width:52%;border-radius:7px;background:#E4E1DA"></div>
+<div style="height:14px;width:62%;border-radius:7px;background:#E4E1DA"></div>
+<div style="height:14px;width:44%;border-radius:7px;background:#E4E1DA"></div>
+</div>
+</div>
+<div style="position:absolute;inset:0;background:rgba(20,19,17,.28)"></div>
+<div style="position:absolute;left:0;right:0;bottom:0;background:#FBFAF7;border-radius:28px 28px 0 0;padding:12px 20px 24px;box-shadow:0 -14px 40px rgba(0,0,0,.18);animation:hc-rise .24s ease-out">
+<div style="width:32px;height:4px;border-radius:2px;background:#D6D3CC;margin:0 auto 16px"></div>
+<div style="display:flex;flex-direction:row;gap:8px;padding-bottom:18px">
+<button sc-camel-on-click="{{pickTodo}}" style="flex:1;padding:14px 10px;border:1px solid {{tabTodoBorder}};background:{{tabTodoBg}};color:{{tabTodoFg}};border-radius:16px;cursor:pointer;font:500 14px/1.2 'Noto Sans KR',sans-serif">할 일 추가</button>
+<button sc-camel-on-click="{{pickEvent}}" style="flex:1;padding:14px 10px;border:1px solid {{tabEventBorder}};background:{{tabEventBg}};color:{{tabEventFg}};border-radius:16px;cursor:pointer;font:500 14px/1.2 'Noto Sans KR',sans-serif">일정 추가</button>
+</div>
+
+<div style="display:flex;flex-direction:column;gap:14px">
+<div style="display:flex;flex-direction:column;gap:6px">
+<div style="font:400 11px/1.3 'Noto Sans KR',sans-serif;color:#8A8880;letter-spacing:.06em">제목</div>
+<div style="padding:14px 16px;border-radius:14px;background:#EFEDE7;font:500 16px/1.2 'Noto Sans KR',sans-serif;color:#1B1B18">{{formTitle}}</div>
+</div>
+<div style="display:flex;flex-direction:row;gap:12px">
+<div style="flex:1;display:flex;flex-direction:column;gap:6px">
+<div style="font:400 11px/1.3 'Noto Sans KR',sans-serif;color:#8A8880;letter-spacing:.06em">{{field2Label}}</div>
+<div style="padding:14px 16px;border-radius:14px;background:#EFEDE7;font:500 16px/1.2 Roboto,sans-serif;color:#1B1B18">{{field2Value}}</div>
+</div>
+<div style="flex:1;display:flex;flex-direction:column;gap:6px">
+<div style="font:400 11px/1.3 'Noto Sans KR',sans-serif;color:#8A8880;letter-spacing:.06em">길이</div>
+<div style="display:flex;flex-direction:row;gap:6px">
+<sc-for list="{{lengths}}" as="L" hint-placeholder-count="3">
+<button sc-camel-on-click="{{L.pick}}" style="flex:1;padding:14px 0;border:1px solid {{L.border}};background:{{L.bg}};color:{{L.fg}};border-radius:14px;cursor:pointer;font:500 13px/1 Roboto,sans-serif">{{L.label}}</button>
+</sc-for>
+</div>
+</div>
+</div>
+
+<div style="font:400 12px/1.6 'Noto Sans KR',sans-serif;color:{{hintColor}}">{{formHint}}</div>
+
+<div style="display:flex;flex-direction:row;gap:10px;padding-top:2px">
+<button sc-camel-on-click="{{closeSheet}}" style="flex:none;padding:15px 20px;border:1px solid #D6D3CC;background:transparent;color:#605E58;border-radius:16px;cursor:pointer;font:500 14px/1 'Noto Sans KR',sans-serif" style-hover="background:#EFEDE7">취소</button>
+<button sc-camel-on-click="{{save}}" style="flex:1;padding:15px 20px;border:0;background:{{saveBg}};color:{{saveFg}};border-radius:16px;cursor:{{saveCursor}};font:500 15px/1 'Noto Sans KR',sans-serif">{{saveLabel}}</button>
+</div>
+</div>
+</div>
+</div>
+</x-import>
+</div>
+
+<div style="display:flex;flex-direction:column;gap:14px;flex:none;width:428px">
+<div style="display:flex;flex-direction:column;gap:4px">
+<div style="font:700 13px/1.2 'Noto Sans KR',sans-serif;color:#1B1B18;letter-spacing:.02em">3 · 설정</div>
+<div style="font:400 12px/1.5 'Noto Sans KR',sans-serif;color:#7A7871;max-width:380px">기본 시간과 「일정을 추가할 캘린더」. 쓸 수 있는 캘린더가 없을 때의 상태도 아래 스위치로 확인할 수 있다.</div>
+</div>
+<x-import component-from-global-scope="AndroidDevice" from="1c0333e5-eee2-4b46-a596-fcf168363ed1#/android-frame.jsx" hint-size="412px,892px">
+<div style="min-height:100%;background:#FBFAF7;box-sizing:border-box;padding:14px 0 24px">
+<div style="padding:8px 20px 18px;font:700 26px/1.2 'Noto Sans KR',sans-serif;color:#1B1B18">설정</div>
+
+<div style="padding:0 20px 8px;font:500 11px/1.4 'Noto Sans KR',sans-serif;color:#2E6A5C;letter-spacing:.08em">타이머</div>
+<div style="display:flex;flex-direction:row;align-items:center;gap:16px;padding:14px 20px">
+<div style="flex:1;display:flex;flex-direction:column;gap:2px">
+<div style="font:500 15px/20px 'Noto Sans KR',sans-serif;color:#1B1B18">기본 집중 시간</div>
+<div style="font:400 12px/16px 'Noto Sans KR',sans-serif;color:#8A8880">종일 일정과 길이 없는 할 일에 쓰인다</div>
+</div>
+<div style="font:500 15px/1 Roboto,sans-serif;color:#2E6A5C">{{defaultMinutesLabel}}</div>
+</div>
+
+<div style="height:1px;background:#E4E1DA;margin:12px 20px 18px"></div>
+
+<div style="padding:0 20px 8px;font:500 11px/1.4 'Noto Sans KR',sans-serif;color:#2E6A5C;letter-spacing:.08em">캘린더</div>
+<div style="padding:2px 20px 10px;display:flex;flex-direction:column;gap:2px">
+<div style="font:500 15px/20px 'Noto Sans KR',sans-serif;color:#1B1B18">일정을 추가할 캘린더</div>
+<div style="font:400 12px/16px 'Noto Sans KR',sans-serif;color:#8A8880">＋에서 만든 일정이 여기로 들어간다</div>
+</div>
+
+<sc-if value="{{hasCalendars}}" hint-placeholder-val="{{true}}">
+<div style="display:flex;flex-direction:column;padding:2px 12px">
+<sc-for list="{{calendars}}" as="cal" hint-placeholder-count="3">
+<div sc-camel-on-click="{{cal.pick}}" style="display:flex;flex-direction:row;align-items:center;gap:14px;padding:13px 10px;border-radius:16px;cursor:pointer" style-hover="background:#EFEDE7">
+<div style="width:20px;height:20px;flex:none;border-radius:50%;border:2px solid {{cal.ring}};display:flex;align-items:center;justify-content:center">
+<div style="width:10px;height:10px;border-radius:50%;background:{{cal.inner}}"></div>
+</div>
+<div style="width:10px;height:10px;flex:none;border-radius:3px;background:{{cal.color}}"></div>
+<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:1px">
+<div style="font:500 15px/20px 'Noto Sans KR',sans-serif;color:#1B1B18">{{cal.name}}</div>
+<div style="font:400 12px/16px 'Noto Sans KR',sans-serif;color:#8A8880">{{cal.account}}</div>
+</div>
+</div>
+</sc-for>
+</div>
+</sc-if>
+
+<sc-if value="{{noCalendars}}" hint-placeholder-val="{{false}}">
+<div style="margin:6px 20px;padding:18px;border-radius:18px;background:#EFEDE7;display:flex;flex-direction:column;gap:10px">
+<div style="font:500 14px/20px 'Noto Sans KR',sans-serif;color:#1B1B18">쓸 수 있는 캘린더가 없습니다</div>
+<div style="font:400 12px/18px 'Noto Sans KR',sans-serif;color:#605E58">캘린더 권한을 허용하거나, 삼성 캘린더에서 계정을 추가해 주세요.</div>
+<button style="align-self:flex-start;border:0;background:#2E6A5C;color:#fff;padding:11px 16px;border-radius:14px;cursor:pointer;font:500 13px/1 'Noto Sans KR',sans-serif">권한 허용</button>
+</div>
+</sc-if>
+
+<div style="height:1px;background:#E4E1DA;margin:18px 20px"></div>
+<div sc-camel-on-click="{{toggleCalendars}}" style="display:flex;flex-direction:row;align-items:center;gap:16px;padding:12px 20px;cursor:pointer">
+<div style="flex:1;font:400 12px/18px 'Noto Sans KR',sans-serif;color:#8A8880">데모: 캘린더 없는 상태 보기</div>
+<div style="width:44px;height:26px;flex:none;border-radius:13px;background:{{switchBg}};padding:3px;box-sizing:border-box;display:flex;justify-content:{{switchAlign}}">
+<div style="width:20px;height:20px;border-radius:50%;background:#fff"></div>
+</div>
+</div>
+</div>
+</x-import>
+</div>
+
+</section>
+</x-dc>
+<script type="text/x-dc" data-dc-script="" data-props="{&quot;defaultMinutes&quot;:{&quot;editor&quot;:&quot;int&quot;,&quot;default&quot;:25,&quot;tsType&quot;:&quot;number&quot;,&quot;min&quot;:5,&quot;max&quot;:90,&quot;step&quot;:5,&quot;unit&quot;:&quot;분&quot;,&quot;section&quot;:&quot;동작&quot;},&quot;dimPastEvents&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;동작&quot;},&quot;showEventDots&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;미니 달력&quot;}}">
+const DAYS = ['일','월','화','수','목','금','토'];
+const EVENTS = {
+  '-1': [
+    { time: '09:00', title: '주간 회의', min: 60 },
+    { time: '14:30', title: '1:1 — 지훈', min: 30 },
+  ],
+  '0': [
+    { time: '09:30', title: '스탠드업', min: 15 },
+    { time: '11:00', title: '디자인 리뷰', min: 60 },
+    { time: '종일', title: '분기 마감 주간', allDay: true },
+    { time: '15:00', title: '치과', min: 60 },
+  ],
+  '1': [
+    { time: '10:00', title: '온보딩 워크숍', min: 120 },
+    { time: '종일', title: '재택', allDay: true },
+  ],
+};
+const TODOS = {
+  '-1': [{ title: '회의록 정리', min: 25, done: true }],
+  '0': [
+    { title: '설정 화면 카피 다듬기', min: 50 },
+    { title: '캘린더 권한 문구 검토', min: 25, done: true },
+    { title: '스트레칭', min: 10 },
+  ],
+  '1': [{ title: '워크숍 슬라이드', min: 50 }],
+};
+const CALENDARS = [
+  { id: 1, name: '내 캘린더', account: 'samsung@haruchi.app', color: '#3E7BD6' },
+  { id: 2, name: '업무', account: 'work@haruchi.app', color: '#C4623C' },
+  { id: 3, name: '가족', account: 'samsung@haruchi.app', color: '#5E9A4E' },
+];
+const NOW_MIN = 12 * 60 + 40;
+
+function pad(n) { return n < 10 ? '0' + n : '' + n; }
+
+class Component extends DCLogic {
+  state = {
+    offset: 0, calOpen: false, month: 8, year: 2026, sheetTab: 'event',
+    lengthIdx: 2, calId: 1, hasCals: true, session: null, left: 0, toast: null,
+    done: {},
+  };
+
+  componentDidMount() {
+    this.timer = setInterval(() => {
+      if (this.state.session && this.state.left > 0) this.setState(s => ({ left: s.left - 1 }));
+    }, 1000);
+  }
+  componentWillUnmount() { clearInterval(this.timer); if (this.tt) clearTimeout(this.tt); }
+
+  defaultMin() { return this.props.defaultMinutes ?? 25; }
+
+  start(label, min) {
+    this.setState({ session: { label }, left: min * 60, calOpen: false });
+  }
+  flash(msg) {
+    this.setState({ toast: msg });
+    if (this.tt) clearTimeout(this.tt);
+    this.tt = setTimeout(() => this.setState({ toast: null }), 2200);
+  }
+
+  dayDate() {
+    const d = new Date(2026, 8, 2);
+    d.setDate(d.getDate() + this.state.offset);
+    return d;
+  }
+
+  renderVals() {
+    const s = this.state;
+    const dim = this.props.dimPastEvents ?? true;
+    const dm = this.defaultMin();
+    const d = this.dayDate();
+    const key = String(s.offset);
+
+    const events = (EVENTS[key] || []).map((e, i) => {
+      const mins = e.allDay ? -1 : parseInt(e.time.slice(0, 2), 10) * 60 + parseInt(e.time.slice(3), 10);
+      const past = s.offset < 0 || (s.offset === 0 && mins >= 0 && mins < NOW_MIN);
+      const min = e.allDay || !e.min ? dm : e.min;
+      return {
+        time: e.time, title: e.title,
+        meta: e.allDay ? '종일 · 기본 ' + dm + '분으로 시작' : min + '분',
+        op: dim && past ? 0.45 : 1,
+        bar: e.allDay ? '#C9C6BE' : '#2E6A5C',
+        start: () => this.start(e.title, min),
+        open: (ev) => { ev.stopPropagation(); this.flash('삼성 캘린더에서 「' + e.title + '」을 엽니다'); },
+      };
+    });
+
+    const todos = (TODOS[key] || []).map((t, i) => {
+      const id = key + ':' + i;
+      const done = s.done[id] !== undefined ? s.done[id] : !!t.done;
+      return {
+        title: t.title, meta: t.min + '분', done,
+        op: done ? 0.5 : 1, deco: done ? 'line-through' : 'none',
+        dotBg: done ? '#2E6A5C' : 'transparent',
+        toggle: (ev) => { ev.stopPropagation(); this.setState(st => ({ done: { ...st.done, [id]: !done } })); },
+        start: () => this.start(t.title, t.min),
+      };
+    });
+
+    const first = new Date(s.year, s.month, 1).getDay();
+    const len = new Date(s.year, s.month + 1, 0).getDate();
+    const selDay = d.getDate(), selMonth = d.getMonth();
+    const cells = [];
+    for (let i = 0; i < first; i++) cells.push({ label: '', bg: 'transparent', fg: 'transparent', border: '0', dot: 'transparent', pick: () => {} });
+    for (let n = 1; n <= len; n++) {
+      const isToday = s.month === 8 && n === 2;
+      const isSel = s.month === selMonth && n === selDay;
+      const hasEv = [2, 3, 4, 8, 11, 12, 17, 22, 25, 28].indexOf(n) >= 0;
+      cells.push({
+        label: String(n),
+        bg: isSel ? '#2E6A5C' : 'transparent',
+        fg: isSel ? '#fff' : '#1B1B18',
+        border: !isSel && isToday ? '1.5px solid #2E6A5C' : '1.5px solid transparent',
+        dot: hasEv && (this.props.showEventDots ?? true) ? (isSel ? 'rgba(255,255,255,.7)' : '#B8B5AD') : 'transparent',
+        pick: () => this.setState({ offset: Math.round((new Date(s.year, s.month, n) - new Date(2026, 8, 2)) / 86400000), calOpen: false }),
+      });
+    }
+
+    const isEvent = s.sheetTab === 'event';
+    const lengthOpts = ['25분', '50분', '1시간'];
+    const enabled = !isEvent || (s.hasCals && s.calId > 0);
+
+    return {
+      dateTitle: (d.getMonth() + 1) + '월 ' + d.getDate() + '일 ' + DAYS[d.getDay()] + '요일',
+      dateSub: s.offset === 0 ? '오늘 · 일정 ' + (EVENTS[key] || []).length + '개' : (s.offset === 1 ? '내일' : (s.offset === -1 ? '어제' : (d.getFullYear() + '년'))),
+      events, todos, cells,
+      weekdays: DAYS.map((w, i) => ({ label: w, color: i === 0 ? '#C4623C' : (i === 6 ? '#3E7BD6' : '#8A8880') })),
+      monthTitle: s.year + '년 ' + (s.month + 1) + '월',
+      calOpen: s.calOpen,
+      openCal: () => this.setState({ calOpen: true, month: d.getMonth(), year: d.getFullYear() }),
+      closeCal: () => this.setState({ calOpen: false }),
+      swallow: (ev) => ev.stopPropagation(),
+      prevMonth: () => this.setState(st => ({ month: st.month === 0 ? 11 : st.month - 1, year: st.month === 0 ? st.year - 1 : st.year })),
+      nextMonth: () => this.setState(st => ({ month: st.month === 11 ? 0 : st.month + 1, year: st.month === 11 ? st.year + 1 : st.year })),
+      prevDay: () => this.setState(st => ({ offset: st.offset - 1 })),
+      nextDay: () => this.setState(st => ({ offset: st.offset + 1 })),
+      openSheet: () => this.flash('＋ 시트 — 오른쪽 화면 2를 보세요'),
+      closeSheet: () => this.flash('취소'),
+      session: !!s.session,
+      sessionLabel: s.session ? s.session.label : '',
+      sessionClock: Math.floor(s.left / 60) + ':' + pad(s.left % 60),
+      stopSession: () => this.setState({ session: null }),
+      toast: s.toast,
+
+      pickTodo: () => this.setState({ sheetTab: 'todo' }),
+      pickEvent: () => this.setState({ sheetTab: 'event' }),
+      tabTodoBg: isEvent ? 'transparent' : '#CFE6DD',
+      tabTodoFg: isEvent ? '#605E58' : '#12372F',
+      tabTodoBorder: isEvent ? '#D6D3CC' : '#CFE6DD',
+      tabEventBg: isEvent ? '#CFE6DD' : 'transparent',
+      tabEventFg: isEvent ? '#12372F' : '#605E58',
+      tabEventBorder: isEvent ? '#CFE6DD' : '#D6D3CC',
+      formTitle: isEvent ? '치과' : '설정 화면 카피 다듬기',
+      field2Label: isEvent ? '시작 시각' : '반복',
+      field2Value: isEvent ? '15:00' : '매일 아님',
+      lengths: lengthOpts.map((l, i) => ({
+        label: l,
+        bg: s.lengthIdx === i ? '#CFE6DD' : 'transparent',
+        fg: s.lengthIdx === i ? '#12372F' : '#605E58',
+        border: s.lengthIdx === i ? '#CFE6DD' : '#D6D3CC',
+        pick: () => this.setState({ lengthIdx: i }),
+      })),
+      formHint: isEvent
+        ? (enabled ? '「내 캘린더」에 저장되고 삼성 캘린더에도 나타납니다.' : '기본 캘린더가 없습니다 — 탭하면 설정으로 갑니다.')
+        : '보고 있는 날짜(9월 2일)의 할 일로 저장됩니다.',
+      hintColor: enabled ? '#8A8880' : '#C4623C',
+      saveLabel: isEvent ? (enabled ? '일정 추가' : '설정에서 캘린더 고르기') : '할 일 추가',
+      saveBg: enabled ? '#2E6A5C' : '#E4E1DA',
+      saveFg: enabled ? '#fff' : '#8A8880',
+      saveCursor: 'pointer',
+      save: () => this.flash(enabled ? '저장했습니다' : '설정 → 일정을 추가할 캘린더'),
+
+      defaultMinutesLabel: dm + '분',
+      hasCalendars: s.hasCals,
+      noCalendars: !s.hasCals,
+      calendars: CALENDARS.map(c => ({
+        name: c.name, account: c.account, color: c.color,
+        ring: s.calId === c.id ? '#2E6A5C' : '#B0AEA6',
+        inner: s.calId === c.id ? '#2E6A5C' : 'transparent',
+        pick: () => this.setState({ calId: c.id }),
+      })),
+      toggleCalendars: () => this.setState(st => ({ hasCals: !st.hasCals, calId: st.hasCals ? 0 : 1 })),
+      switchBg: s.hasCals ? '#C9C6BE' : '#2E6A5C',
+      switchAlign: s.hasCals ? 'flex-start' : 'flex-end',
+    };
+  }
+}
+</script>
+
+
+</body></html>

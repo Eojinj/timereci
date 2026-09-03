@@ -18,12 +18,13 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
-enum class ResumeTarget { TIMER, PUBLISH }
+/** Where a relaunch should land. Completion no longer has a destination of its own — the
+ * session is already saved, and the completion sheet rides on top of whatever is showing. */
+enum class ResumeTarget { TIMER }
 
 /**
- * App-scoped view model. Restores the timer on launch and, if a session was in flight (or
- * finished while the app was dead), asks the navigator to jump straight to the timer or
- * publish screen.
+ * App-scoped view model. Restores the timer on launch and, if a session was in flight, asks
+ * the navigator to jump straight to the timer.
  */
 @HiltViewModel
 class RootViewModel @Inject constructor(
@@ -53,7 +54,7 @@ class RootViewModel @Inject constructor(
                 if (consumed) return@collect
                 _resume.value = when (state.phase) {
                     TimerPhase.RUNNING, TimerPhase.PAUSED -> ResumeTarget.TIMER
-                    TimerPhase.COMPLETED -> ResumeTarget.PUBLISH
+                    TimerPhase.COMPLETED -> null
                     TimerPhase.IDLE -> null
                 }
             }

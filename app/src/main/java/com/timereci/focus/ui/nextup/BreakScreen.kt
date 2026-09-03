@@ -57,7 +57,6 @@ fun BreakScreen(
     fun finish() {
         if (finished) return
         finished = true
-        viewModel.startQueuedSession()
         onDone()
     }
 

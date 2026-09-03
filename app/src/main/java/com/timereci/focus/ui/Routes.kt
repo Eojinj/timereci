@@ -10,23 +10,14 @@ object Routes {
     const val QUICK_START = "quickstart"
 
     /** Always shows whatever FocusTimerController reports — no nav args. A session is started
-     * (by Today, Quick Start, Up Next or Break) *before* navigating here. */
+     * (by Today, Quick Start or the completion sheet) *before* navigating here. */
     const val TIMER = "timer"
 
-    // Shown right after a session completes, to add a photo/note and save or discard it.
-    const val SESSION_COMPLETE = "sessionComplete"
-
-    // Shown after saving when the todo queue still has something in it.
-    const val UP_NEXT = "upNext"
-
-    // A short break before continuing into the next queued task. Carries the task it will
-    // start when the break ends, since the timer screen itself no longer accepts prefill args.
-    const val BREAK = "break?breakMinutes={breakMinutes}&task={task}&minutes={minutes}"
+    /** A short break. It ends by returning to Today — it no longer carries a task to start
+     * afterwards, because the completion sheet is where "what's next" gets decided. */
+    const val BREAK = "break?breakMinutes={breakMinutes}"
     const val ARG_BREAK_MINUTES = "breakMinutes"
-    const val ARG_TASK = "task"
-    const val ARG_MINUTES = "minutes"
-    fun breakScreen(breakMinutes: Int, task: String, minutes: Int) =
-        "break?breakMinutes=$breakMinutes&task=${android.net.Uri.encode(task)}&minutes=$minutes"
+    fun breakScreen(breakMinutes: Int) = "break?breakMinutes=$breakMinutes"
 
     const val HISTORY = "history"
 

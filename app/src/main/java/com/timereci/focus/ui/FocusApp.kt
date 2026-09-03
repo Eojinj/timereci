@@ -50,9 +50,8 @@ import com.timereci.focus.ui.detail.DetailScreen
 import com.timereci.focus.ui.feed.FeedScreen
 import com.timereci.focus.ui.i18n.LocalStrings
 import com.timereci.focus.ui.i18n.Strings
+import com.timereci.focus.ui.completion.CompletionSheet
 import com.timereci.focus.ui.nextup.BreakScreen
-import com.timereci.focus.ui.nextup.NextUpScreen
-import com.timereci.focus.ui.publish.PublishScreen
 import com.timereci.focus.ui.quickstart.QuickStartScreen
 import com.timereci.focus.ui.settings.SettingsScreen
 import com.timereci.focus.ui.stats.StatsScreen
@@ -86,10 +85,6 @@ fun FocusApp(root: RootViewModel = hiltViewModel()) {
         when (resume) {
             ResumeTarget.TIMER -> {
                 navController.navigate(Routes.TIMER) { launchSingleTop = true }
-                root.consumeResume()
-            }
-            ResumeTarget.PUBLISH -> {
-                navController.navigate(Routes.SESSION_COMPLETE) { launchSingleTop = true }
                 root.consumeResume()
             }
             null -> Unit
@@ -129,8 +124,12 @@ fun FocusApp(root: RootViewModel = hiltViewModel()) {
 
                 composable(Routes.TIMER) {
                     TimerScreen(
+                        // The session is saved the moment it completes and the sheet rides
+                        // on top of Today, so finishing just walks back out of the timer.
                         onCompleted = {
-                            navController.navigate(Routes.SESSION_COMPLETE) { launchSingleTop = true }
+                            navController.navigate(Routes.TODAY) {
+                                popUpTo(Routes.TODAY) { inclusive = false }
+                            }
                         },
                         // Stopping never navigates — it just resets in place, back to Today.
                         onAbandon = {
@@ -141,55 +140,16 @@ fun FocusApp(root: RootViewModel = hiltViewModel()) {
                     )
                 }
 
-                composable(Routes.SESSION_COMPLETE) {
-                    PublishScreen(
-                        onFinished = { next ->
-                            if (next != null) {
-                                // Queue has more — offer to continue straight into it.
-                                navController.navigate(Routes.UP_NEXT) {
-                                    popUpTo(Routes.TODAY) { inclusive = false }
-                                }
-                            } else {
-                                navController.navigate(Routes.HISTORY) {
-                                    popUpTo(Routes.TODAY) { inclusive = false }
-                                }
-                            }
-                        },
-                    )
-                }
-
-                composable(Routes.UP_NEXT) {
-                    NextUpScreen(
-                        onContinueNow = {
-                            navController.navigate(Routes.TIMER) {
-                                popUpTo(Routes.TODAY) { inclusive = false }
-                                launchSingleTop = true
-                            }
-                        },
-                        onBreak = { breakMinutes, task, minutes ->
-                            navController.navigate(Routes.breakScreen(breakMinutes, task, minutes))
-                        },
-                        onSkip = {
-                            navController.navigate(Routes.HISTORY) {
-                                popUpTo(Routes.TODAY) { inclusive = false }
-                            }
-                        },
-                    )
-                }
-
                 composable(
                     route = Routes.BREAK,
                     arguments = listOf(
                         navArgument(Routes.ARG_BREAK_MINUTES) { type = NavType.IntType },
-                        navArgument(Routes.ARG_TASK) { type = NavType.StringType; defaultValue = "" },
-                        navArgument(Routes.ARG_MINUTES) { type = NavType.IntType; defaultValue = 25 },
                     ),
                 ) {
                     BreakScreen(
                         onDone = {
-                            navController.navigate(Routes.TIMER) {
+                            navController.navigate(Routes.TODAY) {
                                 popUpTo(Routes.TODAY) { inclusive = false }
-                                launchSingleTop = true
                             }
                         },
                     )
@@ -237,6 +197,18 @@ fun FocusApp(root: RootViewModel = hiltViewModel()) {
                     SettingsScreen()
                 }
             }
+
+            // Outside the NavHost: a completed session should be able to surface over
+            // whatever screen happens to be showing.
+            CompletionSheet(
+                onStartNext = {
+                    navController.navigate(Routes.TIMER) {
+                        popUpTo(Routes.TODAY) { inclusive = false }
+                        launchSingleTop = true
+                    }
+                },
+                onTakeBreak = { minutes -> navController.navigate(Routes.breakScreen(minutes)) },
+            )
 
             if (currentRoute in TAB_ROUTES) {
                 BottomTabBar(

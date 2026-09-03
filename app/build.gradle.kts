@@ -7,11 +7,11 @@ plugins {
 }
 
 android {
-    namespace = "com.timereci.focus"
+    namespace = "com.haruchi.today"
     compileSdk = 35
 
     defaultConfig {
-        applicationId = "com.timereci.focus"
+        applicationId = "com.haruchi.today"
         minSdk = 26
         targetSdk = 35
         versionCode = 1

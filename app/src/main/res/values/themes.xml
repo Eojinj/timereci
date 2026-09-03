@@ -2,7 +2,7 @@
 <resources>
     <!-- Base theme kept minimal: the UI is drawn entirely with Compose + Material 3.
          A translucent status bar lets the edge-to-edge Compose content show through. -->
-    <style name="Theme.Timereci" parent="android:Theme.Material.Light.NoActionBar">
+    <style name="Theme.Haruchi" parent="android:Theme.Material.Light.NoActionBar">
         <item name="android:statusBarColor">@android:color/transparent</item>
         <item name="android:navigationBarColor">@android:color/transparent</item>
         <item name="android:windowLightStatusBar">true</item>

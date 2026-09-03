@@ -1,4 +1,5 @@
 <resources>
+    <string name="app_name">하루치</string>
     <!-- Notification copy only. The in-app UI is localized through ui/i18n/Strings.kt, which
          follows the app's own language setting rather than the device locale. -->
     <string name="timer_channel_name">집중 타이머</string>

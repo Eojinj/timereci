@@ -1096,7 +1096,7 @@ Expected: 7 tests, all PASS
    - `settings.dimPastEvents && row.isPast`면 행 전체 `alpha 0.45`
 4. **`할 일` 섹션 라벨** — 같은 모양, 오른쪽 힌트 없음
 5. **할일 행** (`tasks`) — 22dp 원형 체크(테두리 1.5dp `InkFainter`, 완료 시 `Green` 채움 + 흰 체크) · 제목(완료 시 취소선) · 메타. 메타는 `50분`, 이월된 것은 `50분 · 3일째`. 완료 행은 `alpha 0.5`. 체크는 행 시작과 따로 동작해야 한다
-6. **세션 바** — 세션이 도는 동안 하단 고정. 모서리 24dp, `Green` 바탕, 그림자. `집중 중`(400/11 `GreenSofter`) · 이름(500/15 흰색, 한 줄 말줄임) · 시계(Roboto 500/30, tabular figures) · 44dp 원형 `정지`. 기존 `SessionOverlayCard`를 이 모양으로 고친다
+6. **세션 바** — 세션이 도는 동안 하단 고정. 모서리 24dp, `Green` 바탕, 그림자. `집중 중`(400/11 `GreenSofter`) · 이름(500/15 흰색, 한 줄 말줄임) · 시계(Roboto 500/30, tabular figures) · 44dp 원형 `정지`. **처음부터 만든다** — 계획 1을 실행하면서 `SessionOverlayCard`가 아무데서도 쓰이지 않는 죽은 코드임이 드러나 함께 지웠다
 7. **FAB `＋`** — 오른쪽 아래 16dp/20dp 띄우고 64×64, 모서리 20dp, `GreenSoft` 바탕에 `GreenDark` 글자. Task 7의 시트를 연다
 8. **토스트** — 하단 좌우 16dp, 모서리 12dp, `Toast` 바탕/글자. 2.2초 뒤 사라진다
 

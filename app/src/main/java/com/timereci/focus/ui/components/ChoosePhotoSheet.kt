@@ -44,8 +44,6 @@ import com.timereci.focus.data.PhotoRef
 import com.timereci.focus.data.PhotoStorage
 import com.timereci.focus.ui.i18n.LocalStrings
 import com.timereci.focus.ui.theme.FocusColors
-import com.timereci.focus.ui.theme.PhotoTones
-import com.timereci.focus.ui.theme.patternPlaceholder
 
 /**
  * The one photo-picking sheet in the app (Merci v5 screen 3): a grid of recently-used photos
@@ -130,8 +128,7 @@ fun ChoosePhotoSheet(
                                 .aspectRatio(1f)
                                 .clip(RoundedCornerShape(14.dp))
                                 .then(
-                                    if (name == null) Modifier.patternPlaceholder(ref.toneIndex)
-                                    else Modifier.background(PhotoTones.brush(ref.toneIndex)),
+                                    Modifier.background(FocusColors.Mist),
                                 )
                                 .clickable { onPickRecent(ref) },
                         ) {

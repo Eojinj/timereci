@@ -2,7 +2,6 @@ package com.timereci.focus.ui.model
 
 import com.timereci.focus.data.PhotoRef
 import com.timereci.focus.data.ReceiptEntity
-import com.timereci.focus.ui.theme.PhotoTones
 import com.timereci.focus.ui.util.Formatters
 import java.time.LocalDate
 
@@ -24,7 +23,7 @@ fun ReceiptEntity.toSessionCard() = SessionCard(
     task = taskLabel,
     focus = Formatters.focus(focusedMs),
     focusMs = focusedMs,
-    photos = photos.ifEmpty { listOf(PhotoRef(toneIndex = PhotoTones.indexFor(id))) },
+    photos = photos.ifEmpty { listOf(PhotoRef()) },
     comment = comment,
 )
 

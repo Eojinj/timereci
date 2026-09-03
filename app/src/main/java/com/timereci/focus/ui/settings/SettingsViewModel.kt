@@ -3,7 +3,6 @@ package com.timereci.focus.ui.settings
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.timereci.focus.data.FocusSettings
-import com.timereci.focus.data.PhotoAspect
 import com.timereci.focus.data.SettingsRepository
 import com.timereci.focus.ui.i18n.AppLanguage
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -29,9 +28,6 @@ class SettingsViewModel @Inject constructor(
         settingsRepository.setKeepRunningWhileCommenting(value)
     }
 
-    fun setPhotoAspect(value: PhotoAspect) = viewModelScope.launch {
-        settingsRepository.setPhotoAspect(value)
-    }
 
     fun setAlertWhenSessionEnds(value: Boolean) = viewModelScope.launch {
         settingsRepository.setAlertWhenSessionEnds(value)

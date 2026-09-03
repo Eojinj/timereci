@@ -54,8 +54,6 @@ import com.timereci.focus.ui.i18n.durationOf
 import com.timereci.focus.ui.model.FeedDay
 import com.timereci.focus.ui.model.SessionCard
 import com.timereci.focus.ui.theme.FocusColors
-import com.timereci.focus.ui.theme.PhotoTones
-import com.timereci.focus.ui.theme.patternPlaceholder
 import java.time.LocalDate
 
 private enum class HistoryViewMode { GALLERY, COMMENTS }
@@ -286,8 +284,7 @@ private fun PhotoTile(session: SessionCard, onClick: () -> Unit, modifier: Modif
             .aspectRatio(1f)
             .clip(RoundedCornerShape(14.dp))
             .then(
-                if (photo.fileName == null) Modifier.patternPlaceholder(photo.toneIndex)
-                else Modifier.background(PhotoTones.brush(photo.toneIndex)),
+                Modifier.background(FocusColors.Mist),
             )
             .clickable(onClick = onClick),
     ) {

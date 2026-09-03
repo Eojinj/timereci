@@ -1,7 +1,5 @@
 package com.timereci.focus.ui.detail
 
-import android.content.Intent
-import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -45,7 +43,6 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.graphics.layer.drawLayer
-import androidx.compose.ui.graphics.rememberGraphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -60,8 +57,6 @@ import com.timereci.focus.data.PhotoStorage
 import com.timereci.focus.ui.components.IconActionButton
 import com.timereci.focus.ui.i18n.LocalStrings
 import com.timereci.focus.ui.theme.FocusColors
-import com.timereci.focus.ui.theme.PhotoTones
-import com.timereci.focus.ui.theme.patternPlaceholder
 import kotlinx.coroutines.launch
 
 /**
@@ -77,7 +72,6 @@ fun DetailScreen(
     val strings = LocalStrings.current
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    val graphicsLayer = rememberGraphicsLayer()
     var editingNote by remember { mutableStateOf(false) }
     var confirmDelete by remember { mutableStateOf(false) }
 
@@ -102,27 +96,6 @@ fun DetailScreen(
                 horizontalArrangement = Arrangement.SpaceBetween,
             ) {
                 IconActionButton(icon = Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = strings.back, onClick = onBack, size = 38.dp)
-                IconActionButton(
-                    icon = Icons.Outlined.Share,
-                    contentDescription = strings.share,
-                    size = 38.dp,
-                    onClick = {
-                        scope.launch {
-                            val bitmap = graphicsLayer.toImageBitmap().asAndroidBitmap()
-                            val uri = Exporter.saveToGallery(context, bitmap, "merci_${card?.id ?: 0}")
-                            if (uri != null) {
-                                val send = Intent(Intent.ACTION_SEND).apply {
-                                    type = "image/png"
-                                    putExtra(Intent.EXTRA_STREAM, uri)
-                                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                                }
-                                context.startActivity(Intent.createChooser(send, null))
-                            } else {
-                                Toast.makeText(context, strings.shareFailed, Toast.LENGTH_SHORT).show()
-                            }
-                        }
-                    },
-                )
             }
 
             val current = card
@@ -136,13 +109,8 @@ fun DetailScreen(
                             .aspectRatio(4f / 3f)
                             .clip(RoundedCornerShape(18.dp))
                             .then(
-                                if (photo.fileName == null) Modifier.patternPlaceholder(photo.toneIndex)
-                                else Modifier.background(PhotoTones.brush(photo.toneIndex)),
+                                Modifier.background(FocusColors.Mist),
                             )
-                            .drawWithContent {
-                                graphicsLayer.record { this@drawWithContent.drawContent() }
-                                drawLayer(graphicsLayer)
-                            },
                     ) {
                         photo.fileName?.let { name ->
                             AsyncImage(

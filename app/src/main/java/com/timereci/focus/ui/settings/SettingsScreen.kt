@@ -39,7 +39,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.timereci.focus.data.PhotoAspect
 import com.timereci.focus.ui.i18n.AppLanguage
 import com.timereci.focus.ui.i18n.LocalStrings
 import com.timereci.focus.ui.i18n.Strings
@@ -54,7 +53,6 @@ fun SettingsScreen(
     val strings = LocalStrings.current
     val context = LocalContext.current
     var showDurationPicker by remember { mutableStateOf(false) }
-    var showShapePicker by remember { mutableStateOf(false) }
     var showLanguagePicker by remember { mutableStateOf(false) }
 
     Box(
@@ -103,12 +101,6 @@ fun SettingsScreen(
                 )
             }
 
-            SectionLabel(strings.photosSection)
-            Group {
-                val shapeLabel = if (settings.photoAspect == PhotoAspect.SQUARE) strings.shapeSquare else strings.shapePortrait
-                ValueRow(strings.photoShape, shapeLabel, onClick = { showShapePicker = true })
-            }
-
             SectionLabel(strings.notificationsSection)
             Group {
                 ToggleRow(
@@ -147,13 +139,6 @@ fun SettingsScreen(
             presets = settings.durationPresets,
             onPick = { viewModel.setDefaultDuration(it); showDurationPicker = false },
             onDismiss = { showDurationPicker = false },
-        )
-    }
-    if (showShapePicker) {
-        ShapePickerDialog(
-            current = settings.photoAspect,
-            onPick = { viewModel.setPhotoAspect(it); showShapePicker = false },
-            onDismiss = { showShapePicker = false },
         )
     }
     if (showLanguagePicker) {
@@ -287,29 +272,3 @@ private fun DurationPickerDialog(current: Long, presets: List<Int>, onPick: (Lon
     )
 }
 
-@Composable
-private fun ShapePickerDialog(current: PhotoAspect, onPick: (PhotoAspect) -> Unit, onDismiss: () -> Unit) {
-    val strings = LocalStrings.current
-    androidx.compose.material3.AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(strings.photoShape, fontWeight = FontWeight.Bold) },
-        text = {
-            Column {
-                PhotoAspect.entries.forEach { aspect ->
-                    val label = if (aspect == PhotoAspect.SQUARE) strings.shapeSquare else strings.shapePortrait
-                    Row(
-                        Modifier.fillMaxWidth().clickable { onPick(aspect) }.padding(vertical = 12.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                    ) {
-                        Text(label, color = FocusColors.Ink, fontSize = 16.sp)
-                        if (aspect == current) Text("✓", color = FocusColors.AccentBlue, fontSize = 16.sp)
-                    }
-                }
-            }
-        },
-        confirmButton = {},
-        dismissButton = {
-            Text(strings.cancel, color = FocusColors.AccentBlue, fontSize = 15.sp, modifier = Modifier.clickable(onClick = onDismiss))
-        },
-    )
-}

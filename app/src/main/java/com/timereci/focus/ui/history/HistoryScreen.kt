@@ -1,4 +1,4 @@
-package com.timereci.focus.ui.feed
+package com.timereci.focus.ui.history
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -65,10 +65,10 @@ private enum class HistoryViewMode { GALLERY, COMMENTS }
  * the comments, for reading back over what you wrote without the photos.
  */
 @Composable
-fun FeedScreen(
+fun HistoryScreen(
     onOpenReceipt: (Long) -> Unit,
     onOpenStats: () -> Unit,
-    viewModel: FeedViewModel = hiltViewModel(),
+    viewModel: HistoryViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     var mode by remember { mutableStateOf(HistoryViewMode.GALLERY) }

@@ -1,4 +1,4 @@
-package com.timereci.focus.ui.todo
+package com.timereci.focus.ui.today
 
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
@@ -74,11 +74,11 @@ import com.timereci.focus.ui.theme.FocusColors
  * (screen 11) — the only swipe gesture in the app.
  */
 @Composable
-fun TodoScreen(
+fun TodayScreen(
     onOpenQuickStart: () -> Unit,
     onStartedSession: () -> Unit,
     onOpenTaskStats: (String) -> Unit,
-    viewModel: TodoViewModel = hiltViewModel(),
+    viewModel: TodayViewModel = hiltViewModel(),
 ) {
     val planned by viewModel.planned.collectAsStateWithLifecycle()
     val favorites by viewModel.favorites.collectAsStateWithLifecycle()

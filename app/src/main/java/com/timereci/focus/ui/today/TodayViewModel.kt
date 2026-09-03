@@ -1,4 +1,4 @@
-package com.timereci.focus.ui.todo
+package com.timereci.focus.ui.today
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -19,7 +19,7 @@ import javax.inject.Inject
 data class TodaySummary(val sessionCount: Int, val focusedMs: Long)
 
 @HiltViewModel
-class TodoViewModel @Inject constructor(
+class TodayViewModel @Inject constructor(
     private val repository: FocusRepository,
     private val controller: FocusTimerController,
 ) : ViewModel() {

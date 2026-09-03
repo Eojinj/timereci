@@ -1,4 +1,4 @@
-package com.timereci.focus.ui.feed
+package com.timereci.focus.ui.history
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -27,7 +27,7 @@ sealed interface FeedUiState {
 }
 
 @HiltViewModel
-class FeedViewModel @Inject constructor(
+class HistoryViewModel @Inject constructor(
     repository: FocusRepository,
 ) : ViewModel() {
 

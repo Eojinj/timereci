@@ -47,7 +47,7 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.timereci.focus.ui.detail.DetailScreen
-import com.timereci.focus.ui.feed.FeedScreen
+import com.timereci.focus.ui.history.HistoryScreen
 import com.timereci.focus.ui.i18n.LocalStrings
 import com.timereci.focus.ui.i18n.Strings
 import com.timereci.focus.ui.completion.CompletionSheet
@@ -58,7 +58,7 @@ import com.timereci.focus.ui.stats.StatsScreen
 import com.timereci.focus.ui.stats.TaskStatsScreen
 import com.timereci.focus.ui.theme.FocusColors
 import com.timereci.focus.ui.timer.TimerScreen
-import com.timereci.focus.ui.todo.TodoScreen
+import com.timereci.focus.ui.today.TodayScreen
 import com.timereci.focus.ui.util.findActivity
 
 /** The three tabs — everything else (quick start, timer, session complete, …) is a drill-down. */
@@ -102,7 +102,7 @@ fun FocusApp(root: RootViewModel = hiltViewModel()) {
                 popExitTransition = { fadeOut(tween(180)) },
             ) {
                 composable(Routes.TODAY) {
-                    TodoScreen(
+                    TodayScreen(
                         onOpenQuickStart = { navController.navigate(Routes.QUICK_START) },
                         onStartedSession = {
                             navController.navigate(Routes.TIMER) { launchSingleTop = true }
@@ -156,7 +156,7 @@ fun FocusApp(root: RootViewModel = hiltViewModel()) {
                 }
 
                 composable(Routes.HISTORY) {
-                    FeedScreen(
+                    HistoryScreen(
                         onOpenReceipt = { id -> navController.navigate(Routes.sessionDetail(id)) },
                         onOpenStats = { navController.navigate(Routes.STATS) },
                     )

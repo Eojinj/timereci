@@ -24,6 +24,9 @@ class FocusRepository @Inject constructor(
 
     suspend fun getReceipt(id: Long): ReceiptEntity? = receiptDao.getById(id)
 
+    suspend fun receiptExistsForSession(startedAtEpoch: Long): Boolean =
+        startedAtEpoch != 0L && receiptDao.countForSession(startedAtEpoch) > 0
+
     suspend fun publish(receipt: ReceiptEntity): Long = receiptDao.insert(receipt)
 
     suspend fun updateReceipt(receipt: ReceiptEntity) = receiptDao.update(receipt)

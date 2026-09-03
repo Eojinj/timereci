@@ -31,6 +31,12 @@ data class ReceiptEntity(
     /** Ordered photos; empty means the card shows a gradient placeholder. */
     val photos: List<PhotoRef> = emptyList(),
 
+    /** The session's start time, used only to tell two sessions apart. Auto-saving happens
+     * when the timer reaches COMPLETED, and a crash between saving and resetting would
+     * otherwise let the same session be recorded twice on the next launch. 0 for rows
+     * written before this column existed. */
+    val startedAtEpoch: Long = 0L,
+
     /** Unused: a leftover column from the original concept. Kept only so the stored schema
      * stays as-is; dropping it would need another Room migration for no user-visible gain. */
     val themeId: String = "mono",

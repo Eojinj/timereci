@@ -5,7 +5,12 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.content.Context
 import com.timereci.focus.timer.FocusTimerService
+import com.timereci.focus.timer.SessionRecorder
 import dagger.hilt.android.HiltAndroidApp
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import javax.inject.Inject
 
 /**
  * Application entry point. Annotated with [HiltAndroidApp] so Hilt can generate the
@@ -14,9 +19,16 @@ import dagger.hilt.android.HiltAndroidApp
 @HiltAndroidApp
 class FocusReceiptApp : Application() {
 
+    @Inject lateinit var sessionRecorder: SessionRecorder
+
+    /** Outlives every screen, so a session still gets recorded when the timer finishes with
+     * no UI on screen. */
+    private val appScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+
     override fun onCreate() {
         super.onCreate()
         createTimerNotificationChannels()
+        sessionRecorder.attach(appScope)
     }
 
     private fun createTimerNotificationChannels() {

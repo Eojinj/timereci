@@ -19,6 +19,9 @@ interface ReceiptDao {
     @Query("SELECT * FROM receipts WHERE id = :id")
     suspend fun getById(id: Long): ReceiptEntity?
 
+    @Query("SELECT COUNT(*) FROM receipts WHERE startedAtEpoch = :startedAtEpoch")
+    suspend fun countForSession(startedAtEpoch: Long): Int
+
     @Insert
     suspend fun insert(receipt: ReceiptEntity): Long
 
